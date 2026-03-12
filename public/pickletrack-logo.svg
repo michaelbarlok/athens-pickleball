@@ -1,47 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 360" width="500" height="360">
   <!-- Motion trail lines -->
-  <line x1="105" y1="235" x2="145" y2="175" stroke="#564154" stroke-width="6" stroke-linecap="round"/>
-  <line x1="120" y1="245" x2="155" y2="195" stroke="#FF6542" stroke-width="5" stroke-linecap="round"/>
-  <line x1="135" y1="252" x2="163" y2="212" stroke="#564154" stroke-width="4" stroke-linecap="round"/>
+  <line x1="150" y1="230" x2="190" y2="170" stroke="#564154" stroke-width="6" stroke-linecap="round"/>
+  <line x1="165" y1="240" x2="200" y2="190" stroke="#FF6542" stroke-width="5" stroke-linecap="round"/>
+  <line x1="180" y1="247" x2="208" y2="207" stroke="#564154" stroke-width="4" stroke-linecap="round"/>
 
   <!-- Pickleball - outer ring (plum border) -->
-  <circle cx="245" cy="130" r="88" fill="#88498F"/>
+  <circle cx="290" cy="125" r="88" fill="#88498F"/>
   <!-- Pickleball - inner orange fill -->
-  <circle cx="245" cy="130" r="80" fill="#FF6542"/>
+  <circle cx="290" cy="125" r="80" fill="#FF6542"/>
 
   <!-- Pickleball holes -->
-  <!-- Top area -->
-  <ellipse cx="228" cy="68" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="265" cy="75" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="248" cy="85" rx="6" ry="5.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="273" cy="63" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="310" cy="70" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="293" cy="80" rx="6" ry="5.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
 
-  <!-- Upper middle -->
-  <ellipse cx="195" cy="100" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="225" cy="105" rx="9" ry="8" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="260" cy="100" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="290" cy="105" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="240" cy="95" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="270" cy="100" rx="9" ry="8" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="305" cy="95" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="335" cy="100" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
 
-  <!-- Center row -->
-  <ellipse cx="185" cy="130" rx="7" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="215" cy="135" rx="9" ry="8.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="250" cy="130" rx="10" ry="9" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="283" cy="132" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="308" cy="125" rx="6" ry="6" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="230" cy="125" rx="7" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="260" cy="130" rx="9" ry="8.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="295" cy="125" rx="10" ry="9" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="328" cy="127" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="353" cy="120" rx="6" ry="6" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
 
-  <!-- Lower middle -->
-  <ellipse cx="200" cy="160" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="235" cy="162" rx="9" ry="8" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="268" cy="158" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="298" cy="155" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="245" cy="155" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="280" cy="157" rx="9" ry="8" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="313" cy="153" rx="8" ry="7.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="343" cy="150" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
 
-  <!-- Bottom area -->
-  <ellipse cx="220" cy="188" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="255" cy="185" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
-  <ellipse cx="240" cy="200" rx="6" ry="5.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="265" cy="183" rx="7" ry="6.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="300" cy="180" rx="8" ry="7" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
+  <ellipse cx="285" cy="195" rx="6" ry="5.5" fill="#E8522E" stroke="#D4461F" stroke-width="1"/>
 
-  <!-- "PickleTrack" text -->
-  <!-- "Pickle" in plum -->
-  <text x="52" y="330" font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="72" fill="#88498F" letter-spacing="-1">Pickle</text>
-  <!-- "Track" in dark aubergine -->
-  <text x="248" y="330" font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="72" fill="#564154" letter-spacing="-1">Track</text>
+  <!-- "PickleTrack" text centered -->
+  <text x="250" y="325" text-anchor="middle" font-family="'Trebuchet MS', 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="68" fill="#88498F" letter-spacing="-1">Pickle<tspan fill="#564154">Track</tspan></text>
 </svg>
