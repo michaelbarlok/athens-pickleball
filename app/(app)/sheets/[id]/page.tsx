@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatDate, formatTime } from "@/lib/utils";
 import type { Registration, Profile } from "@/types/database";
 import { SheetActions } from "./sheet-actions";
+import { AdminAddMember } from "./admin-add-member";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,25 @@ export default async function SheetDetailPage({
     : false;
   const isCancelled = sheet.status === "cancelled";
   const isFull = confirmed.length >= sheet.player_limit;
+  const isAdmin = profile.role === "admin";
+
+  // Add-member: admins always, regular members when allow_member_guests is on
+  const canAddMembers = isAdmin || (sheet.allow_member_guests && !signupClosed);
+  const registeredPlayerIds = new Set(
+    (registrations ?? []).map((r: Registration) => r.player_id)
+  );
+  let availableMembers: { id: string; display_name: string }[] = [];
+  if (canAddMembers && !isCancelled) {
+    const { data: allProfiles } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .eq("is_active", true)
+      .order("display_name", { ascending: true });
+
+    availableMembers = (allProfiles ?? []).filter(
+      (p) => !registeredPlayerIds.has(p.id)
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -172,6 +192,11 @@ export default async function SheetDetailPage({
           withdrawClosed={withdrawClosed}
           isFull={isFull}
         />
+      )}
+
+      {/* Add a member (admins always, regular members when enabled) */}
+      {canAddMembers && !isCancelled && (
+        <AdminAddMember sheetId={sheet.id} members={availableMembers} />
       )}
 
       {/* Confirmed Players */}

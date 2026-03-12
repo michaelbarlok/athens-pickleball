@@ -31,18 +31,72 @@ export async function POST(
       );
     }
 
-    // Call RPC — function is SECURITY DEFINER so it bypasses RLS internally
-    const { error: rpcError } = await supabase.rpc(
-      "withdraw_from_sheet",
-      {
-        p_sheet_id: sheetId,
-        p_player_id: profile.id,
-      }
-    );
+    // Find the registration
+    const { data: registration, error: regError } = await supabase
+      .from("registrations")
+      .select("id, status")
+      .eq("sheet_id", sheetId)
+      .eq("player_id", profile.id)
+      .in("status", ["confirmed", "waitlist"])
+      .single();
 
-    if (rpcError) {
-      console.error("withdraw_from_sheet RPC error:", rpcError);
-      return NextResponse.json({ error: rpcError.message }, { status: 400 });
+    if (regError || !registration) {
+      return NextResponse.json(
+        { error: "Registration not found" },
+        { status: 404 }
+      );
+    }
+
+    const wasConfirmed = registration.status === "confirmed";
+
+    // Mark as withdrawn
+    const { error: updateError } = await supabase
+      .from("registrations")
+      .update({ status: "withdrawn" })
+      .eq("id", registration.id);
+
+    if (updateError) {
+      console.error("Withdraw error:", updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+
+    // If the player was confirmed, promote the first waitlisted player
+    if (wasConfirmed) {
+      const { data: nextWaitlist } = await supabase
+        .from("registrations")
+        .select("id, waitlist_position")
+        .eq("sheet_id", sheetId)
+        .eq("status", "waitlist")
+        .order("waitlist_position", { ascending: true })
+        .limit(1)
+        .single();
+
+      if (nextWaitlist) {
+        await supabase
+          .from("registrations")
+          .update({ status: "confirmed", waitlist_position: null })
+          .eq("id", nextWaitlist.id);
+
+        // Reorder remaining waitlist
+        if (nextWaitlist.waitlist_position != null) {
+          // Fetch remaining waitlisted and update positions
+          const { data: remaining } = await supabase
+            .from("registrations")
+            .select("id, waitlist_position")
+            .eq("sheet_id", sheetId)
+            .eq("status", "waitlist")
+            .order("waitlist_position", { ascending: true });
+
+          if (remaining) {
+            for (let i = 0; i < remaining.length; i++) {
+              await supabase
+                .from("registrations")
+                .update({ waitlist_position: i + 1 })
+                .eq("id", remaining[i].id);
+            }
+          }
+        }
+      }
     }
 
     revalidatePath(`/sheets/${sheetId}`);

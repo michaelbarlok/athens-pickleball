@@ -405,7 +405,7 @@ export default function NewSheetPage() {
               className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
             />
             <label htmlFor="allowMemberGuests" className="text-sm font-medium text-gray-700">
-              Allow members to add guests
+              Allow members to add other members
             </label>
           </div>
           <div className="flex items-center gap-3">
