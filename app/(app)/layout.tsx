@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AppNav } from "./nav";
+import { MissingProfile } from "./missing-profile";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -14,7 +15,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq("user_id", user.id)
     .single();
 
-  if (!profile) redirect("/login");
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <MissingProfile />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
