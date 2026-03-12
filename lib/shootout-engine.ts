@@ -1,7 +1,14 @@
 /**
  * Shootout Ladder Engine
  * Pure functions for the core ladder algorithm — fully unit testable.
+ *
+ * v2: Extended with distributeCourts, step movement, pool seeding,
+ * same-day session detection, and tie-breaking per the v4 brief.
  */
+
+// ============================================================
+// Types
+// ============================================================
 
 export interface PlayerPosition {
   playerId: string;
@@ -20,6 +27,311 @@ export interface CourtAssignment {
   team2: string[];
 }
 
+export interface CourtDistribution {
+  court: number;
+  size: number;
+}
+
+export interface RankedPlayer {
+  id: string;
+  currentStep: number;
+  winPct: number;
+  lastPlayedAt: string | null;
+  totalSessions: number;
+}
+
+export interface SeedablePlayer extends RankedPlayer {
+  targetCourtNext?: number | null;
+  seedSource: "previous_court" | "ranking_sheet";
+  assignedCourt?: number;
+}
+
+export interface PoolResult {
+  playerId: string;
+  courtNumber: number;
+  wins: number;
+  pointDiff: number;
+  h2hPoints: Map<string, number>;
+  poolFinish?: number;
+}
+
+// ============================================================
+// Court Distribution
+// ============================================================
+
+/**
+ * Distribute players across courts.
+ * Higher-numbered courts get 5 players first; lower courts get 4.
+ * Each court must have 4 or 5 players.
+ */
+export function distributeCourts(
+  playerCount: number,
+  numCourts: number
+): CourtDistribution[] {
+  const base = Math.floor(playerCount / numCourts);
+  const extras = playerCount % numCourts;
+
+  if (base < 4 || (base === 4 && extras > numCourts) || base > 5) {
+    throw new Error(
+      `Invalid distribution: ${playerCount} players across ${numCourts} courts requires 4-5 per court`
+    );
+  }
+
+  // extras courts get (base+1) players — assigned to HIGHEST court numbers
+  return Array.from({ length: numCourts }, (_, i) => {
+    const courtNum = i + 1;
+    const isHighCourt = courtNum > numCourts - extras;
+    return { court: courtNum, size: isHighCourt ? base + 1 : base };
+  });
+}
+
+// ============================================================
+// Session 1 Seeding (Standard Ranking Sheet Sort)
+// ============================================================
+
+/**
+ * Sort players by ranking sheet order for session 1 of the day.
+ * Step ASC → Win% DESC → Last Played DESC → Total Sessions DESC
+ */
+export function rankingSheetSort(players: RankedPlayer[]): RankedPlayer[] {
+  return [...players].sort((a, b) => {
+    // Step ASC (lower = better)
+    if (a.currentStep !== b.currentStep) return a.currentStep - b.currentStep;
+    // Win% DESC (higher = better)
+    if (a.winPct !== b.winPct) return b.winPct - a.winPct;
+    // Last Played DESC (more recent = better)
+    const aTime = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
+    const bTime = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
+    if (aTime !== bTime) return bTime - aTime;
+    // Total Sessions DESC
+    return b.totalSessions - a.totalSessions;
+  });
+}
+
+/**
+ * Seed players to courts for Session 1 of the day using ranking sheet sort.
+ */
+export function seedSession1(
+  players: RankedPlayer[],
+  numCourts: number
+): PlayerPosition[] {
+  const sorted = rankingSheetSort(players);
+  const courts = distributeCourts(sorted.length, numCourts);
+  const positions: PlayerPosition[] = [];
+  let playerIdx = 0;
+
+  for (const court of courts) {
+    for (let i = 0; i < court.size; i++) {
+      if (playerIdx < sorted.length) {
+        positions.push({
+          playerId: sorted[playerIdx].id,
+          courtNumber: court.court,
+        });
+        playerIdx++;
+      }
+    }
+  }
+
+  return positions;
+}
+
+// ============================================================
+// Same-Day Session Seeding (Previous Court Anchor)
+// ============================================================
+
+/**
+ * Seed players for Session 2+ of the same day using previous court anchors.
+ * Players with a target_court_next are anchored; new joiners fall back to ranking sort.
+ */
+export function seedSameDaySession(
+  players: SeedablePlayer[],
+  numCourts: number
+): PlayerPosition[] {
+  const courts = distributeCourts(players.length, numCourts);
+  const courtSizes = new Map(courts.map((c) => [c.court, c.size]));
+
+  // Separate anchored and non-anchored players
+  const anchored = players
+    .filter((p) => p.seedSource === "previous_court" && p.targetCourtNext != null)
+    .map((p) => ({
+      ...p,
+      assignedCourt: Math.max(1, Math.min(numCourts, p.targetCourtNext!)),
+    }));
+
+  const nonAnchored = rankingSheetSort(
+    players.filter(
+      (p) => p.seedSource === "ranking_sheet" || p.targetCourtNext == null
+    )
+  );
+
+  // Build court pools with anchored players
+  const courtPools = new Map<number, RankedPlayer[]>();
+  for (let c = 1; c <= numCourts; c++) courtPools.set(c, []);
+
+  for (const p of anchored) {
+    courtPools.get(p.assignedCourt!)!.push(p);
+  }
+
+  // Insert non-anchored players into courts that have space
+  for (const p of nonAnchored) {
+    // Find the court where this player's step/% would place them
+    let bestCourt = 1;
+    for (let c = 1; c <= numCourts; c++) {
+      const pool = courtPools.get(c)!;
+      if (pool.length < courtSizes.get(c)!) {
+        bestCourt = c;
+        break;
+      }
+    }
+    // If best court is full, find any court with space
+    if (courtPools.get(bestCourt)!.length >= courtSizes.get(bestCourt)!) {
+      for (let c = numCourts; c >= 1; c--) {
+        if (courtPools.get(c)!.length < courtSizes.get(c)!) {
+          bestCourt = c;
+          break;
+        }
+      }
+    }
+    courtPools.get(bestCourt)!.push(p);
+  }
+
+  // Resolve overflow: shift non-anchored players from overfull courts
+  resolveOverflow(courtPools, courtSizes, numCourts);
+
+  // Flatten to positions
+  const positions: PlayerPosition[] = [];
+  for (const [courtNum, pool] of courtPools) {
+    for (const p of pool) {
+      positions.push({ playerId: p.id, courtNumber: courtNum });
+    }
+  }
+
+  return positions;
+}
+
+/**
+ * Resolve overflow when courts exceed their target size.
+ * Non-anchored players shift first; anchored players are immovable.
+ */
+function resolveOverflow(
+  courtPools: Map<number, RankedPlayer[]>,
+  courtSizes: Map<number, number>,
+  numCourts: number
+): void {
+  for (let c = 1; c <= numCourts; c++) {
+    const pool = courtPools.get(c)!;
+    const targetSize = courtSizes.get(c)!;
+
+    while (pool.length > targetSize) {
+      // Find a non-anchored player to shift
+      const shiftIdx = pool.findIndex(
+        (p) => {
+          const sp = p as SeedablePlayer;
+          return sp.seedSource === "ranking_sheet" || sp.targetCourtNext == null;
+        }
+      );
+
+      if (shiftIdx === -1) {
+        // All anchored — shift worst tiebreak rank among non-1st finishers
+        const worst = pool[pool.length - 1];
+        pool.pop();
+        const nextCourt = Math.min(c + 1, numCourts);
+        if (nextCourt !== c) {
+          courtPools.get(nextCourt)!.push(worst);
+        }
+      } else {
+        const player = pool.splice(shiftIdx, 1)[0];
+        // Push to next court
+        const nextCourt = Math.min(c + 1, numCourts);
+        if (nextCourt !== c) {
+          courtPools.get(nextCourt)!.push(player);
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// Step Movement
+// ============================================================
+
+/**
+ * Compute target court for next session based on pool finish.
+ * 1st place: court - 1 (move up)
+ * Middle finishers: stay
+ * Last place: court + 1 (move down)
+ */
+export function computeTargetCourt(
+  courtNumber: number,
+  poolFinish: number,
+  poolSize: number,
+  _numCourts?: number
+): number {
+  let target = courtNumber;
+
+  if (poolFinish === 1) {
+    target = courtNumber - 1;
+  } else if (poolFinish === poolSize) {
+    target = courtNumber + 1;
+  }
+  // Middle finishers stay
+
+  return Math.max(1, target); // Floor at court 1, no ceiling cap
+}
+
+/**
+ * Compute new step after a round.
+ * 1st place moves up by stepMoveUp, last place moves down by stepMoveDown.
+ */
+export function computeNewStep(
+  currentStep: number,
+  poolFinish: number,
+  poolSize: number,
+  stepMoveUp: number,
+  stepMoveDown: number,
+  minStep: number
+): number {
+  if (poolFinish === 1) {
+    return Math.max(minStep, currentStep - stepMoveUp);
+  }
+  if (poolFinish === poolSize) {
+    return currentStep + stepMoveDown;
+  }
+  return currentStep; // Middle finishers unchanged
+}
+
+// ============================================================
+// Tie-Breaking Within a Pool
+// ============================================================
+
+/**
+ * Rank players within a pool using tie-breaking rules:
+ * 1. Most wins
+ * 2. Highest total point differential
+ * 3. Most head-to-head points against tied opponent
+ * 4. Random
+ */
+export function rankPoolResults(results: PoolResult[]): PoolResult[] {
+  const sorted = [...results].sort((a, b) => {
+    // 1. Most wins
+    if (a.wins !== b.wins) return b.wins - a.wins;
+    // 2. Highest point differential
+    if (a.pointDiff !== b.pointDiff) return b.pointDiff - a.pointDiff;
+    // 3. Head-to-head points
+    const aH2H = a.h2hPoints.get(b.playerId) ?? 0;
+    const bH2H = b.h2hPoints.get(a.playerId) ?? 0;
+    if (aH2H !== bH2H) return bH2H - aH2H;
+    // 4. Random
+    return Math.random() - 0.5;
+  });
+
+  return sorted.map((r, i) => ({ ...r, poolFinish: i + 1 }));
+}
+
+// ============================================================
+// Legacy Functions (Preserved from v1)
+// ============================================================
+
 /**
  * Seed players onto courts by skill rating (descending).
  * Top-rated players go to Court 1, next group to Court 2, etc.
@@ -32,7 +344,6 @@ export function seedPlayersToCourts(
   const playersPerCourt = Math.floor(players.length / numCourts);
   const remainder = players.length % numCourts;
 
-  // Sort by skill rating descending; null ratings go last
   const sorted = [...players].sort((a, b) => {
     if (a.skill_rating == null && b.skill_rating == null) return 0;
     if (a.skill_rating == null) return 1;
@@ -44,7 +355,6 @@ export function seedPlayersToCourts(
   let playerIndex = 0;
 
   for (let court = 1; court <= numCourts; court++) {
-    // Distribute remainder players to the top courts
     const courtSize = playersPerCourt + (court <= remainder ? 1 : 0);
     for (let i = 0; i < courtSize; i++) {
       if (playerIndex < sorted.length) {
@@ -84,11 +394,9 @@ export function applyRoundResults(
 
   return currentPositions.map((pos) => {
     if (winnerIds.has(pos.playerId)) {
-      // Winners move up (lower court number = better court)
       const newCourt = Math.max(1, pos.courtNumber - 1);
       return { ...pos, courtNumber: newCourt };
     } else if (loserIds.has(pos.playerId)) {
-      // Losers move down
       const newCourt = Math.min(numCourts, pos.courtNumber + 1);
       return { ...pos, courtNumber: newCourt };
     }
@@ -98,7 +406,6 @@ export function applyRoundResults(
 
 /**
  * Assign partners for each court, avoiding repeat pairings within the session.
- * Returns court assignments with team1 and team2 for each court.
  */
 export function assignPartnersForRound(
   positions: PlayerPosition[],
@@ -114,7 +421,6 @@ export function assignPartnersForRound(
 
     if (courtPlayers.length < 4) continue;
 
-    // Try to find partner assignment avoiding repeats
     const pairing = findBestPairing(courtPlayers, previousPairings);
     assignments.push({
       courtNumber: courtNum,
@@ -126,17 +432,11 @@ export function assignPartnersForRound(
   return assignments;
 }
 
-/**
- * Find the best 2v2 pairing for 4 players minimizing repeat partner pairings.
- * With 4 players A, B, C, D there are 3 possible pairings:
- *   (AB vs CD), (AC vs BD), (AD vs BC)
- */
 function findBestPairing(
   players: string[],
   previousPairings: Map<string, Set<string>>
 ): { team1: string[]; team2: string[] } {
   if (players.length !== 4) {
-    // Fallback for non-standard court sizes
     const mid = Math.floor(players.length / 2);
     return { team1: players.slice(0, mid), team2: players.slice(mid) };
   }
@@ -148,7 +448,6 @@ function findBestPairing(
     { team1: [a, d], team2: [b, c] },
   ];
 
-  // Score each option by repeat pairings (lower = better)
   let bestOption = options[0];
   let bestScore = Infinity;
 
@@ -165,7 +464,6 @@ function findBestPairing(
     if (score < bestScore) {
       bestScore = score;
       bestOption = option;
-      // Shuffle within teams for variety
       if (Math.random() > 0.5) bestOption.team1.reverse();
       if (Math.random() > 0.5) bestOption.team2.reverse();
     }

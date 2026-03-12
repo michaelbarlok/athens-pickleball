@@ -1,10 +1,10 @@
 node_modules/
-.expo/
+.next/
 dist/
 .DS_Store
 *.log
 .env
 .env.local
-ios/
-android/
+.env.production.local
 supabase/.temp/
+_archive/

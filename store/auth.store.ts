@@ -1,46 +1,26 @@
+"use client";
+
 import { create } from "zustand";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
-import { Player } from "@/types/database";
+import type { Profile } from "@/types/database";
+import type { Session, User } from "@supabase/supabase-js";
 
 interface AuthState {
   session: Session | null;
   user: User | null;
-  player: Player | null;
+  profile: Profile | null;
   loading: boolean;
   setSession: (session: Session | null) => void;
-  setPlayer: (player: Player | null) => void;
-  fetchPlayer: () => Promise<void>;
-  signOut: () => Promise<void>;
+  setProfile: (profile: Profile | null) => void;
+  setLoading: (loading: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   user: null,
-  player: null,
+  profile: null,
   loading: true,
-
-  setSession: (session) => {
-    set({ session, user: session?.user ?? null, loading: false });
-  },
-
-  setPlayer: (player) => set({ player }),
-
-  fetchPlayer: async () => {
-    const { user } = get();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("players")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    if (data) set({ player: data as Player });
-  },
-
-  signOut: async () => {
-    await supabase.auth.signOut();
-    set({ session: null, user: null, player: null });
-  },
+  setSession: (session) =>
+    set({ session, user: session?.user ?? null }),
+  setProfile: (profile) => set({ profile }),
+  setLoading: (loading) => set({ loading }),
 }));

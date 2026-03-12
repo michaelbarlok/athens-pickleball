@@ -1,0 +1,248 @@
+import { createClient } from "@/lib/supabase/server";
+import { getGroupBySlug, getGroupMembers, getGroupSheets, isGroupMember } from "@/lib/queries/group";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+
+export default async function GroupPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user!.id)
+    .single();
+
+  const group = await getGroupBySlug(slug);
+  if (!group) notFound();
+
+  const members = await getGroupMembers(group.id);
+  const sheets = await getGroupSheets(group.id);
+  const isMember = profile ? await isGroupMember(group.id, profile.id) : false;
+
+  const top10 = members.slice(0, 10);
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/groups"
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Groups
+            </Link>
+            <span className="text-sm text-gray-400">/</span>
+          </div>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">
+            {group.name}
+          </h1>
+          {group.description && (
+            <p className="mt-1 text-gray-600">{group.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {isMember ? (
+            <span className="badge-green">Member</span>
+          ) : (
+            <JoinButton groupId={group.id} playerId={profile!.id} />
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="card">
+          <p className="text-sm text-gray-600">Members</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">
+            {members.length}
+          </p>
+        </div>
+        <div className="card">
+          <p className="text-sm text-gray-600">Upcoming Events</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">
+            {sheets.length}
+          </p>
+        </div>
+        <Link
+          href={`/groups/${slug}/ladder`}
+          className="card hover:ring-brand-300 transition-shadow"
+        >
+          <p className="text-sm text-gray-600">Ladder</p>
+          <p className="mt-1 text-sm font-medium text-brand-600">
+            View full rankings &rarr;
+          </p>
+        </Link>
+      </div>
+
+      {/* Upcoming Sheets */}
+      {sheets.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Upcoming Events
+          </h2>
+          <div className="space-y-3">
+            {sheets.map((sheet) => (
+              <Link
+                key={sheet.id}
+                href={`/sheets/${sheet.id}`}
+                className="card flex items-center justify-between hover:ring-brand-300 transition-shadow"
+              >
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {formatDate(sheet.event_date)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {sheet.event_time} at {sheet.location}
+                  </p>
+                </div>
+                <span className="badge-green">Open</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Top Members */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Top Members
+          </h2>
+          <Link
+            href={`/groups/${slug}/ladder`}
+            className="text-sm text-brand-600 hover:text-brand-500"
+          >
+            View full ladder
+          </Link>
+        </div>
+        <div className="card overflow-hidden p-0">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  #
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Player
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Step
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Win %
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {top10.map((member, index) => (
+                <tr
+                  key={member.player_id}
+                  className={cn(
+                    member.player_id === profile?.id && "bg-brand-50"
+                  )}
+                >
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    {index + 1}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {member.player?.avatar_url ? (
+                        <img
+                          src={member.player.avatar_url}
+                          alt=""
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
+                          {member.player?.display_name?.charAt(0) ?? "?"}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-gray-900">
+                        {member.player?.display_name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
+                    {member.current_step}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
+                    {member.win_pct}%
+                  </td>
+                </tr>
+              ))}
+              {top10.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-sm text-gray-500"
+                  >
+                    No members yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ============================================================
+// Join Button (Client Component inline)
+// ============================================================
+
+function JoinButton({
+  groupId,
+  playerId,
+}: {
+  groupId: string;
+  playerId: string;
+}) {
+  async function requestToJoin() {
+    "use server";
+
+    const supabase = await createClient();
+
+    // Fetch group preferences for start step
+    const { data: prefs } = await supabase
+      .from("group_preferences")
+      .select("new_player_start_step")
+      .eq("group_id", groupId)
+      .single();
+
+    const startStep = prefs?.new_player_start_step ?? 5;
+
+    await supabase.from("group_memberships").insert({
+      group_id: groupId,
+      player_id: playerId,
+      current_step: startStep,
+      win_pct: 0,
+      total_sessions: 0,
+    });
+
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath(`/groups`);
+  }
+
+  return (
+    <form action={requestToJoin}>
+      <button type="submit" className="btn-primary">
+        Request to Join
+      </button>
+    </form>
+  );
+}
