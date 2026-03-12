@@ -10,8 +10,69 @@ interface AvatarUploadProps {
   onUpload: (url: string) => void;
 }
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_DIMENSION = 512; // Resize to 512x512 max
+const JPEG_QUALITY = 0.85;
+
+/**
+ * Resize an image file to MAX_DIMENSION and convert to JPEG.
+ * Handles HEIC by using heic2any, and any other image format via Canvas.
+ */
+async function processImage(file: File): Promise<Blob> {
+  let imageBlob: Blob = file;
+
+  // Convert HEIC/HEIF to JPEG first
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    file.name.toLowerCase().endsWith(".heic") ||
+    file.name.toLowerCase().endsWith(".heif");
+
+  if (isHeic) {
+    const heic2any = (await import("heic2any")).default;
+    const converted = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: JPEG_QUALITY,
+    });
+    imageBlob = Array.isArray(converted) ? converted[0] : converted;
+  }
+
+  // Load into an Image element
+  const bitmap = await createImageBitmap(imageBlob);
+  const { width, height } = bitmap;
+
+  // Calculate new dimensions preserving aspect ratio
+  let newW = width;
+  let newH = height;
+  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+    if (width > height) {
+      newW = MAX_DIMENSION;
+      newH = Math.round((height / width) * MAX_DIMENSION);
+    } else {
+      newH = MAX_DIMENSION;
+      newW = Math.round((width / height) * MAX_DIMENSION);
+    }
+  }
+
+  // Draw to canvas and export as JPEG
+  const canvas = document.createElement("canvas");
+  canvas.width = newW;
+  canvas.height = newH;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bitmap, 0, 0, newW, newH);
+  bitmap.close();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Failed to process image"));
+      },
+      "image/jpeg",
+      JPEG_QUALITY
+    );
+  });
+}
 
 export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadProps) {
   const { supabase } = useSupabase();
@@ -27,18 +88,6 @@ export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadPr
 
       setError(null);
 
-      // Validate type
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setError("Please upload a JPEG, PNG, WebP, or GIF image.");
-        return;
-      }
-
-      // Validate size
-      if (file.size > MAX_FILE_SIZE) {
-        setError("File must be smaller than 2 MB.");
-        return;
-      }
-
       // Show local preview immediately
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
@@ -46,12 +95,17 @@ export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadPr
       setUploading(true);
 
       try {
-        const ext = file.name.split(".").pop() ?? "jpg";
-        const filePath = `${profileId}/${Date.now()}.${ext}`;
+        // Auto-resize and convert to JPEG
+        const processed = await processImage(file);
+
+        const filePath = `${profileId}/${Date.now()}.jpg`;
 
         const { error: uploadError } = await supabase.storage
           .from("avatars")
-          .upload(filePath, file, { upsert: true });
+          .upload(filePath, processed, {
+            upsert: true,
+            contentType: "image/jpeg",
+          });
 
         if (uploadError) {
           throw uploadError;
@@ -73,6 +127,7 @@ export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadPr
           throw updateError;
         }
 
+        URL.revokeObjectURL(objectUrl);
         setPreviewUrl(publicUrl);
         onUpload(publicUrl);
       } catch (err) {
@@ -153,11 +208,11 @@ export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadPr
         )}
       </button>
 
-      {/* Hidden file input */}
+      {/* Hidden file input — accept all image types including HEIC */}
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(",")}
+        accept="image/*,.heic,.heif"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -169,7 +224,7 @@ export function AvatarUpload({ profileId, currentUrl, onUpload }: AvatarUploadPr
         disabled={uploading}
         className="text-sm text-brand-600 hover:text-brand-500 disabled:text-gray-400"
       >
-        {uploading ? "Uploading..." : previewUrl ? "Change photo" : "Upload photo"}
+        {uploading ? "Processing..." : previewUrl ? "Change photo" : "Upload photo"}
       </button>
 
       {/* Error message */}
