@@ -32,18 +32,20 @@ export default function RegisterPage() {
     }
 
     if (authData.user) {
-      // Create profile
-      const { error: profileError } = await supabase.from("profiles").insert({
-        user_id: authData.user.id,
-        full_name: fullName,
-        display_name: fullName,
-        email,
-        role: "player",
-        preferred_notify: ["email"],
+      // Create profile via server-side API (bypasses RLS)
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          fullName,
+          email,
+        }),
       });
 
-      if (profileError) {
-        setError(profileError.message);
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to create profile");
         setLoading(false);
         return;
       }
