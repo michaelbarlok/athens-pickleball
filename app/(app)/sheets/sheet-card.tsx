@@ -89,51 +89,28 @@ export function SheetCard({
 
   return (
     <div className="card hover:ring-brand-500/30 transition-shadow">
-      <div className="flex items-center justify-between">
+      {/* Row 1: Title + status badge, player count + chevron */}
+      <div className="flex items-start justify-between gap-3">
         <Link href={`/sheets/${sheetId}`} className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-dark-100">{groupName}</p>
             <span className={badge.className}>{badge.label}</span>
           </div>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-muted">
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-surface-muted">
             <span>{eventDate}</span>
             <span>{location}</span>
           </div>
         </Link>
-        <div className="ml-4 flex items-center gap-3 shrink-0">
-          <div className="text-right text-sm text-surface-muted">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-right text-sm text-surface-muted whitespace-nowrap">
             <span className="font-medium text-dark-100">{confirmedCount}</span>
-            /{playerLimit} players
+            /{playerLimit}
             {waitlistCount > 0 && (
               <span className="ml-1 text-accent-300">
-                +{waitlistCount} waitlist
+                +{waitlistCount}
               </span>
             )}
           </div>
-          {isRegistered ? (
-            <>
-              <span className={myStatus === "confirmed" ? "badge-green" : "badge-yellow"}>
-                {myStatus === "confirmed" ? "Signed Up" : "Waitlisted"}
-              </span>
-              {!withdrawClosed && (
-                <button
-                  onClick={handleWithdraw}
-                  disabled={loading}
-                  className="btn-danger text-xs px-3 py-1.5"
-                >
-                  {loading ? "..." : "Withdraw"}
-                </button>
-              )}
-            </>
-          ) : isOpen && !signupClosed ? (
-            <button
-              onClick={handleSignUp}
-              disabled={loading}
-              className="btn-primary text-xs px-3 py-1.5"
-            >
-              {loading ? "..." : isFull ? "Join Waitlist" : "Sign Up"}
-            </button>
-          ) : null}
           {players.length > 0 && (
             <button
               onClick={(e) => {
@@ -157,6 +134,37 @@ export function SheetCard({
         </div>
       </div>
 
+      {/* Row 2: Actions (sign up / withdraw) */}
+      {(isRegistered || (isOpen && !signupClosed)) && (
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          {isRegistered ? (
+            <>
+              <span className={myStatus === "confirmed" ? "badge-green" : "badge-yellow"}>
+                {myStatus === "confirmed" ? "Signed Up" : "Waitlisted"}
+              </span>
+              {!withdrawClosed && (
+                <button
+                  onClick={handleWithdraw}
+                  disabled={loading}
+                  className="btn-danger text-xs px-3 py-1.5"
+                >
+                  {loading ? "..." : "Withdraw"}
+                </button>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={handleSignUp}
+              disabled={loading}
+              className="btn-primary text-xs px-3 py-1.5"
+            >
+              {loading ? "..." : isFull ? "Join Waitlist" : "Sign Up"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Expandable player list */}
       {expanded && (
         <div className="mt-3 border-t border-surface-border pt-3">
           {confirmedPlayers.length > 0 && (
