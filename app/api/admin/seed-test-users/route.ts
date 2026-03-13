@@ -189,18 +189,16 @@ export async function POST(request: Request) {
       }))
     : null;
 
-  const promises: Promise<unknown>[] = [
-    serviceClient.from("registrations").insert(registrations),
-  ];
-  if (memberships) {
-    promises.push(serviceClient.from("group_memberships").insert(memberships));
-  }
-
-  const [regResult] = await Promise.all(promises);
-  const regErr = (regResult as { error?: { message: string } }).error;
+  const { error: regErr } = await serviceClient
+    .from("registrations")
+    .insert(registrations);
 
   if (regErr) {
     return NextResponse.json({ error: regErr.message }, { status: 500 });
+  }
+
+  if (memberships) {
+    await serviceClient.from("group_memberships").insert(memberships);
   }
 
   return NextResponse.json({
