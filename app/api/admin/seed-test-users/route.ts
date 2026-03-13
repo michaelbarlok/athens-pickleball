@@ -18,7 +18,10 @@ const LAST_NAMES = [
 ];
 
 export async function POST(request: Request) {
+  const url = new URL(request.url);
+  const querySheetId = url.searchParams.get("sheetId");
   const body = await request.json().catch(() => ({}));
+  const sheetId = querySheetId || body.sheetId;
   const supabase = await createClient();
 
   // Verify admin
@@ -44,11 +47,11 @@ export async function POST(request: Request) {
   // Find the sheet — use provided sheetId or fall back to first open sheet
   let sheet: { id: string; player_limit: number; group_id: string } | null = null;
 
-  if (body.sheetId) {
+  if (sheetId) {
     const { data } = await serviceClient
       .from("signup_sheets")
       .select("id, player_limit, group_id")
-      .eq("id", body.sheetId)
+      .eq("id", sheetId)
       .single();
     sheet = data;
   } else {
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
   }
 
   if (!sheet) {
-    return NextResponse.json({ error: "No open sheet found" }, { status: 404 });
+    return NextResponse.json({ error: "Sheet not found", version: "v3", sheetIdUsed: sheetId || null }, { status: 404 });
   }
 
   // Create 39 test profiles
