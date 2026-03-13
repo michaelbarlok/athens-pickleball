@@ -5,6 +5,7 @@ import { formatDate, formatTime } from "@/lib/utils";
 import type { Registration, Profile } from "@/types/database";
 import { SheetActions } from "./sheet-actions";
 import { AdminAddMember } from "./admin-add-member";
+import { StartShootout } from "./start-shootout";
 
 export const dynamic = "force-dynamic";
 
@@ -220,6 +221,15 @@ export default async function SheetDetailPage({
           signupClosed={signupClosed}
           withdrawClosed={withdrawClosed}
           isFull={isFull}
+        />
+      )}
+
+      {/* Start Shootout — admin only */}
+      {isAdmin && !isCancelled && sheet.status === "open" && (
+        <StartShootout
+          sheetId={sheet.id}
+          groupId={sheet.group_id}
+          confirmedPlayerIds={confirmed.map((r: Registration) => r.player_id)}
         />
       )}
 
