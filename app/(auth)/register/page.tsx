@@ -59,7 +59,7 @@ export default function RegisterPage() {
       }
     }
 
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   }
 
