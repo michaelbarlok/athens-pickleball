@@ -147,6 +147,46 @@ export function seedSession1(
 }
 
 // ============================================================
+// Court-Based Seeding (Re-seed & Session 2+)
+// ============================================================
+
+/**
+ * Seed players to courts using a court number as the primary sort key,
+ * with win% as the tiebreaker within the same court.
+ *
+ * Used for:
+ * - Re-seeding after manual court changes (courtNumber = current court)
+ * - Session 2+ first seed (courtNumber = target_court_next from previous session)
+ */
+export function seedByCourtOrder(
+  players: { id: string; courtNumber: number; winPct: number }[],
+  numCourts: number
+): PlayerPosition[] {
+  const sorted = [...players].sort((a, b) => {
+    if (a.courtNumber !== b.courtNumber) return a.courtNumber - b.courtNumber;
+    return b.winPct - a.winPct; // higher win% = better within same court
+  });
+
+  const courts = distributeCourts(sorted.length, numCourts);
+  const positions: PlayerPosition[] = [];
+  let playerIdx = 0;
+
+  for (const court of courts) {
+    for (let i = 0; i < court.size; i++) {
+      if (playerIdx < sorted.length) {
+        positions.push({
+          playerId: sorted[playerIdx].id,
+          courtNumber: court.court,
+        });
+        playerIdx++;
+      }
+    }
+  }
+
+  return positions;
+}
+
+// ============================================================
 // Same-Day Session Seeding (Previous Court Anchor)
 // ============================================================
 
