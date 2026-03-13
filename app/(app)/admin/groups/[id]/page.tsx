@@ -424,7 +424,7 @@ export default function AdminGroupDetailPage() {
                             updateStep(member.player_id, val);
                           }
                         }}
-                        className="w-16 rounded border border-surface-border px-2 py-1 text-right text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                        className="w-16 rounded border border-surface-border bg-surface-raised text-dark-100 px-2 py-1 text-right text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-dark-100">
