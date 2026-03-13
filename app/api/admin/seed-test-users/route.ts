@@ -48,7 +48,18 @@ export async function POST() {
   }
 
   // Create 39 test profiles
-  const testProfiles = [];
+  const testProfiles: {
+    user_id: string;
+    full_name: string;
+    display_name: string;
+    email: string;
+    role: "player";
+    is_active: boolean;
+    member_since: string;
+    preferred_notify: string[];
+    _step: number;
+    _pct: number;
+  }[] = [];
   for (let i = 0; i < 39; i++) {
     const firstName = FIRST_NAMES[i];
     const lastName = LAST_NAMES[i];
