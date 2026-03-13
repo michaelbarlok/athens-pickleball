@@ -87,16 +87,28 @@ export async function POST(
     }
   }
 
-  // Check for duplicate submission
-  const { data: existing } = await supabase
+  // Check for duplicate submission (must match full team composition)
+  let dupQuery = supabase
     .from("game_results")
     .select("id")
     .eq("session_id", params.id)
     .eq("round_number", round_number)
     .eq("pool_number", pool_number)
     .eq("team_a_p1", team_a_p1)
-    .eq("team_b_p1", team_b_p1)
-    .limit(1);
+    .eq("team_b_p1", team_b_p1);
+
+  if (team_a_p2) {
+    dupQuery = dupQuery.eq("team_a_p2", team_a_p2);
+  } else {
+    dupQuery = dupQuery.is("team_a_p2", null);
+  }
+  if (team_b_p2) {
+    dupQuery = dupQuery.eq("team_b_p2", team_b_p2);
+  } else {
+    dupQuery = dupQuery.is("team_b_p2", null);
+  }
+
+  const { data: existing } = await dupQuery.limit(1);
 
   if (existing && existing.length > 0) {
     return NextResponse.json(
