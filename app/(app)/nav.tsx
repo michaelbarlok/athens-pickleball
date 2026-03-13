@@ -22,11 +22,12 @@ const adminNav = [
   { name: "Sessions", href: "/admin/sessions" },
 ];
 
-export function AppNav({ profile }: { profile: Profile }) {
+export function AppNav({ profile, isGroupAdmin = false }: { profile: Profile; isGroupAdmin?: boolean }) {
   const pathname = usePathname();
   const { supabase } = useSupabase();
   const router = useRouter();
   const isAdmin = profile.role === "admin";
+  const showAdminNav = isAdmin || isGroupAdmin;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -58,7 +59,7 @@ export function AppNav({ profile }: { profile: Profile }) {
                 {item.name}
               </Link>
             ))}
-            {isAdmin && (
+            {showAdminNav && (
               <>
                 <span className="mx-2 h-4 w-px bg-surface-border" />
                 {adminNav.map((item) => (

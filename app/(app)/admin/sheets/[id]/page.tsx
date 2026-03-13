@@ -37,13 +37,23 @@ export default function AdminSheetDetailPage() {
   const [signupClosesAt, setSignupClosesAt] = useState("");
   const [withdrawClosesAt, setWithdrawClosesAt] = useState("");
 
+  // Court selection for shootout
+  const [numCourts, setNumCourts] = useState<number | null>(null);
+
   // Player search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const confirmed = registrations.filter((r) => r.status === "confirmed");
-  const waitlisted = registrations.filter((r) => r.status === "waitlist");
+  const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+  const sortByPriority = (a: any, b: any) => {
+    const aPri = priorityOrder[(a as any).priority ?? "normal"] ?? 1;
+    const bPri = priorityOrder[(b as any).priority ?? "normal"] ?? 1;
+    if (aPri !== bPri) return aPri - bPri;
+    return new Date(a.signed_up_at).getTime() - new Date(b.signed_up_at).getTime();
+  };
+  const confirmed = registrations.filter((r) => r.status === "confirmed").sort(sortByPriority);
+  const waitlisted = registrations.filter((r) => r.status === "waitlist").sort(sortByPriority);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -240,11 +250,43 @@ export default function AdminSheetDetailPage() {
     }
   }
 
+  async function handleSetPriority(registrationId: string, priority: string) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/sheets/registrations/${registrationId}/priority`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? "Failed to update priority.");
+      }
+      await fetchData();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update priority.";
+      setError(message);
+    }
+  }
+
   async function handleStartShootout() {
     if (!sheet) return;
+    if (!numCourts || numCourts < 1) {
+      setError("Please select the number of courts before starting.");
+      return;
+    }
+    // Validate court count produces valid distribution (4-5 per court)
+    const perCourt = confirmed.length / numCourts;
+    if (perCourt < 4 || perCourt > 5) {
+      setError(
+        `${confirmed.length} players across ${numCourts} courts doesn't work (need 4-5 per court).`
+      );
+      return;
+    }
     if (
       !confirm(
-        "Create a shootout session from this sheet? Confirmed players will be added as participants."
+        `Create a shootout session with ${numCourts} court${numCourts > 1 ? "s" : ""} for ${confirmed.length} players?`
       )
     )
       return;
@@ -256,7 +298,7 @@ export default function AdminSheetDetailPage() {
           sheet_id: sheetId,
           group_id: sheet.group_id,
           status: "created",
-          num_courts: Math.floor(confirmed.length / 4) || 1,
+          num_courts: numCourts,
           current_round: 0,
           is_same_day_continuation: false,
         })
@@ -340,13 +382,40 @@ export default function AdminSheetDetailPage() {
               Cancel Event
             </button>
           )}
+          {confirmed.length >= 4 && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-dark-200">Courts:</label>
+              <select
+                value={numCourts ?? ""}
+                onChange={(e) => setNumCourts(e.target.value ? Number(e.target.value) : null)}
+                className="input w-20 py-1"
+              >
+                <option value="">—</option>
+                {Array.from(
+                  { length: Math.floor(confirmed.length / 4) },
+                  (_, i) => i + 1
+                )
+                  .filter((n) => {
+                    const perCourt = confirmed.length / n;
+                    return perCourt >= 4 && perCourt <= 5;
+                  })
+                  .map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
           <button
             onClick={handleStartShootout}
             className="btn-primary"
-            disabled={confirmed.length < 4}
+            disabled={confirmed.length < 4 || !numCourts}
             title={
               confirmed.length < 4
                 ? "Need at least 4 confirmed players"
+                : !numCourts
+                ? "Select number of courts"
                 : undefined
             }
           >
@@ -556,12 +625,23 @@ export default function AdminSheetDetailPage() {
                     <span className="badge-gray text-xs">Admin added</span>
                   )}
                 </div>
-                <button
-                  onClick={() => handleRemovePlayer(reg.id)}
-                  className="btn-danger text-xs"
-                >
-                  Remove
-                </button>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={(reg as any).priority ?? "normal"}
+                    onChange={(e) => handleSetPriority(reg.id, e.target.value)}
+                    className="input py-0.5 px-1.5 text-xs w-24"
+                  >
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                  </select>
+                  <button
+                    onClick={() => handleRemovePlayer(reg.id)}
+                    className="btn-danger text-xs"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -599,7 +679,16 @@ export default function AdminSheetDetailPage() {
                   </span>
                   <span className="badge-yellow text-xs">Waitlisted</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={(reg as any).priority ?? "normal"}
+                    onChange={(e) => handleSetPriority(reg.id, e.target.value)}
+                    className="input py-0.5 px-1.5 text-xs w-24"
+                  >
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                  </select>
                   <button
                     onClick={() => handlePromotePlayer(reg.id)}
                     className="btn-secondary text-xs"

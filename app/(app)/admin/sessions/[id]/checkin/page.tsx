@@ -1,8 +1,8 @@
 "use client";
 
 import { useSupabase } from "@/components/providers/supabase-provider";
-import { distributeCourts, seedSession1, seedSameDaySession } from "@/lib/shootout-engine";
-import type { RankedPlayer, SeedablePlayer } from "@/lib/shootout-engine";
+import { distributeCourts, seedSession1, seedByCourtOrder } from "@/lib/shootout-engine";
+import type { RankedPlayer } from "@/lib/shootout-engine";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -127,37 +127,43 @@ export default function CheckInPage() {
   async function seedPlayers() {
     if (!session) return;
     setSeeding(true);
+    setSeedError(null);
 
     const checkedIn = participants.filter((p) => p.checked_in);
-    // Only seed players with empty court fields
-    const needsSeeding = checkedIn.filter((p) => p.court_number == null);
-    const alreadySeeded = checkedIn.filter((p) => p.court_number != null);
 
-    if (needsSeeding.length === 0) {
+    if (checkedIn.length === 0) {
       setSeeding(false);
       return;
     }
 
-    // Calculate court distribution for ALL checked-in players
-    const totalPlayers = checkedIn.length;
-
     try {
       let positions;
 
-      if (session.is_same_day_continuation && session.prev_session_id) {
-        // Session 2+: use previous court anchors
-        const seedablePlayers: SeedablePlayer[] = checkedIn.map((p) => ({
-          id: p.player_id,
-          currentStep: p.current_step,
-          winPct: p.win_pct,
-          lastPlayedAt: p.last_played_at,
-          totalSessions: p.total_sessions,
-          targetCourtNext: p.target_court_next,
-          seedSource: p.target_court_next != null ? "previous_court" as const : "ranking_sheet" as const,
-        }));
-        positions = seedSameDaySession(seedablePlayers, session.num_courts);
+      const anyHasCourt = checkedIn.some((p) => p.court_number != null);
+      const isSessionContinuation = session.is_same_day_continuation && session.prev_session_id;
+
+      if (anyHasCourt) {
+        // Re-seed: use current court assignments as primary sort, win% as tiebreaker
+        positions = seedByCourtOrder(
+          checkedIn.map((p) => ({
+            id: p.player_id,
+            courtNumber: p.court_number ?? 999,
+            winPct: p.win_pct,
+          })),
+          session.num_courts
+        );
+      } else if (isSessionContinuation) {
+        // Session 2+ first seed: sort by previous court (target_court_next), win% tiebreaker
+        positions = seedByCourtOrder(
+          checkedIn.map((p) => ({
+            id: p.player_id,
+            courtNumber: p.target_court_next ?? 999,
+            winPct: p.win_pct,
+          })),
+          session.num_courts
+        );
       } else {
-        // Session 1: standard ranking sheet sort
+        // Session 1 first seed: standard ranking sheet sort (Step ASC → Win% DESC → ...)
         const rankedPlayers: RankedPlayer[] = checkedIn.map((p) => ({
           id: p.player_id,
           currentStep: p.current_step,
@@ -168,12 +174,8 @@ export default function CheckInPage() {
         positions = seedSession1(rankedPlayers, session.num_courts);
       }
 
-      // Only apply court numbers for players that didn't already have one
+      // Apply court numbers for all checked-in players
       const updates = positions
-        .filter((pos) => {
-          const already = alreadySeeded.find((p) => p.player_id === pos.playerId);
-          return !already; // Only update if not already seeded
-        })
         .map((pos) => {
           const participant = participants.find((p) => p.player_id === pos.playerId);
           return participant
@@ -187,15 +189,20 @@ export default function CheckInPage() {
 
       await Promise.all(updates);
 
-      // Update local state
+      // Update local state and sort by court number, then win%
       const posMap = new Map(positions.map((p) => [p.playerId, p.courtNumber]));
-      setParticipants((prev) =>
-        prev.map((p) => {
-          if (p.court_number != null) return p; // Don't overwrite existing
+      setParticipants((prev) => {
+        const updated = prev.map((p) => {
           const court = posMap.get(p.player_id);
           return court != null ? { ...p, court_number: court } : p;
-        })
-      );
+        });
+        return updated.sort((a, b) => {
+          const aCourt = a.court_number ?? 999;
+          const bCourt = b.court_number ?? 999;
+          if (aCourt !== bCourt) return aCourt - bCourt;
+          return b.win_pct - a.win_pct;
+        });
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Seeding failed";
       setSeedError(msg);
@@ -217,7 +224,6 @@ export default function CheckInPage() {
   if (!session) return <div className="text-center py-12 text-surface-muted">Session not found.</div>;
 
   const checkedInCount = participants.filter((p) => p.checked_in).length;
-  const hasEmptyCourts = participants.some((p) => p.checked_in && p.court_number == null);
 
   return (
     <div className="space-y-6">
@@ -235,7 +241,7 @@ export default function CheckInPage() {
           <button
             onClick={seedPlayers}
             className="btn-primary"
-            disabled={seeding || !hasEmptyCourts}
+            disabled={seeding || checkedInCount === 0}
           >
             {seeding ? "Seeding..." : "Seed Players"}
           </button>

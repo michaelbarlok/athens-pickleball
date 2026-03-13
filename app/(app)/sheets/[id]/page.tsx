@@ -80,12 +80,19 @@ export default async function SheetDetailPage({
     }
   }
 
-  const confirmed = (registrations ?? []).filter(
-    (r: Registration) => r.status === "confirmed"
-  );
-  const waitlisted = (registrations ?? []).filter(
-    (r: Registration) => r.status === "waitlist"
-  );
+  const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+  const sortByPriority = (a: Registration, b: Registration) => {
+    const aPri = priorityOrder[a.priority ?? "normal"] ?? 1;
+    const bPri = priorityOrder[b.priority ?? "normal"] ?? 1;
+    if (aPri !== bPri) return aPri - bPri;
+    return new Date(a.signed_up_at).getTime() - new Date(b.signed_up_at).getTime();
+  };
+  const confirmed = (registrations ?? [])
+    .filter((r: Registration) => r.status === "confirmed")
+    .sort(sortByPriority);
+  const waitlisted = (registrations ?? [])
+    .filter((r: Registration) => r.status === "waitlist")
+    .sort(sortByPriority);
 
   // Check current user's registration
   const myRegistration = (registrations ?? []).find(
@@ -238,7 +245,6 @@ export default async function SheetDetailPage({
                 sheetId={sheet.id}
                 groupId={sheet.group_id}
                 confirmedPlayerIds={confirmed.map((r: Registration) => r.player_id)}
-                numCourts={sheet.num_courts}
               />
             )}
             <AdminDeleteSheet sheetId={sheet.id} />

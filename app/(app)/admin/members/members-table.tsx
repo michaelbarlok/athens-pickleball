@@ -7,9 +7,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+interface MembershipInfo {
+  step: number;
+  groupName: string;
+  groupId: string;
+  groupRole: string;
+}
+
 interface MembersTableProps {
   profiles: Profile[];
-  membershipMap: Record<string, { step: number; groupName: string }[]>;
+  membershipMap: Record<string, MembershipInfo[]>;
 }
 
 type StatusFilter = "all" | "active" | "inactive";
@@ -22,6 +29,7 @@ export function MembersTable({ profiles, membershipMap }: MembersTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [suspending, setSuspending] = useState<string | null>(null);
+  const [togglingGroupRole, setTogglingGroupRole] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let result = profiles;
@@ -66,6 +74,35 @@ export function MembersTable({ profiles, membershipMap }: MembersTableProps) {
       console.error("Failed to update member status:", err);
     } finally {
       setSuspending(null);
+    }
+  }
+
+  async function handleToggleGroupRole(
+    playerId: string,
+    groupId: string,
+    currentRole: string
+  ) {
+    const key = `${playerId}-${groupId}`;
+    setTogglingGroupRole(key);
+    try {
+      const res = await fetch("/api/admin/group-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerId,
+          groupId,
+          groupRole: currentRole === "admin" ? "member" : "admin",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to update group role.");
+      }
+      router.refresh();
+    } catch {
+      alert("Failed to update group role.");
+    } finally {
+      setTogglingGroupRole(null);
     }
   }
 
@@ -239,8 +276,8 @@ export function MembersTable({ profiles, membershipMap }: MembersTableProps) {
                     {memberships.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {memberships.map((m, i) => (
-                          <span key={i} className="badge-blue text-xs">
-                            {m.groupName}: {m.step}
+                          <span key={i} className={cn("text-xs", m.groupRole === "admin" ? "badge-yellow" : "badge-blue")}>
+                            {m.groupRole === "admin" ? "★ " : ""}{m.groupName}: {m.step}
                           </span>
                         ))}
                       </div>
@@ -272,8 +309,36 @@ export function MembersTable({ profiles, membershipMap }: MembersTableProps) {
                   </td>
 
                   {/* Actions */}
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
+                      {memberships.map((m) => {
+                        const key = `${profile.id}-${m.groupId}`;
+                        const isGroupAdmin = m.groupRole === "admin";
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() =>
+                              handleToggleGroupRole(profile.id, m.groupId, m.groupRole)
+                            }
+                            disabled={togglingGroupRole === key}
+                            className={cn(
+                              "text-xs px-2 py-1 rounded",
+                              isGroupAdmin
+                                ? "bg-yellow-900/30 text-yellow-300 hover:bg-yellow-900/50"
+                                : "bg-surface-overlay text-surface-muted hover:text-dark-100",
+                              togglingGroupRole === key && "opacity-50"
+                            )}
+                            title={isGroupAdmin ? `Remove ${m.groupName} admin` : `Make ${m.groupName} admin`}
+                          >
+                            {togglingGroupRole === key
+                              ? "..."
+                              : isGroupAdmin
+                                ? `★ ${m.groupName} Admin`
+                                : `Make ${m.groupName} Admin`}
+                          </button>
+                        );
+                      })}
                       <Link
                         href={`/players/${profile.id}/edit`}
                         className="text-sm text-brand-600 hover:text-brand-500"

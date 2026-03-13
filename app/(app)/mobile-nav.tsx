@@ -106,11 +106,12 @@ const adminLinks = [
   },
 ];
 
-export function MobileNav({ profile }: { profile: Profile }) {
+export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile; isGroupAdmin?: boolean }) {
   const pathname = usePathname();
   const { supabase } = useSupabase();
   const router = useRouter();
   const isAdmin = profile.role === "admin";
+  const showAdminNav = isAdmin || isGroupAdmin;
   const [moreOpen, setMoreOpen] = useState(false);
 
   // Close menu on route change
@@ -206,7 +207,7 @@ export function MobileNav({ profile }: { profile: Profile }) {
           </div>
 
           {/* Admin section */}
-          {isAdmin && (
+          {showAdminNav && (
             <>
               <div className="border-t border-surface-border">
                 <p className="px-4 pt-2.5 pb-1 text-xs font-semibold uppercase tracking-wider text-surface-muted">

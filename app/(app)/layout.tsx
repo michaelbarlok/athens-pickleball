@@ -35,13 +35,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
+  // Check if user is a group admin in any group
+  let isGroupAdmin = false;
+  if (profile.role !== "admin") {
+    const { data: groupAdminCheck } = await supabase
+      .from("group_memberships")
+      .select("group_role")
+      .eq("player_id", profile.id)
+      .eq("group_role", "admin")
+      .limit(1);
+    isGroupAdmin = (groupAdminCheck?.length ?? 0) > 0;
+  }
+
   return (
     <div className="min-h-screen bg-dark-950">
-      <AppNav profile={profile} />
+      <AppNav profile={profile} isGroupAdmin={isGroupAdmin} />
       <main className="mx-auto max-w-7xl px-3 py-4 pb-20 sm:px-6 md:pb-6 lg:px-8">
         {children}
       </main>
-      <MobileNav profile={profile} />
+      <MobileNav profile={profile} isGroupAdmin={isGroupAdmin} />
     </div>
   );
 }

@@ -17,11 +17,15 @@ export async function POST(
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Optionally accept a player_id in the body (admin signing up another member)
+    // Optionally accept a player_id and priority in the body
     let targetPlayerId: string | null = null;
+    let priorityOverride: string | null = null;
     try {
       const body = await request.json();
       targetPlayerId = body?.player_id ?? null;
+      if (body?.priority && ["high", "normal", "low"].includes(body.priority)) {
+        priorityOverride = body.priority;
+      }
     } catch {
       // No body or invalid JSON — signing up self
     }
@@ -43,7 +47,7 @@ export async function POST(
     // Fetch the sheet (need allow_member_guests for authorization check)
     const { data: sheet, error: sheetError } = await supabase
       .from("signup_sheets")
-      .select("id, status, player_limit, signup_closes_at, allow_member_guests")
+      .select("id, group_id, status, player_limit, signup_closes_at, allow_member_guests")
       .eq("id", sheetId)
       .single();
 
@@ -60,6 +64,37 @@ export async function POST(
           { error: "Adding other members is not enabled for this sheet" },
           { status: 403 }
         );
+      }
+    }
+
+    // Determine priority: explicit override > auto (global admin or group admin = high) > normal
+    let priority = priorityOverride ?? "normal";
+    if (!priorityOverride) {
+      const checkPlayerId = targetPlayerId && targetPlayerId !== callerProfile.id
+        ? targetPlayerId
+        : callerProfile.id;
+
+      // Check global admin
+      if (checkPlayerId === callerProfile.id && callerProfile.role === "admin") {
+        priority = "high";
+      } else if (checkPlayerId !== callerProfile.id) {
+        const { data: targetProfile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", checkPlayerId)
+          .single();
+        if (targetProfile?.role === "admin") priority = "high";
+      }
+
+      // Check group admin (if not already high from global admin)
+      if (priority !== "high" && sheet.group_id) {
+        const { data: membership } = await supabase
+          .from("group_memberships")
+          .select("group_role")
+          .eq("group_id", sheet.group_id)
+          .eq("player_id", checkPlayerId)
+          .single();
+        if (membership?.group_role === "admin") priority = "high";
       }
     }
 
@@ -119,16 +154,30 @@ export async function POST(
 
     if (existing && existing.status === "withdrawn") {
       // Re-activate withdrawn registration
-      const { data, error } = await supabase
+      const updatePayload: Record<string, any> = {
+        status,
+        priority,
+        waitlist_position: waitlistPosition,
+        signed_up_at: new Date().toISOString(),
+      };
+
+      let { data, error } = await supabase
         .from("registrations")
-        .update({
-          status,
-          waitlist_position: waitlistPosition,
-          signed_up_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", existing.id)
         .select()
         .single();
+
+      // If priority column doesn't exist yet, retry without it
+      if (error && error.message.includes("priority")) {
+        const { priority: _removed, ...fallback } = updatePayload;
+        ({ data, error } = await supabase
+          .from("registrations")
+          .update(fallback)
+          .eq("id", existing.id)
+          .select()
+          .single());
+      }
 
       if (error) {
         console.error("Update registration error:", error);
@@ -137,17 +186,30 @@ export async function POST(
       registration = data;
     } else {
       // New registration
-      const { data, error } = await supabase
+      const insertPayload: Record<string, any> = {
+        sheet_id: sheetId,
+        player_id: playerId,
+        status,
+        priority,
+        waitlist_position: waitlistPosition,
+        registered_by: targetPlayerId ? callerProfile.id : null,
+      };
+
+      let { data, error } = await supabase
         .from("registrations")
-        .insert({
-          sheet_id: sheetId,
-          player_id: playerId,
-          status,
-          waitlist_position: waitlistPosition,
-          registered_by: targetPlayerId ? callerProfile.id : null,
-        })
+        .insert(insertPayload)
         .select()
         .single();
+
+      // If priority column doesn't exist yet, retry without it
+      if (error && error.message.includes("priority")) {
+        const { priority: _removed, ...fallback } = insertPayload;
+        ({ data, error } = await supabase
+          .from("registrations")
+          .insert(fallback)
+          .select()
+          .single());
+      }
 
       if (error) {
         console.error("Insert registration error:", error);

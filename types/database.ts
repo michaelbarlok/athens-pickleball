@@ -83,12 +83,15 @@ export interface SignupSheet {
   group?: ShootoutGroup;
 }
 
+export type RegistrationPriority = "high" | "normal" | "low";
+
 export interface Registration {
   id: string;
   sheet_id: string;
   player_id: string;
   signed_up_at: string;
   status: RegistrationStatus;
+  priority: RegistrationPriority;
   waitlist_position?: number | null;
   registered_by?: string | null;
   // Relations
@@ -124,6 +127,8 @@ export interface GroupPreferences {
   updated_at: string;
 }
 
+export type GroupRole = "admin" | "member";
+
 export interface GroupMembership {
   group_id: string;
   player_id: string;
@@ -132,6 +137,7 @@ export interface GroupMembership {
   total_sessions: number;
   last_played_at?: string | null;
   joined_at: string;
+  group_role: GroupRole;
   // Relations
   player?: Profile;
   group?: ShootoutGroup;

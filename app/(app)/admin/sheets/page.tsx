@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatShortDate } from "@/lib/utils";
 import type { SignupSheet } from "@/types/database";
@@ -12,20 +11,6 @@ const statusBadge: Record<string, { className: string; label: string }> = {
 
 export default async function AdminSheetsPage() {
   const supabase = await createClient();
-
-  // Verify admin
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "admin") redirect("/");
 
   // Fetch all sheets
   const { data: sheets, error } = await supabase
@@ -40,6 +25,14 @@ export default async function AdminSheetsPage() {
       </div>
     );
   }
+
+  // Sort: active sheets first (most recent on top), then cancelled (most recent on top)
+  const sortedSheets = [...(sheets ?? [])].sort((a, b) => {
+    const aCancelled = a.status === "cancelled" ? 1 : 0;
+    const bCancelled = b.status === "cancelled" ? 1 : 0;
+    if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+    return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
+  });
 
   // Fetch registration counts
   const sheetIds = (sheets ?? []).map((s: SignupSheet) => s.id);
@@ -69,95 +62,112 @@ export default async function AdminSheetsPage() {
         </Link>
       </div>
 
-      {!sheets || sheets.length === 0 ? (
+      {!sortedSheets || sortedSheets.length === 0 ? (
         <div className="card text-center text-surface-muted">
           No sign-up sheets created yet.
         </div>
       ) : (
-        <div className="card overflow-x-auto p-0">
-          <table className="min-w-full text-left">
-            <thead>
-              <tr className="bg-surface-overlay text-xs font-medium uppercase text-surface-muted">
-                <th className="py-3 pl-4 pr-2">Date</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2">Group</th>
-                <th className="py-3 px-2">Registered/Limit</th>
-                <th className="py-3 px-2">Waitlisted</th>
-                <th className="py-3 pl-2 pr-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sheets.map(
-                (
-                  sheet: SignupSheet & {
-                    group?: { id: string; name: string };
-                  }
-                ) => {
-                  const badge =
-                    statusBadge[sheet.status] ?? statusBadge.closed;
-                  const counts = countMap[sheet.id] ?? {
-                    confirmed: 0,
-                    waitlisted: 0,
-                  };
+        <>
+          {(() => {
+            const activeSheets = sortedSheets.filter((s) => s.status !== "cancelled");
+            const cancelledSheets = sortedSheets.filter((s) => s.status === "cancelled");
 
-                  return (
-                    <tr
-                      key={sheet.id}
-                      className={`border-t border-surface-border ${
-                        sheet.status === "cancelled" ? "bg-red-900/30" : ""
-                      }`}
-                    >
-                      <td className="py-3 pl-4 pr-2 text-sm font-medium text-dark-100">
-                        {formatShortDate(sheet.event_date)}
-                        {sheet.status === "cancelled" && (
-                          <span className="ml-2 text-xs font-bold text-red-400 uppercase">
-                            Cancelled
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-2">
-                        <span className={badge.className}>{badge.label}</span>
-                      </td>
-                      <td className="py-3 px-2 text-sm text-dark-200">
-                        {sheet.group?.name ?? "---"}
-                      </td>
-                      <td className="py-3 px-2 text-sm text-dark-200">
-                        {counts.confirmed}/{sheet.player_limit}
-                      </td>
-                      <td className="py-3 px-2 text-sm text-dark-200">
-                        {counts.waitlisted}
-                      </td>
-                      <td className="py-3 pl-2 pr-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/sheets/${sheet.id}`}
-                            className="text-sm text-brand-600 hover:text-brand-500"
-                          >
-                            View
-                          </Link>
-                          <Link
-                            href={`/admin/sheets/${sheet.id}`}
-                            className="text-sm text-brand-600 hover:text-brand-500"
-                          >
-                            Edit
-                          </Link>
-                          {sheet.status !== "cancelled" && (
-                            <Link
-                              href={`/admin/sheets/${sheet.id}?action=cancel`}
-                              className="text-sm text-red-400 hover:text-red-500"
-                            >
-                              Cancel
-                            </Link>
-                          )}
-                        </div>
-                      </td>
+            const renderTable = (
+              rows: (SignupSheet & { group?: { id: string; name: string } })[]
+            ) => (
+              <div className="card overflow-x-auto p-0">
+                <table className="min-w-full text-left">
+                  <thead>
+                    <tr className="bg-surface-overlay text-xs font-medium uppercase text-surface-muted">
+                      <th className="py-3 pl-4 pr-2">Date</th>
+                      <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2">Group</th>
+                      <th className="py-3 px-2">Registered/Limit</th>
+                      <th className="py-3 px-2">Waitlisted</th>
+                      <th className="py-3 pl-2 pr-4 text-right">Actions</th>
                     </tr>
-                  );
-                }
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </thead>
+                  <tbody>
+                    {rows.map((sheet) => {
+                      const badge =
+                        statusBadge[sheet.status] ?? statusBadge.closed;
+                      const counts = countMap[sheet.id] ?? {
+                        confirmed: 0,
+                        waitlisted: 0,
+                      };
+
+                      return (
+                        <tr
+                          key={sheet.id}
+                          className={`border-t border-surface-border ${
+                            sheet.status === "cancelled" ? "bg-red-900/30" : ""
+                          }`}
+                        >
+                          <td className="py-3 pl-4 pr-2 text-sm font-medium text-dark-100">
+                            {formatShortDate(sheet.event_date)}
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className={badge.className}>{badge.label}</span>
+                          </td>
+                          <td className="py-3 px-2 text-sm text-dark-200">
+                            {sheet.group?.name ?? "---"}
+                          </td>
+                          <td className="py-3 px-2 text-sm text-dark-200">
+                            {counts.confirmed}/{sheet.player_limit}
+                          </td>
+                          <td className="py-3 px-2 text-sm text-dark-200">
+                            {counts.waitlisted}
+                          </td>
+                          <td className="py-3 pl-2 pr-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link
+                                href={`/sheets/${sheet.id}`}
+                                className="text-sm text-brand-600 hover:text-brand-500"
+                              >
+                                View
+                              </Link>
+                              <Link
+                                href={`/admin/sheets/${sheet.id}`}
+                                className="text-sm text-brand-600 hover:text-brand-500"
+                              >
+                                Edit
+                              </Link>
+                              {sheet.status !== "cancelled" && (
+                                <Link
+                                  href={`/admin/sheets/${sheet.id}?action=cancel`}
+                                  className="text-sm text-red-400 hover:text-red-500"
+                                >
+                                  Cancel
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+
+            return (
+              <div className="space-y-6">
+                {activeSheets.length > 0 && (
+                  <div className="space-y-2">
+                    <h2 className="text-lg font-semibold text-dark-100">Active</h2>
+                    {renderTable(activeSheets)}
+                  </div>
+                )}
+                {cancelledSheets.length > 0 && (
+                  <div className="space-y-2">
+                    <h2 className="text-lg font-semibold text-surface-muted">Cancelled</h2>
+                    {renderTable(cancelledSheets)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </>
       )}
     </div>
   );

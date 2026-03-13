@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -60,42 +61,80 @@ export async function POST(
       return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
 
-    // If the player was confirmed, promote the first waitlisted player
+    // If the player was confirmed, promote the highest-priority waitlisted player.
+    // Use service client to bypass RLS (updating another user's registration).
     if (wasConfirmed) {
-      const { data: nextWaitlist } = await supabase
+      const admin = await createServiceClient();
+
+      let { data: waitlisted } = await admin
         .from("registrations")
-        .select("id, waitlist_position")
+        .select("id, player_id, waitlist_position, priority")
         .eq("sheet_id", sheetId)
         .eq("status", "waitlist")
-        .order("waitlist_position", { ascending: true })
-        .limit(1)
-        .single();
+        .order("waitlist_position", { ascending: true });
+
+      // Fallback if priority column doesn't exist yet
+      if (!waitlisted) {
+        const fallback = await admin
+          .from("registrations")
+          .select("id, player_id, waitlist_position")
+          .eq("sheet_id", sheetId)
+          .eq("status", "waitlist")
+          .order("waitlist_position", { ascending: true });
+        waitlisted = fallback.data as any;
+      }
+
+      const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+      const sorted = (waitlisted ?? []).sort((a: any, b: any) => {
+        const aPri = priorityOrder[a.priority ?? "normal"] ?? 1;
+        const bPri = priorityOrder[b.priority ?? "normal"] ?? 1;
+        if (aPri !== bPri) return aPri - bPri;
+        return (a.waitlist_position ?? 999) - (b.waitlist_position ?? 999);
+      });
+      const nextWaitlist = sorted[0] ?? null;
 
       if (nextWaitlist) {
-        await supabase
+        await admin
           .from("registrations")
           .update({ status: "confirmed", waitlist_position: null })
           .eq("id", nextWaitlist.id);
 
         // Reorder remaining waitlist
-        if (nextWaitlist.waitlist_position != null) {
-          // Fetch remaining waitlisted and update positions
-          const { data: remaining } = await supabase
-            .from("registrations")
-            .select("id, waitlist_position")
-            .eq("sheet_id", sheetId)
-            .eq("status", "waitlist")
-            .order("waitlist_position", { ascending: true });
+        const { data: remaining } = await admin
+          .from("registrations")
+          .select("id, waitlist_position")
+          .eq("sheet_id", sheetId)
+          .eq("status", "waitlist")
+          .order("waitlist_position", { ascending: true });
 
-          if (remaining) {
-            for (let i = 0; i < remaining.length; i++) {
-              await supabase
-                .from("registrations")
-                .update({ waitlist_position: i + 1 })
-                .eq("id", remaining[i].id);
-            }
+        if (remaining) {
+          for (let i = 0; i < remaining.length; i++) {
+            await admin
+              .from("registrations")
+              .update({ waitlist_position: i + 1 })
+              .eq("id", remaining[i].id);
           }
         }
+
+        // Notify the promoted player (email + in-app)
+        const { data: sheet } = await admin
+          .from("signup_sheets")
+          .select("event_date, group:shootout_groups(name)")
+          .eq("id", sheetId)
+          .single();
+
+        const groupName = (sheet as any)?.group?.name ?? "the event";
+        const eventDate = sheet?.event_date ?? "";
+
+        notify({
+          userId: nextWaitlist.player_id,
+          type: "waitlist_promoted",
+          title: "You're in!",
+          body: `A spot opened up for ${groupName} on ${eventDate ? new Date(eventDate).toLocaleDateString() : "the upcoming date"}. You've been moved from the waitlist to the confirmed list.`,
+          link: `/sheets/${sheetId}`,
+          emailTemplate: "WaitlistPromoted",
+          emailData: { groupName, eventDate, sheetId },
+        }).catch((err) => console.error("Waitlist promotion notify failed:", err));
       }
     }
 

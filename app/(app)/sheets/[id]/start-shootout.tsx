@@ -8,24 +8,36 @@ interface StartShootoutProps {
   sheetId: string;
   groupId: string;
   confirmedPlayerIds: string[];
-  numCourts?: number;
 }
 
 export function StartShootout({
   sheetId,
   groupId,
   confirmedPlayerIds,
-  numCourts: numCourtsProp,
 }: StartShootoutProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [numCourts, setNumCourts] = useState<number | null>(null);
+
+  // Compute valid court options (4-5 players per court)
+  const courtOptions = Array.from(
+    { length: Math.floor(confirmedPlayerIds.length / 4) },
+    (_, i) => i + 1
+  ).filter((n) => {
+    const perCourt = confirmedPlayerIds.length / n;
+    return perCourt >= 4 && perCourt <= 5;
+  });
 
   async function handleStart() {
+    if (!numCourts) {
+      setError("Please select the number of courts.");
+      return;
+    }
     if (
       !confirm(
-        "Create a shootout session from this sheet? Confirmed players will be added as participants."
+        `Create a shootout session with ${numCourts} court${numCourts > 1 ? "s" : ""} for ${confirmedPlayerIds.length} players?`
       )
     )
       return;
@@ -34,9 +46,6 @@ export function StartShootout({
     setError(null);
 
     try {
-      // Use sheet's configured courts, or estimate from player count
-      const numCourts = numCourtsProp || Math.floor(confirmedPlayerIds.length / 4) || 1;
-
       const { data: session, error: sessionErr } = await supabase
         .from("shootout_sessions")
         .insert({
@@ -92,13 +101,37 @@ export function StartShootout({
 
   return (
     <div>
+      {confirmedPlayerIds.length >= 4 && (
+        <div className="flex items-center gap-3 mb-3">
+          <label className="text-sm font-medium text-dark-200">Courts:</label>
+          <select
+            value={numCourts ?? ""}
+            onChange={(e) => setNumCourts(e.target.value ? Number(e.target.value) : null)}
+            className="input w-20 py-1"
+          >
+            <option value="">—</option>
+            {courtOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {numCourts && (
+            <span className="text-xs text-surface-muted">
+              {confirmedPlayerIds.length} players across {numCourts} court{numCourts > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      )}
       <button
         onClick={handleStart}
-        disabled={starting || confirmedPlayerIds.length < 4}
+        disabled={starting || confirmedPlayerIds.length < 4 || !numCourts}
         className="btn-primary w-full sm:w-auto"
         title={
           confirmedPlayerIds.length < 4
             ? "Need at least 4 confirmed players"
+            : !numCourts
+            ? "Select number of courts"
             : undefined
         }
       >

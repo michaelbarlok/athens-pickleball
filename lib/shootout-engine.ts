@@ -62,7 +62,8 @@ export interface PoolResult {
 /**
  * Distribute players across courts.
  * Courts fill from court 1 (highest seeded) first.
- * If fewer players than max capacity, only fill as many courts as needed.
+ * Lower-numbered courts (best players) get 5 players first;
+ * higher-numbered courts (weaker players) get 4.
  * Each active court must have 4 or 5 players.
  */
 export function distributeCourts(
@@ -126,6 +127,46 @@ export function seedSession1(
   numCourts: number
 ): PlayerPosition[] {
   const sorted = rankingSheetSort(players);
+  const courts = distributeCourts(sorted.length, numCourts);
+  const positions: PlayerPosition[] = [];
+  let playerIdx = 0;
+
+  for (const court of courts) {
+    for (let i = 0; i < court.size; i++) {
+      if (playerIdx < sorted.length) {
+        positions.push({
+          playerId: sorted[playerIdx].id,
+          courtNumber: court.court,
+        });
+        playerIdx++;
+      }
+    }
+  }
+
+  return positions;
+}
+
+// ============================================================
+// Court-Based Seeding (Re-seed & Session 2+)
+// ============================================================
+
+/**
+ * Seed players to courts using a court number as the primary sort key,
+ * with win% as the tiebreaker within the same court.
+ *
+ * Used for:
+ * - Re-seeding after manual court changes (courtNumber = current court)
+ * - Session 2+ first seed (courtNumber = target_court_next from previous session)
+ */
+export function seedByCourtOrder(
+  players: { id: string; courtNumber: number; winPct: number }[],
+  numCourts: number
+): PlayerPosition[] {
+  const sorted = [...players].sort((a, b) => {
+    if (a.courtNumber !== b.courtNumber) return a.courtNumber - b.courtNumber;
+    return b.winPct - a.winPct; // higher win% = better within same court
+  });
+
   const courts = distributeCourts(sorted.length, numCourts);
   const positions: PlayerPosition[] = [];
   let playerIdx = 0;
