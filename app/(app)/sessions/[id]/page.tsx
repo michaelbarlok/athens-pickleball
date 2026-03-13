@@ -128,8 +128,8 @@ function generateMatchSchedule(
     const team2Set = new Set(match.team2);
 
     const found = scores.find((s) => {
-      const sTeamA = new Set([s.team_a_p1, s.team_a_p2].filter(Boolean));
-      const sTeamB = new Set([s.team_b_p1, s.team_b_p2].filter(Boolean));
+      const sTeamA = new Set([s.team_a_p1, s.team_a_p2].filter((v): v is string => !!v));
+      const sTeamB = new Set([s.team_b_p1, s.team_b_p2].filter((v): v is string => !!v));
 
       // Check both orientations
       const match1 =
@@ -141,7 +141,7 @@ function generateMatchSchedule(
     });
 
     if (found) {
-      const sTeamA = new Set([found.team_a_p1, found.team_a_p2].filter(Boolean));
+      const sTeamA = new Set([found.team_a_p1, found.team_a_p2].filter((v): v is string => !!v));
       const isTeam1AsA = setsEqual(sTeamA, team1Set);
       match.result = {
         scoreA: isTeam1AsA ? found.score_a : found.score_b,
