@@ -217,7 +217,7 @@ export default function PlayerSessionPage() {
       .from("game_results")
       .select("*")
       .eq("session_id", sessionId)
-      .order("created_at");
+      .order("id");
     setScores(gameScores ?? []);
 
     setLoading(false);
