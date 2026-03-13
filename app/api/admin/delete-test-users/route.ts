@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -18,8 +18,14 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Use service client for data mutations (bypasses RLS)
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 500 });
+  }
+  const serviceClient = await createServiceClient();
+
   // Find all test profiles
-  const { data: testProfiles } = await supabase
+  const { data: testProfiles } = await serviceClient
     .from("profiles")
     .select("id")
     .like("display_name", "[TEST]%");
@@ -31,19 +37,19 @@ export async function POST() {
   const ids = testProfiles.map((p) => p.id);
 
   // Delete registrations
-  await supabase
+  await serviceClient
     .from("registrations")
     .delete()
     .in("player_id", ids);
 
   // Delete group memberships
-  await supabase
+  await serviceClient
     .from("group_memberships")
     .delete()
     .in("player_id", ids);
 
   // Delete profiles
-  const { error } = await supabase
+  const { error } = await serviceClient
     .from("profiles")
     .delete()
     .in("id", ids);

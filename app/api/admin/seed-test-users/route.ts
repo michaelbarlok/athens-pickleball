@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 const FIRST_NAMES = [
@@ -34,8 +34,14 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Use service client for data mutations (bypasses RLS)
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 500 });
+  }
+  const serviceClient = await createServiceClient();
+
   // Find the open sheet
-  const { data: sheet } = await supabase
+  const { data: sheet } = await serviceClient
     .from("signup_sheets")
     .select("id, player_limit, group_id")
     .eq("status", "open")
@@ -83,7 +89,7 @@ export async function POST() {
 
   // Insert profiles (without _step and _pct)
   const profileInserts = testProfiles.map(({ _step, _pct, ...rest }) => rest);
-  const { data: inserted, error: insertErr } = await supabase
+  const { data: inserted, error: insertErr } = await serviceClient
     .from("profiles")
     .insert(profileInserts)
     .select("id");
@@ -106,7 +112,7 @@ export async function POST() {
     last_played_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
   }));
 
-  const { error: memberErr } = await supabase
+  const { error: memberErr } = await serviceClient
     .from("group_memberships")
     .insert(memberships);
 
@@ -115,7 +121,7 @@ export async function POST() {
   }
 
   // Count existing confirmed registrations
-  const { count: existingConfirmed } = await supabase
+  const { count: existingConfirmed } = await serviceClient
     .from("registrations")
     .select("id", { count: "exact", head: true })
     .eq("sheet_id", sheet.id)
@@ -135,7 +141,7 @@ export async function POST() {
     };
   });
 
-  const { error: regErr } = await supabase
+  const { error: regErr } = await serviceClient
     .from("registrations")
     .insert(registrations);
 
