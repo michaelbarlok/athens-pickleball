@@ -186,15 +186,21 @@ export default function CheckInPage() {
 
       await Promise.all(updates);
 
-      // Update local state
+      // Update local state and sort by court number, then step
       const posMap = new Map(positions.map((p) => [p.playerId, p.courtNumber]));
-      setParticipants((prev) =>
-        prev.map((p) => {
+      setParticipants((prev) => {
+        const updated = prev.map((p) => {
           if (p.court_number != null) return p; // Don't overwrite existing
           const court = posMap.get(p.player_id);
           return court != null ? { ...p, court_number: court } : p;
-        })
-      );
+        });
+        return updated.sort((a, b) => {
+          const aCourt = a.court_number ?? 999;
+          const bCourt = b.court_number ?? 999;
+          if (aCourt !== bCourt) return aCourt - bCourt;
+          return a.current_step - b.current_step;
+        });
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Seeding failed");
     }
@@ -313,7 +319,7 @@ export default function CheckInPage() {
                         e.target.value ? parseInt(e.target.value) : null
                       )
                     }
-                    className="w-16 rounded border-surface-border text-sm py-1 px-2 text-center"
+                    className="w-16 rounded border border-surface-border bg-surface-raised text-dark-100 text-sm py-1 px-2 text-center"
                     placeholder="—"
                   />
                 </td>
