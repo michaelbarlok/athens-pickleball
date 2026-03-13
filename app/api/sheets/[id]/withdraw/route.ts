@@ -81,7 +81,7 @@ export async function POST(
           .eq("sheet_id", sheetId)
           .eq("status", "waitlist")
           .order("waitlist_position", { ascending: true });
-        waitlisted = fallback.data;
+        waitlisted = fallback.data as any;
       }
 
       const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
