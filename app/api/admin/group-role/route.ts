@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     .eq("user_id", user.id)
     .single();
 
-  if (!callerProfile || callerProfile.role !== "admin") {
+  if (!callerProfile) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -26,6 +26,20 @@ export async function POST(request: NextRequest) {
 
   if (!playerId || !groupId || !["admin", "member"].includes(groupRole)) {
     return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+  }
+
+  // Allow global admins OR group admins of the target group
+  if (callerProfile.role !== "admin") {
+    const { data: callerMembership } = await supabase
+      .from("group_memberships")
+      .select("group_role")
+      .eq("group_id", groupId)
+      .eq("player_id", callerProfile.id)
+      .single();
+
+    if (!callerMembership || callerMembership.group_role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const admin = await createServiceClient();

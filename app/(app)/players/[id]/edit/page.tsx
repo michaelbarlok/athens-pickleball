@@ -22,6 +22,10 @@ export default function EditProfilePage() {
   const [homeCourt, setHomeCourt] = useState("");
   const [skillLevel, setSkillLevel] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [groupAdminIds, setGroupAdminIds] = useState<Set<string>>(new Set());
+  const [togglingGroup, setTogglingGroup] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -55,6 +59,9 @@ export default function EditProfilePage() {
         return;
       }
 
+      const callerIsAdmin = currentProfile?.role === "admin";
+      setIsAdmin(callerIsAdmin);
+
       setDisplayName(profile.display_name ?? "");
       setFullName(profile.full_name ?? "");
       setPhone(profile.phone ?? "");
@@ -62,6 +69,28 @@ export default function EditProfilePage() {
       setHomeCourt(profile.home_court ?? "");
       setSkillLevel(profile.skill_level?.toString() ?? "");
       setAvatarUrl(profile.avatar_url ?? null);
+
+      // If caller is admin, fetch groups and this player's group admin roles
+      if (callerIsAdmin) {
+        const [groupsRes, membershipsRes] = await Promise.all([
+          supabase.from("shootout_groups").select("id, name").order("name"),
+          supabase
+            .from("group_memberships")
+            .select("group_id, group_role")
+            .eq("player_id", id),
+        ]);
+
+        if (groupsRes.data) setGroups(groupsRes.data);
+        if (membershipsRes.data) {
+          const adminSet = new Set(
+            membershipsRes.data
+              .filter((m) => m.group_role === "admin")
+              .map((m) => m.group_id)
+          );
+          setGroupAdminIds(adminSet);
+        }
+      }
+
       setLoading(false);
     }
 
@@ -71,6 +100,35 @@ export default function EditProfilePage() {
   const handleAvatarUpload = useCallback((url: string) => {
     setAvatarUrl(url);
   }, []);
+
+  const toggleGroupAdmin = async (groupId: string, currentlyAdmin: boolean) => {
+    setTogglingGroup(groupId);
+    const res = await fetch("/api/admin/group-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playerId: id,
+        groupId,
+        groupRole: currentlyAdmin ? "member" : "admin",
+      }),
+    });
+
+    if (res.ok) {
+      setGroupAdminIds((prev) => {
+        const next = new Set(prev);
+        if (currentlyAdmin) {
+          next.delete(groupId);
+        } else {
+          next.add(groupId);
+        }
+        return next;
+      });
+    } else {
+      const data = await res.json();
+      setError(data.error ?? "Failed to update group role");
+    }
+    setTogglingGroup(null);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -240,6 +298,41 @@ export default function EditProfilePage() {
           </div>
         </form>
       </div>
+
+      {/* Group Admin Roles — visible to global admins only */}
+      {isAdmin && groups.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-dark-100 mb-3">Group Admin Roles</h2>
+          <p className="text-sm text-surface-muted mb-4">
+            Select which groups this player is an admin of.
+          </p>
+          <div className="space-y-2">
+            {groups.map((group) => {
+              const isGroupAdmin = groupAdminIds.has(group.id);
+              return (
+                <label
+                  key={group.id}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface-overlay cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isGroupAdmin}
+                    disabled={togglingGroup === group.id}
+                    onChange={() => toggleGroupAdmin(group.id, isGroupAdmin)}
+                    className="h-4 w-4 rounded border-surface-border text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-sm font-medium text-dark-100">{group.name}</span>
+                  {isGroupAdmin && (
+                    <span className="inline-flex items-center rounded-full bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                      Admin
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

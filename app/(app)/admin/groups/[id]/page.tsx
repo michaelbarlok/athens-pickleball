@@ -141,6 +141,26 @@ export default function AdminGroupDetailPage() {
     }
   };
 
+  const toggleGroupRole = async (playerId: string, currentRole: string) => {
+    const newRole = currentRole === "admin" ? "member" : "admin";
+    const res = await fetch("/api/admin/group-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, groupId: id, groupRole: newRole }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setMessage({ type: "error", text: data.error ?? "Failed to update role" });
+    } else {
+      setMessage({
+        type: "success",
+        text: newRole === "admin" ? "Promoted to group admin." : "Demoted to member.",
+      });
+      await fetchData();
+    }
+  };
+
   const removeMember = async (playerId: string) => {
     if (!confirm("Are you sure you want to remove this member?")) return;
 
@@ -394,6 +414,11 @@ export default function AdminGroupDetailPage() {
                         <div>
                           <p className="text-sm font-medium text-dark-100">
                             {member.player?.display_name}
+                            {(member as any).group_role === "admin" && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                                Admin
+                              </span>
+                            )}
                           </p>
                           <p className="text-xs text-surface-muted">
                             {member.player?.email}
@@ -438,12 +463,25 @@ export default function AdminGroupDetailPage() {
                       })}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <button
-                        onClick={() => removeMember(member.player_id)}
-                        className="text-sm text-red-400 hover:text-red-500"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => toggleGroupRole(member.player_id, (member as any).group_role ?? "member")}
+                          className={cn(
+                            "text-sm",
+                            (member as any).group_role === "admin"
+                              ? "text-yellow-400 hover:text-yellow-500"
+                              : "text-brand-500 hover:text-brand-400"
+                          )}
+                        >
+                          {(member as any).group_role === "admin" ? "Demote" : "Promote"}
+                        </button>
+                        <button
+                          onClick={() => removeMember(member.player_id)}
+                          className="text-sm text-red-400 hover:text-red-500"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
