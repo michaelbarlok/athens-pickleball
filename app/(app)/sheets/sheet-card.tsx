@@ -30,6 +30,7 @@ interface SheetCardProps {
   signupClosed: boolean;
   withdrawClosed: boolean;
   isFull: boolean;
+  isLoggedIn: boolean;
 }
 
 function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
@@ -63,10 +64,14 @@ export function SheetCard({
   signupClosed,
   withdrawClosed,
   isFull,
+  isLoggedIn,
 }: SheetCardProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactMessage, setContactMessage] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const badge = statusBadge[status] ?? statusBadge.closed;
   const isOpen = status === "open";
   const isRegistered = myStatus === "confirmed" || myStatus === "waitlist";
@@ -107,6 +112,32 @@ export function SheetCard({
       alert("Failed to withdraw.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleContactAdmins(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!contactMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      const res = await fetch(`/api/sheets/${sheetId}/contact-admins`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: contactMessage.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to send message.");
+      } else {
+        setContactMessage("");
+        setShowContactForm(false);
+        alert("Message sent to group admins.");
+      }
+    } catch {
+      alert("Failed to send message.");
+    } finally {
+      setSendingMessage(false);
     }
   }
 
@@ -157,8 +188,8 @@ export function SheetCard({
         </div>
       </div>
 
-      {/* Row 2: Actions (sign up / withdraw) */}
-      {(isRegistered || isOpen) && (
+      {/* Row 2: Actions (sign up / withdraw / contact admins) */}
+      {(isRegistered || (isOpen && !signupClosed)) && (
         <div className="mt-2 flex items-center gap-2 flex-wrap">
           {isRegistered ? (
             <>
@@ -175,8 +206,6 @@ export function SheetCard({
                 </button>
               )}
             </>
-          ) : signupClosed ? (
-            <span className="text-xs text-surface-muted">Sign-up closed</span>
           ) : (
             <button
               onClick={handleSignUp}
@@ -185,6 +214,84 @@ export function SheetCard({
             >
               {loading ? "..." : isFull ? "Join Waitlist" : "Sign Up"}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Contact group admins when signup/withdraw is closed */}
+      {isLoggedIn && signupClosed && !isRegistered && status !== "cancelled" && (
+        <div className="mt-2">
+          {!showContactForm ? (
+            <button
+              onClick={(e) => { e.preventDefault(); setShowContactForm(true); }}
+              className="text-xs text-brand-600 hover:text-brand-500 font-medium"
+            >
+              Message Group Admins
+            </button>
+          ) : (
+            <div className="space-y-2" onClick={(e) => e.preventDefault()}>
+              <textarea
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                placeholder="Write a message to the group admins..."
+                className="input text-sm w-full h-20 resize-none"
+                maxLength={500}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleContactAdmins}
+                  disabled={sendingMessage || !contactMessage.trim()}
+                  className="btn-primary text-xs px-3 py-1.5"
+                >
+                  {sendingMessage ? "Sending..." : "Send"}
+                </button>
+                <button
+                  onClick={(e) => { e.preventDefault(); setShowContactForm(false); setContactMessage(""); }}
+                  className="text-xs text-surface-muted hover:text-dark-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Contact group admins for registered users when withdraw is closed */}
+      {isLoggedIn && isRegistered && withdrawClosed && status !== "cancelled" && (
+        <div className="mt-2">
+          {!showContactForm ? (
+            <button
+              onClick={(e) => { e.preventDefault(); setShowContactForm(true); }}
+              className="text-xs text-brand-600 hover:text-brand-500 font-medium"
+            >
+              Message Group Admins
+            </button>
+          ) : (
+            <div className="space-y-2" onClick={(e) => e.preventDefault()}>
+              <textarea
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                placeholder="Write a message to the group admins..."
+                className="input text-sm w-full h-20 resize-none"
+                maxLength={500}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleContactAdmins}
+                  disabled={sendingMessage || !contactMessage.trim()}
+                  className="btn-primary text-xs px-3 py-1.5"
+                >
+                  {sendingMessage ? "Sending..." : "Send"}
+                </button>
+                <button
+                  onClick={(e) => { e.preventDefault(); setShowContactForm(false); setContactMessage(""); }}
+                  className="text-xs text-surface-muted hover:text-dark-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

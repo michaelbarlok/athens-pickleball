@@ -163,6 +163,7 @@ export default async function SheetsPage() {
         signupClosed={signupClosed}
         withdrawClosed={withdrawClosed}
         isFull={confirmed >= sheet.player_limit}
+        isLoggedIn={!!profile}
       />
     );
   };
