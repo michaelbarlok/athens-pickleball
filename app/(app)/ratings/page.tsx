@@ -99,7 +99,7 @@ export default async function RatingsPage() {
   // Get all active players with their group memberships (for current_step)
   const { data: memberships } = await supabase
     .from("group_memberships")
-    .select("player_id, current_step, player:profiles(id, display_name, avatar_url, is_active)")
+    .select("player_id, current_step, last_played_at, player:profiles(id, display_name, avatar_url, is_active)")
     .order("current_step", { ascending: true });
 
   // Calculate point percentages
@@ -114,6 +114,7 @@ export default async function RatingsPage() {
       display_name: string;
       avatar_url: string | null;
       percentage: number;
+      last_played_at: string | null;
     }
   >();
 
@@ -131,6 +132,7 @@ export default async function RatingsPage() {
         display_name: player.display_name,
         avatar_url: player.avatar_url,
         percentage: pct,
+        last_played_at: (m as any).last_played_at ?? null,
       });
     }
   }
@@ -159,6 +161,7 @@ export default async function RatingsPage() {
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Player</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Step</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Percentage</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Last Active</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
@@ -189,11 +192,19 @@ export default async function RatingsPage() {
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
                   {r.percentage > 0 ? `${r.percentage.toFixed(1)}%` : "—"}
                 </td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  {r.last_played_at
+                    ? new Date(r.last_played_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "—"}
+                </td>
               </tr>
             ))}
             {ranked.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                   No ranked players yet.
                 </td>
               </tr>
