@@ -33,27 +33,54 @@ export async function notify({
   // for other users and read their profile/preferences
   const supabase = await createServiceClient();
 
-  // 1. Always write in-app notification
-  const { error: insertErr } = await supabase.from("notifications").insert({
-    user_id: userId,
-    type,
-    title,
-    body,
-    link,
-    group_id: groupId ?? null,
-  });
-  if (insertErr) {
-    console.error("Failed to insert notification:", insertErr.message);
+  // 1. Always write in-app notification (best-effort, don't block email)
+  try {
+    const { error: insertErr } = await supabase.from("notifications").insert({
+      user_id: userId,
+      type,
+      title,
+      body,
+      link,
+      group_id: groupId ?? null,
+    });
+    if (insertErr) {
+      console.error("Failed to insert notification:", insertErr.message);
+      // Try without group_id if that column doesn't exist
+      if (insertErr.message.includes("group_id")) {
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          type,
+          title,
+          body,
+          link,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Notification insert threw:", e);
   }
 
   // 2. Fetch user preferences
-  const { data: profile } = await supabase
+  let { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select("email, phone, preferred_notify")
     .eq("id", userId)
     .single();
 
-  if (!profile) return;
+  // If preferred_notify column doesn't exist, retry without it
+  if (profileErr && profileErr.message.includes("preferred_notify")) {
+    const fallback = await supabase
+      .from("profiles")
+      .select("email, phone")
+      .eq("id", userId)
+      .single();
+    profile = fallback.data ? { ...fallback.data, preferred_notify: null } : null;
+  }
+
+  if (!profile) {
+    console.error("Profile not found for notification:", userId, profileErr?.message);
+    return;
+  }
 
   const prefs: string[] = profile.preferred_notify ?? ["email"];
 
@@ -91,9 +118,14 @@ export async function notifyMany(
   userIds: string[],
   params: Omit<NotifyParams, "userId">
 ): Promise<void> {
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     userIds.map((userId) => notify({ ...params, userId }))
   );
+  const failures = results.filter((r) => r.status === "rejected");
+  if (failures.length > 0) {
+    console.error(`notifyMany: ${failures.length}/${results.length} failed:`,
+      failures.map((f) => (f as PromiseRejectedResult).reason));
+  }
 }
 
 // ============================================================
@@ -129,7 +161,10 @@ async function sendEmail({
   data: Record<string, unknown>;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY not set, skipping email");
+    return;
+  }
 
   const { Resend } = await import("resend");
   const resend = new Resend(apiKey);
