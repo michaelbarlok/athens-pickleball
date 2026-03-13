@@ -38,7 +38,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Use service client for data mutations (bypasses RLS)
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured" }, { status: 500 });
   }
@@ -69,7 +68,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sheet not found" }, { status: 404 });
   }
 
-  // Clean up any existing test users first (makes this idempotent)
+  // Clean up any existing test data first
   const { data: existingTest } = await serviceClient
     .from("profiles")
     .select("id, user_id")
@@ -79,63 +78,63 @@ export async function POST(request: Request) {
     const existingIds = existingTest.map((p) => p.id);
     const existingAuthIds = existingTest.map((p) => p.user_id).filter(Boolean);
 
-    await serviceClient.from("registrations").delete().in("player_id", existingIds);
-    await serviceClient.from("group_memberships").delete().in("player_id", existingIds);
+    await Promise.all([
+      serviceClient.from("registrations").delete().in("player_id", existingIds),
+      serviceClient.from("group_memberships").delete().in("player_id", existingIds),
+    ]);
     await serviceClient.from("profiles").delete().in("id", existingIds);
-
-    for (const authId of existingAuthIds) {
-      await serviceClient.auth.admin.deleteUser(authId);
-    }
+    await Promise.all(existingAuthIds.map((id) => serviceClient.auth.admin.deleteUser(id)));
   }
 
-  // Also clean up any orphaned test auth users (created but no profile)
+  // Clean up orphaned test auth users
   const { data: authUsers } = await serviceClient.auth.admin.listUsers({ perPage: 1000 });
   if (authUsers?.users) {
-    for (const u of authUsers.users) {
-      if (u.email?.endsWith("@test.local")) {
-        await serviceClient.auth.admin.deleteUser(u.id);
-      }
+    const orphaned = authUsers.users.filter((u) => u.email?.endsWith("@test.local"));
+    if (orphaned.length > 0) {
+      await Promise.all(orphaned.map((u) => serviceClient.auth.admin.deleteUser(u.id)));
     }
   }
 
-  // Create 39 test auth users and profiles
-  const createdUserIds: string[] = [];
-  const metadata: { step: number; pct: number }[] = [];
+  // Create 39 test auth users in parallel
+  const userResults = await Promise.all(
+    FIRST_NAMES.map((firstName, i) => {
+      const lastName = LAST_NAMES[i];
+      const email = `test-${firstName.toLowerCase()}-${lastName.toLowerCase()}@test.local`;
+      return serviceClient.auth.admin.createUser({
+        email,
+        password: "testpassword123",
+        email_confirm: true,
+        user_metadata: { full_name: `${firstName} ${lastName}` },
+      });
+    })
+  );
 
-  for (let i = 0; i < 39; i++) {
-    const firstName = FIRST_NAMES[i];
-    const lastName = LAST_NAMES[i];
-    const email = `test-${firstName.toLowerCase()}-${lastName.toLowerCase()}@test.local`;
-    const step = Math.floor(Math.random() * 6) + 1;
-    const pct = Math.round((Math.random() * 40 + 50) * 10) / 10;
-
-    // Create auth user via admin API
-    const { data: authUser, error: authErr } = await serviceClient.auth.admin.createUser({
-      email,
-      password: "testpassword123",
-      email_confirm: true,
-      user_metadata: { full_name: `${firstName} ${lastName}` },
-    });
-
+  // Collect successful auth users with their index
+  const created: { userId: string; index: number; step: number; pct: number }[] = [];
+  for (let i = 0; i < userResults.length; i++) {
+    const { data: authUser, error: authErr } = userResults[i];
     if (authErr || !authUser.user) {
-      console.error(`Failed to create auth user ${email}:`, authErr?.message);
+      console.error(`Failed to create auth user ${FIRST_NAMES[i]}:`, authErr?.message);
       continue;
     }
-
-    createdUserIds.push(authUser.user.id);
-    metadata.push({ step, pct });
+    created.push({
+      userId: authUser.user.id,
+      index: i,
+      step: Math.floor(Math.random() * 6) + 1,
+      pct: Math.round((Math.random() * 40 + 50) * 10) / 10,
+    });
   }
 
-  if (createdUserIds.length === 0) {
+  if (created.length === 0) {
     return NextResponse.json({ error: "Failed to create any auth users" }, { status: 500 });
   }
 
-  // Create profiles for each auth user
-  const profileInserts = createdUserIds.map((userId, i) => {
-    const firstName = FIRST_NAMES[i];
-    const lastName = LAST_NAMES[i];
+  // Bulk insert profiles
+  const profileInserts = created.map((c) => {
+    const firstName = FIRST_NAMES[c.index];
+    const lastName = LAST_NAMES[c.index];
     return {
-      user_id: userId,
+      user_id: c.userId,
       full_name: `${firstName} ${lastName}`,
       display_name: `[TEST] ${firstName} ${lastName}`,
       email: `test-${firstName.toLowerCase()}-${lastName.toLowerCase()}@test.local`,
@@ -159,27 +158,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No profiles created" }, { status: 500 });
   }
 
-  // Create group memberships
-  if (sheet.group_id) {
-    const memberships = inserted.map((p, i) => ({
-      player_id: p.id,
-      group_id: sheet.group_id,
-      current_step: metadata[i].step,
-      win_pct: metadata[i].pct,
-      total_sessions: Math.floor(Math.random() * 20) + 1,
-      last_played_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    }));
-
-    const { error: memberErr } = await serviceClient
-      .from("group_memberships")
-      .insert(memberships);
-
-    if (memberErr) {
-      console.error("Membership insert error:", memberErr);
-    }
-  }
-
-  // Count existing confirmed registrations
+  // Bulk insert group memberships + registrations in parallel
   const { count: existingConfirmed } = await serviceClient
     .from("registrations")
     .select("id", { count: "exact", head: true })
@@ -188,7 +167,6 @@ export async function POST(request: Request) {
 
   const spotsLeft = sheet.player_limit - (existingConfirmed ?? 0);
 
-  // Register all test users on the sheet
   const registrations = inserted.map((p, i) => {
     const isConfirmed = i < spotsLeft;
     return {
@@ -200,9 +178,26 @@ export async function POST(request: Request) {
     };
   });
 
-  const { error: regErr } = await serviceClient
-    .from("registrations")
-    .insert(registrations);
+  const memberships = sheet.group_id
+    ? inserted.map((p, i) => ({
+        player_id: p.id,
+        group_id: sheet.group_id,
+        current_step: created[i].step,
+        win_pct: created[i].pct,
+        total_sessions: Math.floor(Math.random() * 20) + 1,
+        last_played_at: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString(),
+      }))
+    : null;
+
+  const promises: Promise<unknown>[] = [
+    serviceClient.from("registrations").insert(registrations),
+  ];
+  if (memberships) {
+    promises.push(serviceClient.from("group_memberships").insert(memberships));
+  }
+
+  const [regResult] = await Promise.all(promises);
+  const regErr = (regResult as { error?: { message: string } }).error;
 
   if (regErr) {
     return NextResponse.json({ error: regErr.message }, { status: 500 });
