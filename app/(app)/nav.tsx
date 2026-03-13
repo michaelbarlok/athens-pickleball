@@ -11,7 +11,7 @@ const playerNav = [
   { name: "Dashboard", href: "/" },
   { name: "Groups", href: "/groups" },
   { name: "Sheets", href: "/sheets" },
-  { name: "Ratings", href: "/ratings" },
+  { name: "Rankings", href: "/ratings" },
   { name: "Forum", href: "/forum" },
 ];
 

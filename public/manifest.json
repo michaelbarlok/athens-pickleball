@@ -1,0 +1,17 @@
+{
+  "name": "PKL Leagues & Tournaments",
+  "short_name": "PKL",
+  "description": "Pickleball ladder league platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/pkl-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

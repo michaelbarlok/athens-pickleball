@@ -5,6 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PKL",
   description: "Pickleball ladder league platform",
+  icons: {
+    icon: "/pb-logo.webp",
+    apple: "/pkl-logo.png",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
