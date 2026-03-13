@@ -17,7 +17,7 @@ export default async function HomePage() {
         />
         <div className="space-y-3">
           <h1 className="text-3xl font-bold text-dark-100 sm:text-5xl tracking-tight">
-            Athens Pickleball
+            PKL
           </h1>
           <p className="max-w-md mx-auto text-base text-dark-200 sm:text-lg">
             Sign up for shootouts, track your rankings, and connect with the local pickleball community.
