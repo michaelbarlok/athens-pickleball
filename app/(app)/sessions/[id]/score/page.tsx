@@ -146,7 +146,7 @@ export default function ScoreEntryPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        round_number: session?.current_round ?? 1,
+        round_number: session?.current_round || 1,
         pool_number: myCourt,
         team_a_p1: teamAP1,
         team_a_p2: teamAP2 || null,
@@ -175,7 +175,7 @@ export default function ScoreEntryPage() {
       <div>
         <h1 className="text-2xl font-bold text-dark-100">Enter Score</h1>
         <p className="text-sm text-surface-muted">
-          {session.group?.name} — Round {session.current_round}
+          {session.group?.name} — Round {session.current_round || 1}
           {myCourt && ` — Court ${myCourt}`}
         </p>
       </div>

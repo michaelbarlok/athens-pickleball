@@ -374,7 +374,7 @@ export default function AdminSessionDetailPage() {
         </div>
         <div className="card">
           <p className="text-sm text-surface-muted">Round</p>
-          <p className="text-2xl font-bold">{session.current_round}</p>
+          <p className="text-2xl font-bold">{session.current_round || 1}</p>
         </div>
       </div>
 
