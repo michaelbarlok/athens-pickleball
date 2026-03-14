@@ -158,6 +158,7 @@ export default async function TournamentDetailPage({
       </div>
 
       {/* Registration Action */}
+      <div id="register" />
       {profile && tournament.status === "registration_open" && (
         <TournamentRegistrationButton
           tournamentId={id}
@@ -293,33 +294,30 @@ function OrganizerControls({
   return (
     <div className="card">
       <h2 className="text-sm font-semibold text-dark-200 mb-3">Organizer Controls</h2>
-      <form
-        action={action.api ? `/api/tournaments/${tournamentId}/bracket` : undefined}
-        method={action.api ? "POST" : undefined}
-      >
-        <input type="hidden" name="next_status" value={action.next} />
-        <div className="flex flex-wrap gap-2">
-          {action.api ? (
+      <div className="flex flex-wrap gap-2">
+        {action.api ? (
+          <form action={`/api/tournaments/${tournamentId}/bracket`} method="POST">
+            <input type="hidden" name="next_status" value={action.next} />
             <button type="submit" className="btn-primary" disabled={registrationCount < 2}>
               {action.label}
             </button>
-          ) : (
-            <StatusAdvanceButton
-              tournamentId={tournamentId}
-              nextStatus={action.next}
-              label={action.label}
-            />
-          )}
-          {status !== "completed" && (
-            <StatusAdvanceButton
-              tournamentId={tournamentId}
-              nextStatus="cancelled"
-              label="Cancel Tournament"
-              variant="danger"
-            />
-          )}
-        </div>
-      </form>
+          </form>
+        ) : (
+          <StatusAdvanceButton
+            tournamentId={tournamentId}
+            nextStatus={action.next}
+            label={action.label}
+          />
+        )}
+        {status !== "completed" && (
+          <StatusAdvanceButton
+            tournamentId={tournamentId}
+            nextStatus="cancelled"
+            label="Cancel Tournament"
+            variant="danger"
+          />
+        )}
+      </div>
     </div>
   );
 }
