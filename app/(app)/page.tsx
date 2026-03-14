@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { LandingFooter } from "./landing-footer";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -299,6 +300,9 @@ export default async function HomePage() {
           )}
         </div>
       </section>
+
+      {/* ── Footer (always visible, even for authenticated users) ── */}
+      <LandingFooter />
     </div>
   );
 }

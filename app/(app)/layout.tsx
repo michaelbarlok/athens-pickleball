@@ -4,7 +4,6 @@ import { AppNav } from "./nav";
 import { MobileNav } from "./mobile-nav";
 import { MissingProfile } from "./missing-profile";
 import { LandingNav } from "./landing-nav";
-import { LandingFooter } from "./landing-footer";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -20,7 +19,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="flex-1 mx-auto w-full max-w-7xl px-3 pt-20 pb-8 sm:px-6 lg:px-8">
           {children}
         </main>
-        <LandingFooter />
       </div>
     );
   }
