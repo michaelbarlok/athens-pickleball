@@ -281,10 +281,10 @@ function OrganizerControls({
   status: string;
   registrationCount: number;
 }) {
-  const nextAction: Record<string, { label: string; next: string; api?: string }> = {
+  const nextAction: Record<string, { label: string; next: string; generateBracket?: boolean }> = {
     draft: { label: "Open Registration", next: "registration_open" },
     registration_open: { label: "Close Registration", next: "registration_closed" },
-    registration_closed: { label: "Generate Bracket & Start", next: "in_progress", api: "bracket" },
+    registration_closed: { label: "Generate Bracket & Start", next: "in_progress", generateBracket: true },
     in_progress: { label: "Mark Complete", next: "completed" },
   };
 
@@ -295,13 +295,12 @@ function OrganizerControls({
     <div className="card">
       <h2 className="text-sm font-semibold text-dark-200 mb-3">Organizer Controls</h2>
       <div className="flex flex-wrap gap-2">
-        {action.api ? (
-          <form action={`/api/tournaments/${tournamentId}/bracket`} method="POST">
-            <input type="hidden" name="next_status" value={action.next} />
-            <button type="submit" className="btn-primary" disabled={registrationCount < 2}>
-              {action.label}
-            </button>
-          </form>
+        {action.generateBracket ? (
+          <GenerateBracketButton
+            tournamentId={tournamentId}
+            label={action.label}
+            disabled={registrationCount < 2}
+          />
         ) : (
           <StatusAdvanceButton
             tournamentId={tournamentId}
@@ -319,6 +318,118 @@ function OrganizerControls({
         )}
       </div>
     </div>
+  );
+}
+
+function GenerateBracketButton({
+  tournamentId,
+  label,
+  disabled,
+}: {
+  tournamentId: string;
+  label: string;
+  disabled: boolean;
+}) {
+  async function generateBracket() {
+    "use server";
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const {
+      generateSingleElimination,
+      generateDoubleElimination,
+      generateRoundRobin,
+    } = await import("@/lib/tournament-bracket");
+
+    // Fetch tournament
+    const { data: tournament } = await supabase
+      .from("tournaments")
+      .select("format, status")
+      .eq("id", tournamentId)
+      .single();
+
+    if (!tournament || tournament.status !== "registration_closed") return;
+
+    // Fetch confirmed registrations
+    const { data: registrations } = await supabase
+      .from("tournament_registrations")
+      .select("player_id, seed")
+      .eq("tournament_id", tournamentId)
+      .eq("status", "confirmed")
+      .order("seed", { ascending: true, nullsFirst: false })
+      .order("registered_at", { ascending: true });
+
+    if (!registrations || registrations.length < 2) return;
+
+    const playerIds = registrations.map((r) => r.player_id);
+
+    // Generate bracket
+    let bracketMatches;
+    switch (tournament.format) {
+      case "single_elimination":
+        bracketMatches = generateSingleElimination(playerIds);
+        break;
+      case "double_elimination":
+        bracketMatches = generateDoubleElimination(playerIds);
+        break;
+      case "round_robin":
+        bracketMatches = generateRoundRobin(playerIds);
+        break;
+      default:
+        return;
+    }
+
+    // Delete existing matches
+    await supabase
+      .from("tournament_matches")
+      .delete()
+      .eq("tournament_id", tournamentId);
+
+    // Insert matches
+    const matchInserts = bracketMatches.map((m) => ({
+      tournament_id: tournamentId,
+      round: m.round,
+      match_number: m.match_number,
+      bracket: m.bracket,
+      player1_id: m.player1_id,
+      player2_id: m.player2_id,
+      status: m.status,
+      score1: [],
+      score2: [],
+    }));
+
+    await supabase.from("tournament_matches").insert(matchInserts);
+
+    // Auto-advance byes
+    const byeMatches = bracketMatches.filter((m) => m.status === "bye");
+    for (const bye of byeMatches) {
+      const winnerId = bye.player1_id || bye.player2_id;
+      if (winnerId) {
+        await supabase
+          .from("tournament_matches")
+          .update({ winner_id: winnerId, status: "completed" })
+          .eq("tournament_id", tournamentId)
+          .eq("round", bye.round)
+          .eq("match_number", bye.match_number)
+          .eq("bracket", bye.bracket);
+      }
+    }
+
+    // Advance status
+    await supabase
+      .from("tournaments")
+      .update({ status: "in_progress" })
+      .eq("id", tournamentId);
+
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath(`/tournaments/${tournamentId}`);
+  }
+
+  return (
+    <form action={generateBracket}>
+      <button type="submit" className="btn-primary" disabled={disabled}>
+        {label}
+      </button>
+    </form>
   );
 }
 
