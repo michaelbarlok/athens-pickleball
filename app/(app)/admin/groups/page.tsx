@@ -87,6 +87,16 @@ export default async function AdminGroupsPage() {
       });
     }
 
+    if (!error && newGroup) {
+      // Automatically add the creator as a group admin
+      await supabase.from("group_memberships").insert({
+        group_id: newGroup.id,
+        player_id: profile.id,
+        current_step: 5,
+        group_role: "admin",
+      });
+    }
+
     revalidatePath("/admin/groups");
   }
 
