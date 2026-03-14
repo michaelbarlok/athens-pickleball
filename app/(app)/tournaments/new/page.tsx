@@ -22,6 +22,9 @@ export default function CreateTournamentPage() {
   const [entryFee, setEntryFee] = useState("");
   const [registrationOpensAt, setRegistrationOpensAt] = useState("");
   const [registrationClosesAt, setRegistrationClosesAt] = useState("");
+  const [scoreToWinPool, setScoreToWinPool] = useState("11");
+  const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
+  const [finalsBestOf3, setFinalsBestOf3] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +77,9 @@ export default function CreateTournamentPage() {
         entry_fee: entryFee.trim() || null,
         registration_opens_at: registrationOpensAt || null,
         registration_closes_at: registrationClosesAt || null,
+        score_to_win_pool: format === "round_robin" ? parseInt(scoreToWinPool) || 11 : null,
+        score_to_win_playoff: format === "round_robin" ? parseInt(scoreToWinPlayoff) || 11 : null,
+        finals_best_of_3: format === "round_robin" ? finalsBestOf3 : false,
         status: "draft",
         created_by: profile.id,
       })
@@ -154,6 +160,55 @@ export default function CreateTournamentPage() {
             </select>
           </div>
         </div>
+
+        {/* Round Robin Settings */}
+        {format === "round_robin" && (
+          <div className="rounded-lg border border-surface-border p-4 space-y-4">
+            <p className="text-sm font-medium text-dark-200">Round Robin Settings</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-dark-200 mb-1">
+                  Round Robin Score to Win
+                </label>
+                <input
+                  type="number"
+                  value={scoreToWinPool}
+                  onChange={(e) => setScoreToWinPool(e.target.value)}
+                  className="input"
+                  min={1}
+                  placeholder="11"
+                />
+                <p className="text-xs text-surface-muted mt-1">Points needed to win a pool play game</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-dark-200 mb-1">
+                  Playoff Score to Win
+                </label>
+                <input
+                  type="number"
+                  value={scoreToWinPlayoff}
+                  onChange={(e) => setScoreToWinPlayoff(e.target.value)}
+                  className="input"
+                  min={1}
+                  placeholder="11"
+                />
+                <p className="text-xs text-surface-muted mt-1">Points needed to win a playoff game</p>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={finalsBestOf3}
+                onChange={(e) => setFinalsBestOf3(e.target.checked)}
+                className="rounded border-surface-border text-brand-300 focus:ring-brand-300"
+              />
+              <span className="text-sm text-dark-200">Finals &mdash; Best 2 out of 3</span>
+            </label>
+            <p className="text-xs text-surface-muted -mt-2">
+              Championship match will be best 2 out of 3 games (each played to the playoff score above)
+            </p>
+          </div>
+        )}
 
         {/* Divisions */}
         <div>

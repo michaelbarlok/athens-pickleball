@@ -10,11 +10,24 @@ interface Props {
   canManage: boolean;
   tournamentId: string;
   division?: string;
+  scoreToWinPool?: number;
+  scoreToWinPlayoff?: number;
+  finalsBestOf3?: boolean;
 }
 
-export function TournamentBracketView({ matches, format, canManage, tournamentId, division }: Props) {
+export function TournamentBracketView({ matches, format, canManage, tournamentId, division, scoreToWinPool, scoreToWinPlayoff, finalsBestOf3 }: Props) {
   if (format === "round_robin") {
-    return <RoundRobinView matches={matches} canManage={canManage} tournamentId={tournamentId} division={division} />;
+    return (
+      <RoundRobinView
+        matches={matches}
+        canManage={canManage}
+        tournamentId={tournamentId}
+        division={division}
+        scoreToWinPool={scoreToWinPool}
+        scoreToWinPlayoff={scoreToWinPlayoff}
+        finalsBestOf3={finalsBestOf3}
+      />
+    );
   }
   return <EliminationBracketView matches={matches} format={format} canManage={canManage} tournamentId={tournamentId} />;
 }
@@ -140,11 +153,17 @@ function RoundRobinView({
   canManage,
   tournamentId,
   division,
+  scoreToWinPool,
+  scoreToWinPlayoff,
+  finalsBestOf3,
 }: {
   matches: TournamentMatch[];
   canManage: boolean;
   tournamentId: string;
   division?: string;
+  scoreToWinPool?: number;
+  scoreToWinPlayoff?: number;
+  finalsBestOf3?: boolean;
 }) {
   const router = useRouter();
   const [advancing, setAdvancing] = useState(false);
@@ -260,12 +279,14 @@ function RoundRobinView({
             matches={poolAMatches}
             canManage={canManage}
             tournamentId={tournamentId}
+            scoreToWin={scoreToWinPool}
           />
           <PoolSection
             label="Pool B"
             matches={poolBMatches}
             canManage={canManage}
             tournamentId={tournamentId}
+            scoreToWin={scoreToWinPool}
           />
         </>
       ) : (
@@ -274,6 +295,7 @@ function RoundRobinView({
           matches={poolAMatches}
           canManage={canManage}
           tournamentId={tournamentId}
+          scoreToWin={scoreToWinPool}
         />
       )}
 
@@ -355,6 +377,8 @@ function RoundRobinView({
           matches={playoffMatches}
           canManage={canManage}
           tournamentId={tournamentId}
+          scoreToWin={scoreToWinPlayoff}
+          finalsBestOf3={finalsBestOf3}
         />
       )}
     </div>
@@ -369,11 +393,13 @@ function PoolSection({
   matches,
   canManage,
   tournamentId,
+  scoreToWin,
 }: {
   label: string;
   matches: TournamentMatch[];
   canManage: boolean;
   tournamentId: string;
+  scoreToWin?: number;
 }) {
   const rounds = Array.from(new Set(matches.map((m) => m.round))).sort((a, b) => a - b);
 
@@ -432,6 +458,7 @@ function PoolSection({
                   match={match}
                   canManage={canManage}
                   tournamentId={tournamentId}
+                  gameInfo={scoreToWin ? `Game to ${scoreToWin}` : undefined}
                 />
               ))}
             </div>
@@ -450,10 +477,14 @@ function PlayoffBracketView({
   matches,
   canManage,
   tournamentId,
+  scoreToWin,
+  finalsBestOf3,
 }: {
   matches: TournamentMatch[];
   canManage: boolean;
   tournamentId: string;
+  scoreToWin?: number;
+  finalsBestOf3?: boolean;
 }) {
   const maxRound = Math.max(...matches.map((m) => m.round), 0);
   const rounds = Array.from(new Set(matches.map((m) => m.round))).sort((a, b) => a - b);
@@ -481,18 +512,22 @@ function PlayoffBracketView({
                 </p>
                 {roundMatches.map((match) => {
                   const isThirdPlace = round === maxRound && match.match_number === 2;
+                  const isChampionship = round === maxRound && match.match_number === 1;
+                  const bestOf3Label = isChampionship && finalsBestOf3 ? " (Best 2 of 3)" : "";
+                  const gameInfoText = scoreToWin ? `Game to ${scoreToWin}${bestOf3Label}` : (bestOf3Label ? `Best 2 of 3` : undefined);
                   return (
                     <div key={match.id}>
                       {isThirdPlace && (
                         <p className="text-xs text-surface-muted mb-1 text-center">3rd Place</p>
                       )}
-                      {round === maxRound && match.match_number === 1 && (
-                        <p className="text-xs text-surface-muted mb-1 text-center">Championship</p>
+                      {isChampionship && (
+                        <p className="text-xs text-surface-muted mb-1 text-center">Championship{bestOf3Label}</p>
                       )}
                       <MatchCard
                         match={match}
                         canManage={canManage}
                         tournamentId={tournamentId}
+                        gameInfo={!isChampionship && gameInfoText ? gameInfoText : (scoreToWin ? `Game to ${scoreToWin}` : undefined)}
                       />
                     </div>
                   );
@@ -603,10 +638,12 @@ function MatchCard({
   match,
   canManage,
   tournamentId,
+  gameInfo,
 }: {
   match: TournamentMatch;
   canManage: boolean;
   tournamentId: string;
+  gameInfo?: string;
 }) {
   const router = useRouter();
   const [scoring, setScoring] = useState(false);
@@ -709,6 +746,11 @@ function MatchCard({
               </span>
             )}
           </div>
+
+          {/* Game Info */}
+          {gameInfo && !isCompleted && match.player1_id && match.player2_id && (
+            <p className="text-xs text-surface-muted mt-1">{gameInfo}</p>
+          )}
 
           {/* Score Entry / Edit */}
           {canEnterNew && !scoring && (
