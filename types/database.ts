@@ -336,6 +336,9 @@ export interface Tournament {
   registration_opens_at?: string | null;
   registration_closes_at?: string | null;
   status: TournamentStatus;
+  score_to_win_pool?: number | null;
+  score_to_win_playoff?: number | null;
+  finals_best_of_3?: boolean | null;
   created_by: string;
   created_at: string;
   updated_at: string;

@@ -155,6 +155,26 @@ export default async function TournamentDetailPage({
             </div>
           )}
         </div>
+        {tournament.format === "round_robin" && (tournament.score_to_win_pool || tournament.score_to_win_playoff) && (
+          <div className="border-t border-surface-border pt-3">
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <p className="text-xs text-surface-muted uppercase font-medium">Pool Games To</p>
+                <p className="text-sm text-dark-100">{tournament.score_to_win_pool ?? 11}</p>
+              </div>
+              <div>
+                <p className="text-xs text-surface-muted uppercase font-medium">Playoff Games To</p>
+                <p className="text-sm text-dark-100">{tournament.score_to_win_playoff ?? 11}</p>
+              </div>
+              {tournament.finals_best_of_3 && (
+                <div>
+                  <p className="text-xs text-surface-muted uppercase font-medium">Finals</p>
+                  <p className="text-sm text-dark-100">Best 2 of 3</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {tournament.description && (
           <div className="pt-3 border-t border-surface-border">
@@ -249,6 +269,9 @@ export default async function TournamentDetailPage({
                 canManage={canManage}
                 tournamentId={id}
                 division={div === "__none__" ? undefined : div}
+                scoreToWinPool={tournament.score_to_win_pool ?? undefined}
+                scoreToWinPlayoff={tournament.score_to_win_playoff ?? undefined}
+                finalsBestOf3={tournament.finals_best_of_3 ?? undefined}
               />
             </div>
           ))}
