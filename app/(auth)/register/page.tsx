@@ -35,7 +35,7 @@ export default function RegisterPage() {
     });
 
     if (authError) {
-      setError(authError.message);
+      setError(authError.message || "Something went wrong. Please try again.");
       setLoading(false);
       return;
     }
