@@ -130,6 +130,8 @@ export interface ShootoutGroup {
   slug: string;
   description?: string | null;
   group_type: GroupType;
+  city?: string | null;
+  state?: string | null;
   created_by: string;
   is_active: boolean;
   created_at: string;

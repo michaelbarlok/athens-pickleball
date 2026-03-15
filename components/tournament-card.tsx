@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { TournamentWithCounts } from "@/lib/queries/tournament";
+import { formatDate, formatTime } from "@/lib/utils";
 
 const FORMAT_LABELS: Record<string, string> = {
   single_elimination: "Single Elim",
@@ -41,12 +42,8 @@ export function TournamentCard({ tournament }: { tournament: TournamentWithCount
 
         <div className="space-y-1 text-sm text-surface-muted">
           <p>
-            {new Date(t.start_date + "T00:00:00").toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}
-            {t.start_time && ` at ${t.start_time.slice(0, 5)}`}
+            {formatDate(t.start_date + "T00:00:00")}
+            {t.start_time && ` at ${formatTime(t.start_time)}`}
           </p>
           <p>{t.location}</p>
         </div>

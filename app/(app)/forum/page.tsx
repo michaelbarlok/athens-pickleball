@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 export default async function ForumPage() {
   const supabase = await createClient();
@@ -135,10 +136,7 @@ export default async function ForumPage() {
                   <div className="mt-2 flex items-center gap-3 text-xs text-surface-muted">
                     <span>{thread.author?.display_name}</span>
                     <span>
-                      {new Date(thread.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDate(thread.created_at)}
                     </span>
                     <span>{replyCounts.get(thread.id) ?? 0} replies</span>
                   </div>

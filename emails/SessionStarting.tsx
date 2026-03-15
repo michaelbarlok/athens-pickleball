@@ -1,5 +1,6 @@
 import { Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -15,7 +16,7 @@ export default function SessionStarting({ groupName, eventDate, location }: Prop
       </Text>
       {eventDate && (
         <Text style={{ color: "#374151", fontSize: "14px" }}>
-          Date: {new Date(eventDate).toLocaleDateString()}
+          Date: {formatDate(eventDate)}
         </Text>
       )}
       {location && (

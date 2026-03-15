@@ -1,5 +1,6 @@
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -13,7 +14,7 @@ export default function WaitlistPromoted({ groupName, eventDate, sheetId }: Prop
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>
         A spot opened up and you&apos;ve been moved from the waitlist to the main roster for{" "}
         <strong>{groupName ?? "the event"}</strong> on{" "}
-        {eventDate ? new Date(eventDate).toLocaleDateString() : "the upcoming date"}.
+        {eventDate ? formatDate(eventDate) : "the upcoming date"}.
       </Text>
       <Button
         href={sheetId ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sheets/${sheetId}` : "#"}

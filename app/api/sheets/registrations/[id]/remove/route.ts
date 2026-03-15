@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
+import { formatDate } from "@/lib/utils";
 
 export async function POST(
   _request: Request,
@@ -126,7 +127,7 @@ export async function POST(
         userId: nextWaitlist.player_id,
         type: "waitlist_promoted",
         title: "You're in!",
-        body: `A spot opened up for ${groupName} on ${eventDate ? new Date(eventDate).toLocaleDateString() : "the upcoming date"}. You've been moved from the waitlist to the confirmed list.`,
+        body: `A spot opened up for ${groupName} on ${eventDate ? formatDate(eventDate) : "the upcoming date"}. You've been moved from the waitlist to the confirmed list.`,
         link: `/sheets/${sheetId}`,
         emailTemplate: "WaitlistPromoted",
         emailData: { groupName, eventDate, sheetId },

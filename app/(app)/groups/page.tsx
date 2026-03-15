@@ -71,6 +71,11 @@ export default async function GroupsPage() {
                     {isJoined && <span className="badge-green">Joined</span>}
                   </div>
                 </div>
+                {(group.city || group.state) && (
+                  <p className="mt-1 text-xs text-surface-muted">
+                    {[group.city, group.state].filter(Boolean).join(", ")}
+                  </p>
+                )}
                 {group.description && (
                   <p className="mt-1 text-sm text-surface-muted line-clamp-2">
                     {group.description}

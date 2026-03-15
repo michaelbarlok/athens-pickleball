@@ -3,7 +3,7 @@
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type {
   ShootoutGroup,
   GroupPreferences,
@@ -278,14 +278,53 @@ export default function AdminGroupDetailPage() {
         </div>
       )}
 
-      {/* Group Type Badge */}
+      {/* Group Type Badge + City/State */}
       {group && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={group.group_type === "free_play" ? "badge-yellow" : "badge-blue"}>
             {group.group_type === "free_play" ? "Free Play" : "Ladder League"}
           </span>
+          {(group.city || group.state) && (
+            <span className="text-sm text-surface-muted">
+              {[group.city, group.state].filter(Boolean).join(", ")}
+            </span>
+          )}
         </div>
       )}
+
+      {/* City / State Edit */}
+      <div className="card">
+        <h3 className="text-sm font-semibold text-dark-100 mb-2">City &amp; State</h3>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = new FormData(e.currentTarget);
+            const newCity = (form.get("city") as string)?.trim() || null;
+            const newState = (form.get("state") as string)?.trim() || null;
+            const { error } = await supabase
+              .from("shootout_groups")
+              .update({ city: newCity, state: newState })
+              .eq("id", id);
+            if (error) {
+              setMessage({ type: "error", text: `Failed to save: ${error.message}` });
+            } else {
+              setGroup({ ...group, city: newCity, state: newState });
+              setMessage({ type: "success", text: "City & state updated." });
+            }
+          }}
+          className="flex gap-3 items-end"
+        >
+          <div className="flex-1">
+            <label className="block text-xs text-surface-muted mb-1">City</label>
+            <input type="text" name="city" defaultValue={group.city ?? ""} className="input w-full" placeholder="e.g. Athens" />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-surface-muted mb-1">State</label>
+            <input type="text" name="state" defaultValue={group.state ?? ""} className="input w-full" placeholder="e.g. GA" />
+          </div>
+          <button type="submit" className="btn-primary whitespace-nowrap">Save</button>
+        </form>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-surface-border">
@@ -475,11 +514,7 @@ export default function AdminGroupDetailPage() {
                       </>
                     )}
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-surface-muted">
-                      {new Date(member.joined_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {formatDate(member.joined_at)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">

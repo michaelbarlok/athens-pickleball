@@ -1,5 +1,6 @@
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -13,7 +14,7 @@ export default function SheetUpdated({ groupName, eventDate, changes, sheetId }:
     <BaseEmail preview="Event details updated" heading="Event Updated">
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>
         The {groupName ?? "pickleball"} event on{" "}
-        {eventDate ? new Date(eventDate).toLocaleDateString() : "the scheduled date"} has been updated.
+        {eventDate ? formatDate(eventDate) : "the scheduled date"} has been updated.
       </Text>
       {changes && (
         <Text style={{ color: "#6b7280", fontSize: "14px" }}>

@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
+import { formatDate } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -327,7 +328,7 @@ export async function POST(
         userId: bumpedPlayerId,
         type: "waitlist_promoted",
         title: "Moved to waitlist",
-        body: `A group admin has signed up for ${gName} on ${evDate ? new Date(evDate).toLocaleDateString() : "the upcoming date"} and your spot has been moved to the waitlist. You'll be notified if a spot opens up.`,
+        body: `A group admin has signed up for ${gName} on ${evDate ? formatDate(evDate) : "the upcoming date"} and your spot has been moved to the waitlist. You'll be notified if a spot opens up.`,
         link: `/sheets/${sheetId}`,
       }).catch((err) => console.error("Bump notify failed:", err));
     }

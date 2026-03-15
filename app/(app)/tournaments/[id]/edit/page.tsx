@@ -27,18 +27,20 @@ export default function EditTournamentPage() {
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
   const [finalsBestOf3, setFinalsBestOf3] = useState(false);
 
+  const [savedLocations, setSavedLocations] = useState<{ name: string; cityState: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("tournaments")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const [tournamentRes, sheetsRes, tournamentsLocRes] = await Promise.all([
+        supabase.from("tournaments").select("*").eq("id", id).single(),
+        supabase.from("signup_sheets").select("location, group:shootout_groups(city, state)"),
+        supabase.from("tournaments").select("location"),
+      ]);
 
+      const data = tournamentRes.data;
       if (data) {
         setTitle(data.title);
         setDescription(data.description ?? "");
@@ -57,6 +59,27 @@ export default function EditTournamentPage() {
         setScoreToWinPlayoff(data.score_to_win_playoff?.toString() ?? "11");
         setFinalsBestOf3(data.finals_best_of_3 ?? false);
       }
+
+      // Build location dropdown options
+      const locMap = new Map<string, string>();
+      for (const s of sheetsRes.data ?? []) {
+        const loc = s.location?.trim();
+        if (!loc) continue;
+        if (!locMap.has(loc)) {
+          const g = s.group as any;
+          const cs = [g?.city, g?.state].filter(Boolean).join(", ");
+          locMap.set(loc, cs);
+        }
+      }
+      for (const t of tournamentsLocRes.data ?? []) {
+        const loc = (t as any).location?.trim();
+        if (loc && !locMap.has(loc)) locMap.set(loc, "");
+      }
+      const sorted = Array.from(locMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, cityState]) => ({ name, cityState }));
+      setSavedLocations(sorted);
+
       setLoading(false);
     }
     load();
@@ -209,7 +232,40 @@ export default function EditTournamentPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-dark-200 mb-1">Location *</label>
-            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input" required />
+            {savedLocations.length > 0 ? (
+              <div className="space-y-2">
+                <select
+                  value={savedLocations.some((l) => l.name === location) ? location : "__custom__"}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setLocation("");
+                    } else {
+                      setLocation(e.target.value);
+                    }
+                  }}
+                  className="input"
+                >
+                  {savedLocations.map((loc) => (
+                    <option key={loc.name} value={loc.name}>
+                      {loc.name}{loc.cityState ? ` — ${loc.cityState}` : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Add new location</option>
+                </select>
+                {!savedLocations.some((l) => l.name === location) && (
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="input"
+                    placeholder="Enter new location name"
+                    required
+                  />
+                )}
+              </div>
+            ) : (
+              <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input" required />
+            )}
           </div>
         </div>
 

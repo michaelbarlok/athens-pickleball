@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyMany } from "@/lib/notify";
 import { NextResponse } from "next/server";
+import { formatDate } from "@/lib/utils";
 
 export async function GET() {
   const supabase = await createServiceClient();
@@ -38,7 +39,7 @@ export async function GET() {
       await notifyMany(playerIds, {
         type: "withdraw_closing",
         title: "Withdrawal window closing",
-        body: `The withdrawal window for ${sheet.group?.name ?? "the event"} on ${new Date(sheet.event_date).toLocaleDateString()} closes in less than 1 hour.`,
+        body: `The withdrawal window for ${sheet.group?.name ?? "the event"} on ${formatDate(sheet.event_date)} closes in less than 1 hour.`,
         link: `/sheets/${sheet.id}`,
         groupId: sheet.group_id,
         emailTemplate: "WithdrawReminder",

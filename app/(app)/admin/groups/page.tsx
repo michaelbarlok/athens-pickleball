@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 export default async function AdminGroupsPage() {
   const supabase = await createClient();
@@ -34,6 +35,8 @@ export default async function AdminGroupsPage() {
     "use server";
 
     const name = formData.get("name") as string;
+    const city = (formData.get("city") as string)?.trim() || null;
+    const state = (formData.get("state") as string)?.trim() || null;
     if (!name?.trim()) return;
 
     const slug = name
@@ -65,6 +68,8 @@ export default async function AdminGroupsPage() {
       .insert({
         name: name.trim(),
         slug,
+        city,
+        state,
         created_by: profile.id,
         is_active: true,
         group_type: groupType,
@@ -165,6 +170,20 @@ export default async function AdminGroupsPage() {
               Create Group
             </button>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              name="city"
+              placeholder="City (e.g. Athens)"
+              className="input"
+            />
+            <input
+              type="text"
+              name="state"
+              placeholder="State (e.g. GA)"
+              className="input"
+            />
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-dark-200">Type:</span>
             <label className="flex items-center gap-2 text-sm text-dark-100">
@@ -236,10 +255,7 @@ export default async function AdminGroupsPage() {
                     </td>
                     <td className="hidden sm:table-cell whitespace-nowrap px-2 sm:px-4 py-3 text-right text-sm text-surface-muted">
                       {lastSession
-                        ? new Date(lastSession).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })
+                        ? formatDate(lastSession)
                         : "None"}
                     </td>
                     <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-center text-sm">

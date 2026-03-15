@@ -10,7 +10,7 @@ export default function NewSheetPage() {
   const router = useRouter();
 
   const [groups, setGroups] = useState<ShootoutGroup[]>([]);
-  const [savedLocations, setSavedLocations] = useState<string[]>([]);
+  const [savedLocations, setSavedLocations] = useState<{ name: string; cityState: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -40,7 +40,7 @@ export default function NewSheetPage() {
   function formatTime12h(time24: string) {
     const [hStr, mStr] = time24.split(":");
     const h = parseInt(hStr, 10);
-    const suffix = h >= 12 ? "PM" : "AM";
+    const suffix = h >= 12 ? "pm" : "am";
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${h12}:${mStr} ${suffix}`;
   }
@@ -67,7 +67,7 @@ export default function NewSheetPage() {
 
   useEffect(() => {
     async function load() {
-      const [groupsRes, sheetsRes] = await Promise.all([
+      const [groupsRes, sheetsRes, tournamentsRes] = await Promise.all([
         supabase
           .from("shootout_groups")
           .select("*")
@@ -75,6 +75,9 @@ export default function NewSheetPage() {
           .order("name", { ascending: true }),
         supabase
           .from("signup_sheets")
+          .select("location, group:shootout_groups(city, state)"),
+        supabase
+          .from("tournaments")
           .select("location"),
       ]);
 
@@ -83,17 +86,27 @@ export default function NewSheetPage() {
         setGroupId(groupsRes.data[0].id);
       }
 
-      // Extract unique locations, sorted alphabetically
-      const locations = Array.from(
-        new Set(
-          (sheetsRes.data ?? [])
-            .map((s: { location: string }) => s.location?.trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b));
+      // Extract unique locations with city/state, sorted alphabetically
+      const locMap = new Map<string, string>();
+      for (const s of sheetsRes.data ?? []) {
+        const loc = (s as any).location?.trim();
+        if (!loc) continue;
+        if (!locMap.has(loc)) {
+          const g = (s as any).group;
+          const cs = [g?.city, g?.state].filter(Boolean).join(", ");
+          locMap.set(loc, cs);
+        }
+      }
+      for (const t of tournamentsRes.data ?? []) {
+        const loc = (t as any).location?.trim();
+        if (loc && !locMap.has(loc)) locMap.set(loc, "");
+      }
+      const locations = Array.from(locMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, cityState]) => ({ name, cityState }));
       setSavedLocations(locations);
       if (locations.length > 0) {
-        setLocation(locations[0]);
+        setLocation(locations[0].name);
       }
 
       setLoading(false);
@@ -295,7 +308,7 @@ export default function NewSheetPage() {
             <div className="space-y-2">
               <select
                 id="location"
-                value={savedLocations.includes(location) ? location : "__custom__"}
+                value={savedLocations.some((l) => l.name === location) ? location : "__custom__"}
                 onChange={(e) => {
                   if (e.target.value === "__custom__") {
                     setLocation("");
@@ -306,13 +319,13 @@ export default function NewSheetPage() {
                 className="input w-full"
               >
                 {savedLocations.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
+                  <option key={loc.name} value={loc.name}>
+                    {loc.name}{loc.cityState ? ` — ${loc.cityState}` : ""}
                   </option>
                 ))}
                 <option value="__custom__">+ Add new location</option>
               </select>
-              {!savedLocations.includes(location) && (
+              {!savedLocations.some((l) => l.name === location) && (
                 <input
                   type="text"
                   value={location}

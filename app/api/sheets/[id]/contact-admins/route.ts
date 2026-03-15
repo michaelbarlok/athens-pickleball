@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { formatDate } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -126,7 +127,7 @@ export async function POST(
         senderName: senderProfile.display_name,
         groupName,
         eventDate: eventDate
-          ? new Date(eventDate).toLocaleDateString()
+          ? formatDate(eventDate)
           : "upcoming date",
         message,
         sheetUrl,

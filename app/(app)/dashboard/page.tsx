@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatDate, formatTime } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -108,10 +109,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-surface-muted">Member Since</p>
           <p className="mt-1 text-2xl font-bold text-dark-100">
             {profile.member_since
-              ? new Date(profile.member_since).toLocaleDateString("en-US", {
-                  month: "short",
-                  year: "numeric",
-                })
+              ? formatDate(profile.member_since)
               : "—"}
           </p>
         </div>
@@ -134,6 +132,11 @@ export default async function DashboardPage() {
                 className="card hover:ring-brand-500/30 transition-shadow"
               >
                 <h3 className="font-semibold text-dark-100">{m.group?.name}</h3>
+                {(m.group?.city || m.group?.state) && (
+                  <p className="text-xs text-surface-muted">
+                    {[m.group?.city, m.group?.state].filter(Boolean).join(", ")}
+                  </p>
+                )}
                 <div className="mt-2 flex gap-4 text-sm text-surface-muted">
                   <span>Step {m.current_step}</span>
                   <span>{m.win_pct}% Win</span>
@@ -174,12 +177,8 @@ export default async function DashboardPage() {
                     {reg.tournament.title}
                   </p>
                   <p className="text-sm text-surface-muted">
-                    {new Date(reg.tournament.start_date + "T00:00:00").toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                    {reg.tournament.start_time && ` at ${reg.tournament.start_time.slice(0, 5)}`}
+                    {formatDate(reg.tournament.start_date + "T00:00:00")}
+                    {reg.tournament.start_time && ` at ${formatTime(reg.tournament.start_time)}`}
                     {" — "}
                     {reg.tournament.location}
                   </p>
@@ -202,11 +201,7 @@ export default async function DashboardPage() {
                     {sheet.group?.name ?? "Event"}
                   </p>
                   <p className="text-sm text-surface-muted">
-                    {new Date(sheet.event_date).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDate(sheet.event_date)}
                     {" at "}
                     {sheet.location}
                   </p>

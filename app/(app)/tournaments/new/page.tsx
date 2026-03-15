@@ -3,7 +3,7 @@
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { DivisionCheckboxes } from "@/components/division-checkboxes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function CreateTournamentPage() {
   const { supabase } = useSupabase();
@@ -26,8 +26,45 @@ export default function CreateTournamentPage() {
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
   const [finalsBestOf3, setFinalsBestOf3] = useState(false);
 
+  const [savedLocations, setSavedLocations] = useState<{ name: string; cityState: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadLocations() {
+      const [sheetsRes, tournamentsRes] = await Promise.all([
+        supabase.from("signup_sheets").select("location, group:shootout_groups(city, state)"),
+        supabase.from("tournaments").select("location"),
+      ]);
+
+      const locMap = new Map<string, string>();
+
+      for (const s of sheetsRes.data ?? []) {
+        const loc = s.location?.trim();
+        if (!loc) continue;
+        if (!locMap.has(loc)) {
+          const g = s.group as any;
+          const cs = [g?.city, g?.state].filter(Boolean).join(", ");
+          locMap.set(loc, cs);
+        }
+      }
+
+      for (const t of tournamentsRes.data ?? []) {
+        const loc = (t as any).location?.trim();
+        if (loc && !locMap.has(loc)) {
+          locMap.set(loc, "");
+        }
+      }
+
+      const sorted = Array.from(locMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, cityState]) => ({ name, cityState }));
+
+      setSavedLocations(sorted);
+      if (sorted.length > 0) setLocation(sorted[0].name);
+    }
+    loadLocations();
+  }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -271,14 +308,47 @@ export default function CreateTournamentPage() {
             <label className="block text-sm font-medium text-dark-200 mb-1">
               Location *
             </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="input"
-              required
-              placeholder="e.g. Athens Community Center"
-            />
+            {savedLocations.length > 0 ? (
+              <div className="space-y-2">
+                <select
+                  value={savedLocations.some((l) => l.name === location) ? location : "__custom__"}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setLocation("");
+                    } else {
+                      setLocation(e.target.value);
+                    }
+                  }}
+                  className="input"
+                >
+                  {savedLocations.map((loc) => (
+                    <option key={loc.name} value={loc.name}>
+                      {loc.name}{loc.cityState ? ` — ${loc.cityState}` : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Add new location</option>
+                </select>
+                {!savedLocations.some((l) => l.name === location) && (
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="input"
+                    placeholder="Enter new location name"
+                    required
+                  />
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="input"
+                required
+                placeholder="e.g. Athens Community Center"
+              />
+            )}
           </div>
         </div>
 

@@ -34,6 +34,7 @@ export default function AdminSheetDetailPage() {
   const [eventTime, setEventTime] = useState("");
   const [playerLimit, setPlayerLimit] = useState(0);
   const [location, setLocation] = useState("");
+  const [savedLocations, setSavedLocations] = useState<{ name: string; cityState: string }[]>([]);
   const [signupClosesAt, setSignupClosesAt] = useState("");
   const [withdrawClosesAt, setWithdrawClosesAt] = useState("");
 
@@ -74,6 +75,32 @@ export default function AdminSheetDetailPage() {
       setEventTime(sheetData.event_time);
       setPlayerLimit(sheetData.player_limit);
       setLocation(sheetData.location);
+
+      // Load saved locations for dropdown
+      const [sheetsLocRes, tournamentsLocRes] = await Promise.all([
+        supabase.from("signup_sheets").select("location, group:shootout_groups(city, state)"),
+        supabase.from("tournaments").select("location"),
+      ]);
+      const locMap = new Map<string, string>();
+      for (const s of sheetsLocRes.data ?? []) {
+        const loc = (s as any).location?.trim();
+        if (!loc) continue;
+        if (!locMap.has(loc)) {
+          const g = (s as any).group;
+          const cs = [g?.city, g?.state].filter(Boolean).join(", ");
+          locMap.set(loc, cs);
+        }
+      }
+      for (const t of tournamentsLocRes.data ?? []) {
+        const loc = (t as any).location?.trim();
+        if (loc && !locMap.has(loc)) locMap.set(loc, "");
+      }
+      setSavedLocations(
+        Array.from(locMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([name, cityState]) => ({ name, cityState }))
+      );
+
       setSignupClosesAt(
         sheetData.signup_closes_at
           ? sheetData.signup_closes_at.slice(0, 16)
@@ -499,12 +526,44 @@ export default function AdminSheetDetailPage() {
             <label className="block text-sm font-medium text-dark-200 mb-1">
               Location
             </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="input"
-            />
+            {savedLocations.length > 0 ? (
+              <div className="space-y-2">
+                <select
+                  value={savedLocations.some((l) => l.name === location) ? location : "__custom__"}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setLocation("");
+                    } else {
+                      setLocation(e.target.value);
+                    }
+                  }}
+                  className="input"
+                >
+                  {savedLocations.map((loc) => (
+                    <option key={loc.name} value={loc.name}>
+                      {loc.name}{loc.cityState ? ` — ${loc.cityState}` : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Add new location</option>
+                </select>
+                {!savedLocations.some((l) => l.name === location) && (
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="input"
+                    placeholder="Enter new location name"
+                  />
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="input"
+              />
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-dark-200 mb-1">
