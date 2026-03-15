@@ -10,6 +10,7 @@ import type {
   GroupMembership,
   Profile,
 } from "@/types/database";
+import { US_STATES } from "@/lib/us-states";
 
 // ============================================================
 // Types
@@ -320,7 +321,14 @@ export default function AdminGroupDetailPage() {
           </div>
           <div className="flex-1">
             <label className="block text-xs text-surface-muted mb-1">State</label>
-            <input type="text" name="state" defaultValue={group.state ?? ""} className="input w-full" placeholder="e.g. GA" />
+            <select name="state" defaultValue={group.state ?? ""} className="input w-full">
+              <option value="">Select State</option>
+              {US_STATES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           </div>
           <button type="submit" className="btn-primary whitespace-nowrap">Save</button>
         </form>

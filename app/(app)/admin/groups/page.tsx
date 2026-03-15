@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
+import { US_STATES } from "@/lib/us-states";
 
 export default async function AdminGroupsPage() {
   const supabase = await createClient();
@@ -179,12 +180,14 @@ export default async function AdminGroupsPage() {
               placeholder="City (e.g. Athens)"
               className="input"
             />
-            <input
-              type="text"
-              name="state"
-              placeholder="State (e.g. GA)"
-              className="input"
-            />
+            <select name="state" className="input">
+              <option value="">Select State</option>
+              {US_STATES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-sm font-medium text-dark-200">Type:</span>

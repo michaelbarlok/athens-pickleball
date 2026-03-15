@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { CreateGroupForm } from "./create-group-form";
 
-export default async function CreateGroupPage() {
+export default function CreateGroupPage() {
   async function createGroup(formData: FormData) {
     "use server";
 
@@ -53,26 +54,28 @@ export default async function CreateGroupPage() {
 
     if (error || !newGroup) return;
 
-    // Create default preferences for ladder league groups
+    // Create preferences for ladder league groups using form values
     if (groupType === "ladder_league") {
       await supabase.from("group_preferences").insert({
         group_id: newGroup.id,
-        pct_window_sessions: 10,
-        new_player_start_step: 5,
-        min_step: 1,
-        step_move_up: 1,
-        step_move_down: 1,
-        game_limit_4p: 3,
-        game_limit_5p: 4,
-        win_by_2: true,
+        pct_window_sessions: Number(formData.get("pct_window_sessions")) || 10,
+        new_player_start_step: Number(formData.get("new_player_start_step")) || 5,
+        min_step: Number(formData.get("min_step")) || 1,
+        max_step: Number(formData.get("max_step")) || 10,
+        step_move_up: Number(formData.get("step_move_up")) || 1,
+        step_move_down: Number(formData.get("step_move_down")) || 1,
+        game_limit_4p: Number(formData.get("game_limit_4p")) || 3,
+        game_limit_5p: Number(formData.get("game_limit_5p")) || 4,
+        win_by_2: formData.get("win_by_2") === "on",
       });
     }
 
     // Add creator as group admin
+    const startStep = Number(formData.get("new_player_start_step")) || 5;
     await supabase.from("group_memberships").insert({
       group_id: newGroup.id,
       player_id: profile.id,
-      current_step: 5,
+      current_step: startStep,
       group_role: "admin",
     });
 
@@ -100,136 +103,7 @@ export default async function CreateGroupPage() {
         </p>
       </div>
 
-      <form action={createGroup} className="card space-y-4">
-        {/* Name */}
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-dark-200 mb-1">
-            Group Name <span className="text-red-400">*</span>
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            placeholder="e.g. Monday Shootout"
-            required
-            className="input w-full"
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-dark-200 mb-1">
-            Description
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            rows={3}
-            placeholder="Tell people what your group is about..."
-            className="input w-full"
-          />
-        </div>
-
-        {/* Location */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="city" className="block text-sm font-medium text-dark-200 mb-1">
-              City
-            </label>
-            <input
-              type="text"
-              id="city"
-              name="city"
-              placeholder="e.g. Athens"
-              className="input w-full"
-            />
-          </div>
-          <div>
-            <label htmlFor="state" className="block text-sm font-medium text-dark-200 mb-1">
-              State
-            </label>
-            <input
-              type="text"
-              id="state"
-              name="state"
-              placeholder="e.g. GA"
-              className="input w-full"
-            />
-          </div>
-        </div>
-
-        {/* Group Type */}
-        <div>
-          <span className="block text-sm font-medium text-dark-200 mb-2">
-            Group Type
-          </span>
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-sm text-dark-100">
-              <input
-                type="radio"
-                name="group_type"
-                value="ladder_league"
-                defaultChecked
-                className="text-brand-600 focus:ring-brand-500"
-              />
-              Ladder League
-            </label>
-            <label className="flex items-center gap-2 text-sm text-dark-100">
-              <input
-                type="radio"
-                name="group_type"
-                value="free_play"
-                className="text-brand-600 focus:ring-brand-500"
-              />
-              Free Play
-            </label>
-          </div>
-          <p className="mt-1 text-xs text-surface-muted">
-            Ladder League uses step-based rankings. Free Play tracks wins and losses.
-          </p>
-        </div>
-
-        {/* Visibility */}
-        <div>
-          <span className="block text-sm font-medium text-dark-200 mb-2">
-            Visibility
-          </span>
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-sm text-dark-100">
-              <input
-                type="radio"
-                name="visibility"
-                value="public"
-                defaultChecked
-                className="text-brand-600 focus:ring-brand-500"
-              />
-              Public
-            </label>
-            <label className="flex items-center gap-2 text-sm text-dark-100">
-              <input
-                type="radio"
-                name="visibility"
-                value="private"
-                className="text-brand-600 focus:ring-brand-500"
-              />
-              Private
-            </label>
-          </div>
-          <p className="mt-1 text-xs text-surface-muted">
-            Public groups can be found and joined by anyone. Private groups require an invite.
-          </p>
-        </div>
-
-        {/* Submit */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Link href="/groups" className="btn-secondary">
-            Cancel
-          </Link>
-          <button type="submit" className="btn-primary">
-            Create Group
-          </button>
-        </div>
-      </form>
+      <CreateGroupForm createAction={createGroup} />
     </div>
   );
 }
