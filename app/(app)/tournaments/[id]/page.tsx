@@ -87,12 +87,24 @@ export default async function TournamentDetailPage({
     }
   }
 
-  // Group matches by division for display
-  const divisionMatches = new Map<string, typeof matches>();
+  // Group matches by division for display, using tournament.divisions order for stability
+  const divisionMatchesTmp = new Map<string, typeof matches>();
   for (const m of matches) {
     const div = (m as any).division ?? "__none__";
-    if (!divisionMatches.has(div)) divisionMatches.set(div, []);
-    divisionMatches.get(div)!.push(m);
+    if (!divisionMatchesTmp.has(div)) divisionMatchesTmp.set(div, []);
+    divisionMatchesTmp.get(div)!.push(m);
+  }
+  // Re-insert in stable order: tournament.divisions first, then any remaining keys
+  const divisionMatches = new Map<string, typeof matches>();
+  const divOrder = (tournament.divisions ?? []) as string[];
+  for (const code of divOrder) {
+    if (divisionMatchesTmp.has(code)) {
+      divisionMatches.set(code, divisionMatchesTmp.get(code)!);
+      divisionMatchesTmp.delete(code);
+    }
+  }
+  for (const [key, val] of divisionMatchesTmp) {
+    divisionMatches.set(key, val);
   }
 
   return (

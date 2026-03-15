@@ -831,7 +831,6 @@ function MatchCard({
                   value={score1Input}
                   onChange={(e) => setScore1Input(e.target.value)}
                   className="input w-20 py-1 text-center text-xs"
-                  placeholder="11,9,11"
                   autoFocus
                 />
                 <span className="text-xs text-surface-muted">vs</span>
@@ -840,14 +839,13 @@ function MatchCard({
                   value={score2Input}
                   onChange={(e) => setScore2Input(e.target.value)}
                   className="input w-20 py-1 text-center text-xs"
-                  placeholder="7,11,5"
                 />
               </div>
-              <div className="flex gap-1">
-                <button onClick={submitScore} disabled={saving} className="text-xs text-teal-300 font-medium">
-                  {saving ? "..." : "Save"}
+              <div className="flex gap-2 mt-1">
+                <button onClick={submitScore} disabled={saving} className="rounded-md bg-teal-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">
+                  {saving ? "Saving..." : "Save Score"}
                 </button>
-                <button onClick={() => setScoring(false)} className="text-xs text-surface-muted ml-1">
+                <button onClick={() => setScoring(false)} className="text-sm text-surface-muted hover:text-dark-200">
                   Cancel
                 </button>
               </div>
