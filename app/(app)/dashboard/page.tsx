@@ -38,9 +38,45 @@ export default async function DashboardPage() {
     .eq("player_id", profile.id)
     .neq("status", "withdrawn");
 
-  const upcomingTournaments = (myTournamentRegs ?? [])
-    .filter((r: any) => r.tournament && !["completed", "cancelled"].includes(r.tournament.status))
-    .sort((a: any, b: any) => a.tournament.start_date.localeCompare(b.tournament.start_date));
+  // Fetch tournaments the player organizes or co-organizes
+  const { data: createdTournaments } = await supabase
+    .from("tournaments")
+    .select("id, title, start_date, start_time, location, status")
+    .eq("created_by", profile.id)
+    .not("status", "in", '("completed","cancelled")');
+
+  const { data: coOrgTournaments } = await supabase
+    .from("tournament_organizers")
+    .select("tournament:tournaments(id, title, start_date, start_time, location, status)")
+    .eq("profile_id", profile.id);
+
+  // Build a set of tournament IDs the user is registered for
+  const registeredIds = new Set(
+    (myTournamentRegs ?? []).map((r: any) => r.tournament_id)
+  );
+
+  // Merge organizer tournaments that the user is NOT already registered for
+  const organizerTournaments: any[] = [];
+  const seenOrgIds = new Set<string>();
+
+  for (const t of createdTournaments ?? []) {
+    if (!registeredIds.has(t.id) && !seenOrgIds.has(t.id)) {
+      seenOrgIds.add(t.id);
+      organizerTournaments.push({ tournament_id: t.id, tournament: t, status: "organizer" });
+    }
+  }
+  for (const row of coOrgTournaments ?? []) {
+    const t = (row as any).tournament;
+    if (t && !["completed", "cancelled"].includes(t.status) && !registeredIds.has(t.id) && !seenOrgIds.has(t.id)) {
+      seenOrgIds.add(t.id);
+      organizerTournaments.push({ tournament_id: t.id, tournament: t, status: "organizer" });
+    }
+  }
+
+  const upcomingTournaments = [
+    ...(myTournamentRegs ?? []).filter((r: any) => r.tournament && !["completed", "cancelled"].includes(r.tournament.status)),
+    ...organizerTournaments,
+  ].sort((a: any, b: any) => a.tournament.start_date.localeCompare(b.tournament.start_date));
 
   // Fetch active session (player is checked in, session is not complete)
   const { data: activeParticipant } = await supabase
@@ -183,8 +219,8 @@ export default async function DashboardPage() {
                     {reg.tournament.location}
                   </p>
                 </div>
-                <span className={reg.status === "confirmed" ? "badge-green" : "badge-yellow"}>
-                  {reg.status === "confirmed" ? "Registered" : "Waitlist"}
+                <span className={reg.status === "organizer" ? "badge-blue" : reg.status === "confirmed" ? "badge-green" : "badge-yellow"}>
+                  {reg.status === "organizer" ? "Organizer" : reg.status === "confirmed" ? "Registered" : "Waitlist"}
                 </span>
               </Link>
             ))}

@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   generateSingleElimination,
@@ -7,32 +6,7 @@ import {
   generatePlayoffBracket,
   computePoolStandings,
 } from "@/lib/tournament-bracket";
-
-async function getAuthorizedProfile(tournamentId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("user_id", user.id)
-    .single();
-  if (!profile) return null;
-
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("created_by")
-    .eq("id", tournamentId)
-    .single();
-  if (!tournament) return null;
-
-  if (tournament.created_by !== profile.id && profile.role !== "admin") return null;
-
-  return { profile, supabase };
-}
+import { getTournamentManager } from "@/lib/tournament-auth";
 
 /**
  * PUT: Merge or cancel divisions
@@ -42,7 +16,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: tournamentId } = await params;
-  const auth = await getAuthorizedProfile(tournamentId);
+  const auth = await getTournamentManager(tournamentId);
   if (!auth) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
@@ -224,7 +198,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: tournamentId } = await params;
-  const auth = await getAuthorizedProfile(tournamentId);
+  const auth = await getTournamentManager(tournamentId);
   if (!auth) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }

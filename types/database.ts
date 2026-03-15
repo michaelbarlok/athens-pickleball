@@ -347,6 +347,15 @@ export interface Tournament {
   // Relations
   creator?: Profile;
   registrations?: TournamentRegistration[];
+  organizers?: TournamentOrganizer[];
+}
+
+export interface TournamentOrganizer {
+  tournament_id: string;
+  profile_id: string;
+  added_at: string;
+  // Relations
+  profile?: Profile;
 }
 
 export interface TournamentRegistration {

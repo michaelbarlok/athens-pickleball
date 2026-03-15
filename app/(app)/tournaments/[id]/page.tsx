@@ -6,6 +6,7 @@ import type { PartnerMap } from "@/components/tournament-bracket";
 import { TournamentRealtimeSubscription } from "@/components/tournament-realtime";
 import { DivisionReview } from "@/components/division-review";
 import { DeleteTournamentButton } from "@/components/delete-tournament-button";
+import { CoOrganizerManager } from "@/components/co-organizer-manager";
 import { getDivisionLabel } from "@/lib/divisions";
 import { formatDate, formatTime, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
@@ -50,7 +51,7 @@ export default async function TournamentDetailPage({
 
   if (!tournament) notFound();
 
-  // Check if current user is the creator
+  // Check if current user can manage this tournament
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
@@ -58,7 +59,15 @@ export default async function TournamentDetailPage({
     : { data: null };
   const isCreator = profile?.id === tournament.created_by;
   const isAdmin = profile?.role === "admin";
-  const canManage = isCreator || isAdmin;
+
+  // Fetch co-organizers
+  const { data: organizers } = await supabase
+    .from("tournament_organizers")
+    .select("profile_id, added_at, profile:profiles!profile_id(id, display_name)")
+    .eq("tournament_id", id);
+  const coOrganizers = (organizers ?? []) as any[];
+  const isCoOrganizer = profile ? coOrganizers.some((o: any) => o.profile_id === profile.id) : false;
+  const canManage = isCreator || isAdmin || isCoOrganizer;
 
   const myDivision = (myRegistration as any)?.division as string | undefined;
   const isInProgress = tournament.status === "in_progress" || tournament.status === "completed";
@@ -156,8 +165,15 @@ export default async function TournamentDetailPage({
             <p className="text-sm text-dark-100">{tournament.location}</p>
           </div>
           <div>
-            <p className="text-xs text-surface-muted uppercase font-medium">Organizer</p>
-            <p className="text-sm text-dark-100">{tournament.creator?.display_name ?? "Unknown"}</p>
+            <p className="text-xs text-surface-muted uppercase font-medium">Organizer{coOrganizers.length > 0 ? "s" : ""}</p>
+            <p className="text-sm text-dark-100">
+              {tournament.creator?.display_name ?? "Unknown"}
+              {coOrganizers.length > 0 && (
+                <span className="text-dark-200">
+                  {", "}{coOrganizers.map((o: any) => o.profile?.display_name ?? "Unknown").join(", ")}
+                </span>
+              )}
+            </p>
           </div>
           {tournament.entry_fee && (
             <div>
@@ -246,6 +262,15 @@ export default async function TournamentDetailPage({
             status={tournament.status}
           />
         </>
+      )}
+
+      {/* Co-Organizer Management — only creator or admin can manage */}
+      {(isCreator || isAdmin) && (
+        <CoOrganizerManager
+          tournamentId={id}
+          coOrganizers={coOrganizers}
+          creatorId={tournament.created_by}
+        />
       )}
 
       {/* Delete — always visible to admins/organizers */}

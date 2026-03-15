@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   generateSingleElimination,
   generateDoubleElimination,
   generateRoundRobin,
 } from "@/lib/tournament-bracket";
+import { getTournamentManager } from "@/lib/tournament-auth";
 
 /**
  * POST: Generate bracket and advance tournament to in_progress.
@@ -14,22 +14,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: tournamentId } = await params;
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await getTournamentManager(tournamentId);
+  if (!auth) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!profile) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-  }
+  const supabase = auth.supabase;
 
   // Fetch tournament
   const { data: tournament } = await supabase
@@ -40,11 +29,6 @@ export async function POST(
 
   if (!tournament) {
     return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
-  }
-
-  // Only creator or admin
-  if (tournament.created_by !== profile.id && profile.role !== "admin") {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   if (tournament.status !== "registration_closed") {
@@ -147,22 +131,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: tournamentId } = await params;
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await getTournamentManager(tournamentId);
+  if (!auth) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!profile) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-  }
+  const supabase = auth.supabase;
 
   const body = await request.json();
   const { match_id, score1, score2, winner_id } = body;
@@ -172,19 +145,15 @@ export async function PUT(
     return NextResponse.json({ error: "match_id and winner_id required" }, { status: 400 });
   }
 
-  // Fetch tournament to verify authorization
+  // Fetch tournament format
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("created_by, format")
+    .select("format")
     .eq("id", tournamentId)
     .single();
 
   if (!tournament) {
     return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
-  }
-
-  if (tournament.created_by !== profile.id && profile.role !== "admin") {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   // Fetch existing match state to detect edits (winner change)
