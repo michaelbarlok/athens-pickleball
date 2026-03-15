@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const hasMinLength = password.length >= 8;
   const hasLetter = /[a-zA-Z]/.test(password);
@@ -59,8 +60,30 @@ export default function RegisterPage() {
       }
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    setRegistered(true);
+  }
+
+  if (registered) {
+    return (
+      <div className="card text-center">
+        <div className="text-4xl mb-4">&#x2709;</div>
+        <h2 className="text-xl font-semibold text-dark-100 mb-2">Check your email</h2>
+        <p className="text-surface-muted mb-4">
+          We sent a verification link to <span className="font-medium text-dark-200">{email}</span>.
+          Click the link in the email to activate your account.
+        </p>
+        <p className="text-sm text-surface-muted">
+          Didn&apos;t get it? Check your spam folder or{" "}
+          <button
+            type="button"
+            onClick={() => setRegistered(false)}
+            className="font-medium text-brand-600 hover:text-brand-500"
+          >
+            try again
+          </button>.
+        </p>
+      </div>
+    );
   }
 
   return (
