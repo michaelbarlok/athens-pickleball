@@ -9,10 +9,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format date as M-D-YYYY (no leading zeros, hyphen-separated) */
+/** Format date as Day M-D-YYYY (e.g. "Fri 3-15-2026") */
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
+  const day = date.toLocaleDateString("en-US", { weekday: "short" });
+  return `${day} ${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
 }
 
 /** Format time as H:MM am/pm (no leading zeros, 12-hour).
