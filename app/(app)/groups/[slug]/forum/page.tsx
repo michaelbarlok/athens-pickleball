@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getGroupBySlug } from "@/lib/queries/group";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 export default async function GroupForumPage({
   params,
@@ -90,10 +91,7 @@ export default async function GroupForumPage({
                 <div className="mt-2 flex items-center gap-3 text-xs text-surface-muted">
                   <span>{thread.author?.display_name}</span>
                   <span>
-                    {new Date(thread.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDate(thread.created_at)}
                   </span>
                   <span>{replyCounts.get(thread.id) ?? 0} replies</span>
                 </div>

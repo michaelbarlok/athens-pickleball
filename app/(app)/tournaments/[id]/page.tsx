@@ -6,6 +6,7 @@ import { TournamentRealtimeSubscription } from "@/components/tournament-realtime
 import { DivisionReview } from "@/components/division-review";
 import { DeleteTournamentButton } from "@/components/delete-tournament-button";
 import { getDivisionLabel } from "@/lib/divisions";
+import { formatDate, formatTime, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -114,24 +115,16 @@ export default async function TournamentDetailPage({
           <div>
             <p className="text-xs text-surface-muted uppercase font-medium">Date</p>
             <p className="text-sm text-dark-100">
-              {new Date(tournament.start_date + "T00:00:00").toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatDate(tournament.start_date + "T00:00:00")}
               {tournament.end_date !== tournament.start_date && (
-                <> — {new Date(tournament.end_date + "T00:00:00").toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                })}</>
+                <> — {formatDate(tournament.end_date + "T00:00:00")}</>
               )}
             </p>
           </div>
           {tournament.start_time && (
             <div>
               <p className="text-xs text-surface-muted uppercase font-medium">Time</p>
-              <p className="text-sm text-dark-100">{tournament.start_time.slice(0, 5)}</p>
+              <p className="text-sm text-dark-100">{formatTime(tournament.start_time)}</p>
             </div>
           )}
           <div>
@@ -152,12 +145,7 @@ export default async function TournamentDetailPage({
             <div>
               <p className="text-xs text-surface-muted uppercase font-medium">Registration Closes</p>
               <p className="text-sm text-dark-100">
-                {new Date(tournament.registration_closes_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatDateTime(tournament.registration_closes_at)}
               </p>
             </div>
           )}

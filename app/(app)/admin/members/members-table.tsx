@@ -1,7 +1,7 @@
 "use client";
 
 import { useSupabase } from "@/components/providers/supabase-provider";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { Profile } from "@/types/database";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -129,7 +129,7 @@ export function MembersTable({ profiles, membershipMap }: MembersTableProps) {
         p.skill_level?.toString() ?? "",
         p.role,
         p.is_active ? "Yes" : "No",
-        new Date(p.member_since).toLocaleDateString(),
+        formatDate(p.member_since),
         groupSteps,
       ];
     });

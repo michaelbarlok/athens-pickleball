@@ -5,6 +5,7 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { useParams } from "next/navigation";
 import { useEffect, useState, Fragment } from "react";
 import Link from "next/link";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 interface Thread {
   id: string;
@@ -318,11 +319,7 @@ export default function ThreadPage() {
           <span>{thread.author?.display_name}</span>
           <span>&middot;</span>
           <span>
-            {new Date(thread.created_at).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {formatDate(thread.created_at)}
           </span>
         </div>
         <div className="prose prose-sm max-w-none text-dark-200 whitespace-pre-wrap">
@@ -412,12 +409,7 @@ export default function ThreadPage() {
               </span>
               <span>&middot;</span>
               <span>
-                {new Date(reply.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatDateTime(reply.created_at)}
               </span>
             </div>
             <div className="text-sm text-dark-200 whitespace-pre-wrap">

@@ -3,7 +3,7 @@
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type {
   ShootoutGroup,
   GroupPreferences,
@@ -475,11 +475,7 @@ export default function AdminGroupDetailPage() {
                       </>
                     )}
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-surface-muted">
-                      {new Date(member.joined_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {formatDate(member.joined_at)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">

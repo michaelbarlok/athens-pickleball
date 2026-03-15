@@ -5,6 +5,7 @@ import type { ShootoutSession, SessionParticipant, GameResult } from "@/types/da
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { formatDate } from "@/lib/utils";
 
 const STATUS_LABELS: Record<string, string> = {
   created: "Created",
@@ -338,12 +339,7 @@ export default function PlayerSessionPage() {
       <div>
         <h1 className="text-2xl font-bold text-dark-100">{session.group?.name}</h1>
         <p className="text-sm text-surface-muted">
-          {session.sheet?.event_date &&
-            new Date(session.sheet.event_date).toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
+          {session.sheet?.event_date && formatDate(session.sheet.event_date)}
           {session.sheet?.location && ` — ${session.sheet.location}`}
         </p>
       </div>

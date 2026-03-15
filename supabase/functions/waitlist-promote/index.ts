@@ -44,11 +44,7 @@ serve(async (req) => {
       .single();
 
     const sessionDate = session
-      ? new Date(session.date).toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })
+      ? (() => { const d = new Date(session.date); return `${d.getMonth() + 1}-${d.getDate()}-${d.getFullYear()}`; })()
       : "the upcoming session";
 
     // Send push notification

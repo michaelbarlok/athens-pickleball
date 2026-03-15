@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 export default async function AdminGroupsPage() {
   const supabase = await createClient();
@@ -236,10 +237,7 @@ export default async function AdminGroupsPage() {
                     </td>
                     <td className="hidden sm:table-cell whitespace-nowrap px-2 sm:px-4 py-3 text-right text-sm text-surface-muted">
                       {lastSession
-                        ? new Date(lastSession).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })
+                        ? formatDate(lastSession)
                         : "None"}
                     </td>
                     <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-center text-sm">

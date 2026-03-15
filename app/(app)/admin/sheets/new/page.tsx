@@ -40,7 +40,7 @@ export default function NewSheetPage() {
   function formatTime12h(time24: string) {
     const [hStr, mStr] = time24.split(":");
     const h = parseInt(hStr, 10);
-    const suffix = h >= 12 ? "PM" : "AM";
+    const suffix = h >= 12 ? "pm" : "am";
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${h12}:${mStr} ${suffix}`;
   }

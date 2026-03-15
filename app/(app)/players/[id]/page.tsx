@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatWinPct, formatShortDate } from "@/lib/utils";
+import { formatWinPct, formatShortDate, formatDate } from "@/lib/utils";
 import type { Profile, GroupMembership, PlayerRating, GameResult, Registration } from "@/types/database";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -143,11 +143,7 @@ export default async function PlayerProfilePage({ params }: PlayerPageProps) {
                 <span>Home Court: {profile.home_court}</span>
               )}
               <span>
-                Member since{" "}
-                {new Date(profile.member_since).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
+                Member since {formatDate(profile.member_since)}
               </span>
               {profile.skill_level && (
                 <span>Skill Level: {profile.skill_level}</span>
@@ -240,7 +236,7 @@ export default async function PlayerProfilePage({ params }: PlayerPageProps) {
                 <span className="text-surface-muted">Expires</span>
                 {profile.usap_expiration ? (
                   <span className={`font-medium ${new Date(profile.usap_expiration) >= new Date() ? "text-teal-300" : "text-red-400"}`}>
-                    {new Date(profile.usap_expiration).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {formatDate(profile.usap_expiration)}
                     {new Date(profile.usap_expiration) < new Date() && " (Expired)"}
                   </span>
                 ) : (

@@ -1,5 +1,6 @@
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -13,11 +14,11 @@ export default function WithdrawReminder({ groupName, eventDate, closesAt, sheet
     <BaseEmail preview="Withdrawal window closing" heading="Withdrawal Window Closing">
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>
         The withdrawal window for <strong>{groupName ?? "the event"}</strong> on{" "}
-        {eventDate ? new Date(eventDate).toLocaleDateString() : "the scheduled date"} is closing soon.
+        {eventDate ? formatDate(eventDate) : "the scheduled date"} is closing soon.
       </Text>
       {closesAt && (
         <Text style={{ color: "#6b7280", fontSize: "14px" }}>
-          Closes at: {new Date(closesAt).toLocaleString()}
+          Closes at: {formatDateTime(closesAt)}
         </Text>
       )}
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>

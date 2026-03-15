@@ -3,6 +3,7 @@
 import { useSupabase } from "@/components/providers/supabase-provider";
 import type { Notification } from "@/types/database";
 import { useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/utils";
 
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
@@ -98,12 +99,7 @@ export default function NotificationsPage() {
                 <p className="mt-1 text-sm text-surface-muted">{n.body}</p>
               </div>
               <span className="text-xs text-surface-muted whitespace-nowrap ml-4">
-                {new Date(n.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatDateTime(n.created_at)}
               </span>
             </div>
             {n.link && (

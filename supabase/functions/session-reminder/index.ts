@@ -46,11 +46,11 @@ serve(async (_req) => {
 
     if (!tokens.length) continue;
 
-    const sessionDate = new Date(session.start_time).toLocaleString("en-US", {
-      weekday: "long",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    const _d = new Date(session.start_time);
+    const _h = _d.getHours() % 12 || 12;
+    const _m = _d.getMinutes().toString().padStart(2, "0");
+    const _ap = _d.getHours() >= 12 ? "pm" : "am";
+    const sessionDate = `${_d.getMonth() + 1}-${_d.getDate()}-${_d.getFullYear()} ${_h}:${_m} ${_ap}`;
 
     const messages = tokens.map((token: string) => ({
       to: token,

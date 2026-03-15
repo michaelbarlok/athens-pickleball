@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notifyMany } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
+import { formatDate, formatTime } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -66,13 +67,9 @@ export async function POST(request: NextRequest) {
 
   if (playerIds.length > 0) {
     const groupName = sheet.group?.name ?? "Event";
-    const eventDate = new Date(sheet.event_date).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
+    const eventDate = formatDate(sheet.event_date);
     const eventTime = sheet.event_time
-      ? new Date(sheet.event_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      ? formatTime(sheet.event_time)
       : null;
 
     await notifyMany(playerIds, {

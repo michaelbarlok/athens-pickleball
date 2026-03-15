@@ -3,6 +3,7 @@
 import { useSupabase } from "@/components/providers/supabase-provider";
 import type { ShootoutSession, SessionParticipant, ShootoutGroup, GameResult } from "@/types/database";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 
@@ -357,12 +358,7 @@ export default function AdminSessionDetailPage() {
             Session — {session.group?.name}
           </h1>
           <p className="text-sm text-surface-muted">
-            {session.sheet?.event_date &&
-              new Date(session.sheet.event_date).toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
+            {session.sheet?.event_date && formatDate(session.sheet.event_date)}
             {" at "}
             {session.sheet?.location}
           </p>

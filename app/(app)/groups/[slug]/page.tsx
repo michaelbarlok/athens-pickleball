@@ -4,7 +4,7 @@ import { getRecentMatches, getPlayerStats } from "@/lib/queries/free-play";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
 import { LogMatchForm } from "./log-match";
 import { FreePlayLeaderboard } from "./leaderboard";
 
@@ -170,7 +170,7 @@ export default async function GroupPage({
                     {formatDate(sheet.event_date)}
                   </p>
                   <p className="text-sm text-surface-muted">
-                    {sheet.event_time} at {sheet.location}
+                    {formatTime(sheet.event_time)} at {sheet.location}
                   </p>
                 </div>
                 <span className="badge-green">Open</span>

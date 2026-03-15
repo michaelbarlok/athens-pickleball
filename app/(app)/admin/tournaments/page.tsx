@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { AdminDeleteButton } from "@/components/delete-tournament-button";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "badge-gray",
@@ -48,10 +49,7 @@ export default async function AdminTournamentsPage() {
                 </td>
                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm text-dark-200">
                   {t.start_date
-                    ? new Date(t.start_date + "T00:00:00").toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
+                    ? formatDate(t.start_date + "T00:00:00")
                     : "—"}
                 </td>
                 <td className="whitespace-nowrap px-2 sm:px-4 py-3">

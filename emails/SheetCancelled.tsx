@@ -1,5 +1,6 @@
 import { Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate, formatTime } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -8,15 +9,13 @@ interface Props {
 }
 
 export default function SheetCancelled({ groupName, eventDate, eventTime }: Props) {
-  const formattedTime = eventTime
-    ? new Date(eventTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-    : null;
+  const formattedTime = eventTime ? formatTime(eventTime) : null;
 
   return (
     <BaseEmail preview="Event cancelled" heading="Event Cancelled">
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>
         The {groupName ?? "pickleball"} event scheduled for{" "}
-        {eventDate ? new Date(eventDate).toLocaleDateString() : "the upcoming date"}
+        {eventDate ? formatDate(eventDate) : "the upcoming date"}
         {formattedTime ? ` at ${formattedTime}` : ""} has been
         cancelled by the admin.
       </Text>

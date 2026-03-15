@@ -1,5 +1,6 @@
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
+import { formatDate, formatTime } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -10,9 +11,7 @@ interface Props {
 }
 
 export default function NewSheet({ groupName, eventDate, eventTime, location, sheetId }: Props) {
-  const formattedTime = eventTime
-    ? new Date(eventTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-    : null;
+  const formattedTime = eventTime ? formatTime(eventTime) : null;
 
   return (
     <BaseEmail preview="New event posted!" heading="New Sign-Up Sheet">
@@ -20,7 +19,7 @@ export default function NewSheet({ groupName, eventDate, eventTime, location, sh
         A new event has been posted for <strong>{groupName ?? "your group"}</strong>!
       </Text>
       <Text style={{ color: "#374151", fontSize: "14px" }}>
-        Date: {eventDate ? new Date(eventDate).toLocaleDateString() : "TBD"}
+        Date: {eventDate ? formatDate(eventDate) : "TBD"}
         {formattedTime ? ` at ${formattedTime}` : ""}
       </Text>
       {location && (

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 const PCT_WINDOW_SESSIONS = 14;
 
@@ -194,10 +195,7 @@ export default async function RatingsPage() {
                 </td>
                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 sm:py-4 text-sm text-surface-muted">
                   {r.last_played_at
-                    ? new Date(r.last_played_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
+                    ? formatDate(r.last_played_at)
                     : "—"}
                 </td>
               </tr>

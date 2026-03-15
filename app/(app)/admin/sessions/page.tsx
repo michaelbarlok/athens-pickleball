@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 export default async function AdminSessionsPage() {
   const supabase = await createClient();
@@ -46,11 +47,7 @@ export default async function AdminSessionsPage() {
               <tr key={session.id}>
                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm text-dark-100">
                   {session.sheet?.event_date
-                    ? new Date(session.sheet.event_date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
+                    ? formatDate(session.sheet.event_date)
                     : "—"}
                 </td>
                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm text-dark-200">

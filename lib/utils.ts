@@ -9,30 +9,40 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Format date as M-D-YYYY (no leading zeros, hyphen-separated) */
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  return `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
 }
 
-export function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+/** Format time as H:MM am/pm (no leading zeros, 12-hour).
+ *  Accepts a full datetime string OR a time-only string like "18:00" / "18:00:00". */
+export function formatTime(timeOrDateStr: string): string {
+  // Detect time-only strings (HH:MM or HH:MM:SS)
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeOrDateStr.trim())) {
+    const [hStr, mStr] = timeOrDateStr.trim().split(":");
+    let hours = parseInt(hStr, 10);
+    const minutes = parseInt(mStr, 10);
+    const ampm = hours >= 12 ? "pm" : "am";
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  }
+  const date = new Date(timeOrDateStr);
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? "pm" : "am";
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
 }
 
+/** Format date as M-D-YYYY (alias for formatDate — kept for call-site compat) */
 export function formatShortDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatDate(dateStr);
+}
+
+/** Format date and time together as M-D-YYYY H:MM am/pm */
+export function formatDateTime(dateStr: string): string {
+  return `${formatDate(dateStr)} ${formatTime(dateStr)}`;
 }
 
 export function getCountdown(targetDateStr: string): string {
