@@ -31,6 +31,17 @@ const REQUIRED_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "pool_assigned",
 ]);
 
+/**
+ * Per-type default channel set. Used when the recipient hasn't
+ * explicitly set a per-type pref. Listed types ignore the user's
+ * global preferred_notify and fall back to the channels here
+ * instead. The user can still override by flipping channels on the
+ * per-type row in their profile.
+ */
+const TYPE_CHANNEL_DEFAULTS: Partial<Record<NotificationType, ("email" | "push")[]>> = {
+  tournament_announcement: ["email"],
+};
+
 interface NotifyParams {
   profileId: string;
   type: NotificationType;
@@ -133,8 +144,25 @@ export async function notify({
     shouldPush = hasPushSub;
     shouldEmail = !hasPushSub;
   } else {
-    shouldEmail = typeChannels ? typeChannels.has("email") : prefs.includes("email");
-    shouldPush = typeChannels ? typeChannels.has("push") : prefs.includes("push");
+    // Some types default to a narrower channel set than the global
+    // preferred_notify list, regardless of what the user has in their
+    // global "send me" preferences. tournament_announcement is the
+    // first one — it's a marketing-style broadcast, so we default to
+    // email-only and let users explicitly opt into push via the
+    // per-type pref. This avoids vibrating phones at midnight when
+    // an admin hits "Notify Members" and lets users keep push on for
+    // their actual tournament-day pings.
+    const typeDefault = TYPE_CHANNEL_DEFAULTS[type];
+    if (typeChannels) {
+      shouldEmail = typeChannels.has("email");
+      shouldPush = typeChannels.has("push");
+    } else if (typeDefault) {
+      shouldEmail = typeDefault.includes("email");
+      shouldPush = typeDefault.includes("push");
+    } else {
+      shouldEmail = prefs.includes("email");
+      shouldPush = prefs.includes("push");
+    }
   }
 
   // 3. Fire email, SMS, and push in parallel. Previously these were
@@ -243,6 +271,7 @@ const EMAIL_TEMPLATES: Record<string, () => Promise<{ default: (props: any) => R
   TournamentPartnerRequest: () => import("@/emails/TournamentPartnerRequest"),
   TournamentPartnerAccepted: () => import("@/emails/TournamentPartnerAccepted"),
   TournamentPartnerDeclined: () => import("@/emails/TournamentPartnerDeclined"),
+  TournamentAnnouncement: () => import("@/emails/TournamentAnnouncement"),
 };
 
 async function sendEmail({

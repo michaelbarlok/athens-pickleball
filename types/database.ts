@@ -51,6 +51,7 @@ export type NotificationType =
   | "tournament_partner_request"
   | "tournament_partner_accepted"
   | "tournament_partner_declined"
+  | "tournament_announcement"
   | "badge_earned"
   | "session_recap"
   | "group_announcement";
