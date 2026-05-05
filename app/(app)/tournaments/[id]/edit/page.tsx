@@ -1,6 +1,7 @@
 "use client";
 
 import { FormError } from "@/components/form-error";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { DivisionCheckboxes } from "@/components/division-checkboxes";
 import { DivisionStartTimes } from "@/components/division-start-times";
@@ -240,7 +241,7 @@ export default function EditTournamentPage() {
     router.push(`/tournaments/${id}`);
   }
 
-  if (loading) return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+  if (loading) return <CenteredSpinner />;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

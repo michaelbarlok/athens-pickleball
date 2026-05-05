@@ -430,7 +430,7 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
           {showAdminNav && (
             <>
               <div className="border-t border-surface-border">
-                <p className="px-4 pt-2.5 pb-1 text-xs font-semibold uppercase tracking-wider text-surface-muted">
+                <p className="px-4 pt-2.5 pb-1 text-eyebrow">
                   Admin
                 </p>
                 {adminLinks.map((item) => (

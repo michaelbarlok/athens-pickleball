@@ -1,6 +1,7 @@
 "use client";
 
 import { useConfirm } from "@/components/confirm-modal";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { FirstChoiceBadge } from "@/components/first-choice-badge";
 import { FormError } from "@/components/form-error";
 import { useSupabase } from "@/components/providers/supabase-provider";
@@ -705,7 +706,7 @@ export default function AdminSessionDetailPage() {
 
   const isRoundLive = session?.status === "round_active" || session?.status === "round_complete";
 
-  if (loading) return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+  if (loading) return <CenteredSpinner />;
   if (!session) return <div className="text-center py-12 text-surface-muted">Session not found.</div>;
 
   const currentIdx = LIFECYCLE_ORDER.indexOf(session.status as typeof LIFECYCLE_ORDER[number]);

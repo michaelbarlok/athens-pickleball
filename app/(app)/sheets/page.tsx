@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/empty-state";
 import { FormError } from "@/components/form-error";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import {
   sheetIsExpired,
@@ -238,14 +239,16 @@ export default async function SheetsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-dark-100">Sign-Up Sheets</h1>
-        {isAnyGroupAdmin && (
-          <Link href="/sheets/new" className="btn-primary text-sm">
-            Create Sign-Up Sheet
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Sign-Up Sheets"
+        actions={
+          isAnyGroupAdmin ? (
+            <Link href="/sheets/new" className="btn-primary text-sm">
+              Create Sign-Up Sheet
+            </Link>
+          ) : null
+        }
+      />
 
       {!sortedSheets || sortedSheets.length === 0 ? (
         <EmptyState

@@ -3,6 +3,7 @@ import { TournamentFilterBar } from "./filter-bar";
 import { TournamentsList } from "./tournaments-list";
 import { createClient } from "@/lib/supabase/server";
 import { WeatherBadge } from "@/components/weather-badge";
+import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
 
 export default async function TournamentsPage({
@@ -67,12 +68,14 @@ export default async function TournamentsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-dark-100">Tournaments</h1>
-        <Link href="/tournaments/new" className="btn-primary">
-          Create Tournament
-        </Link>
-      </div>
+      <PageHeader
+        title="Tournaments"
+        actions={
+          <Link href="/tournaments/new" className="btn-primary">
+            Create Tournament
+          </Link>
+        }
+      />
 
       <TournamentFilterBar />
 

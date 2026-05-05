@@ -120,7 +120,7 @@ export default async function ForumPage() {
 
       {pinnedThreads.length > 0 && (
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-muted">
+          <h2 className="mb-2 text-eyebrow">
             Pinned
           </h2>
           <div className="space-y-2">
@@ -140,7 +140,7 @@ export default async function ForumPage() {
       {regularThreads.length > 0 && (
         <section className="space-y-2">
           {pinnedThreads.length > 0 && (
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-muted">
+            <h2 className="mb-2 text-eyebrow">
               Recent
             </h2>
           )}

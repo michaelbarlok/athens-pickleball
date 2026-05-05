@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Breadcrumb } from "@/components/breadcrumb";
+import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
 import { TournamentsTable, type TournamentRow } from "./tournaments-table";
 
@@ -18,17 +19,16 @@ export default async function AdminTournamentsPage() {
   return (
     <div className="space-y-6">
       <Breadcrumb items={[{ label: "Admin" }, { label: "Tournaments" }]} />
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-heading">Manage Tournaments</h1>
-          <p className="mt-1 text-sm text-surface-muted">
-            View, hide, and delete all tournaments across the platform.
-          </p>
-        </div>
-        <Link href="/tournaments/new" className="btn-primary whitespace-nowrap">
-          Create
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Manage Tournaments"
+        subtitle="View, hide, and delete all tournaments across the platform."
+        actions={
+          <Link href="/tournaments/new" className="btn-primary whitespace-nowrap">
+            Create
+          </Link>
+        }
+      />
 
       <TournamentsTable tournaments={tournaments} />
     </div>

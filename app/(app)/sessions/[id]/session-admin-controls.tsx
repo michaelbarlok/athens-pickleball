@@ -224,7 +224,7 @@ export function SessionAdminControls({
   return (
     <div className="card space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-surface-muted">
+        <p className="text-eyebrow">
           Session Lifecycle
         </p>
         <span className="badge-admin">Admin</span>

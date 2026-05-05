@@ -1,6 +1,7 @@
 "use client";
 
 import { useConfirm } from "@/components/confirm-modal";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { EmptyState } from "@/components/empty-state";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useEffect, useState, useCallback } from "react";
@@ -490,7 +491,7 @@ export default function AdminGroupDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-surface-muted">Loading...</p>
+        <CenteredSpinner />
       </div>
     );
   }

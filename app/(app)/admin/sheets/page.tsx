@@ -1,4 +1,5 @@
 import { Breadcrumb } from "@/components/breadcrumb";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import type { SignupSheet } from "@/types/database";
@@ -49,17 +50,16 @@ export default async function AdminSheetsPage() {
   return (
     <div className="space-y-6">
       <Breadcrumb items={[{ label: "Admin" }, { label: "Sign-Up Sheets" }]} />
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-heading">Manage Sign-Up Sheets</h1>
-          <p className="mt-1 text-sm text-surface-muted">
-            Create and manage event sign-up sheets for your groups.
-          </p>
-        </div>
-        <Link href="/admin/sheets/new" className="btn-primary whitespace-nowrap">
-          Create Sheet
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Manage Sign-Up Sheets"
+        subtitle="Create and manage event sign-up sheets for your groups."
+        actions={
+          <Link href="/admin/sheets/new" className="btn-primary whitespace-nowrap">
+            Create Sheet
+          </Link>
+        }
+      />
 
       <div className="space-y-2">
         <h2 className="text-eyebrow">Active</h2>

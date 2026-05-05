@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { GroupList, type GroupCardData } from "./group-list";
 import { WeatherBadge } from "@/components/weather-badge";
+import { PageHeader } from "@/components/page-header";
 
 export default async function GroupsPage() {
   const supabase = await createClient();
@@ -165,12 +166,14 @@ export default async function GroupsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-bold text-dark-100">Groups</h1>
-        <Link href="/groups/new" className="btn-primary whitespace-nowrap">
-          Create a Group
-        </Link>
-      </div>
+      <PageHeader
+        title="Groups"
+        actions={
+          <Link href="/groups/new" className="btn-primary whitespace-nowrap">
+            Create a Group
+          </Link>
+        }
+      />
 
       <GroupList
         groups={groupCards}
