@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -7,7 +8,7 @@ interface Props {
 }
 
 export default function BadgeEarned({ badgeName, playerUrl }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
 
   return (
     <BaseEmail preview="Badge Unlocked!" heading="You earned a new badge!">

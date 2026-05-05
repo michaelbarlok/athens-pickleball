@@ -3,6 +3,7 @@ import { notify } from "@/lib/notify";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getDivisionLabel } from "@/lib/divisions";
 import { isTestUser } from "@/lib/utils";
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { NextRequest, NextResponse } from "next/server";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -160,7 +161,7 @@ export async function POST(
   // Build a plain-text alternative for the email client + Gmail's
   // classifier. HTML-only emails skew Promotions; sending a real
   // text part alongside the React HTML keeps us looking transactional.
-  const tournamentUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tournaments/${tournament.id}`;
+  const tournamentUrl = `${EMAIL_PUBLIC_URL}/tournaments/${tournament.id}`;
   const detailLines: string[] = [];
   if (tournament.start_date) {
     detailLines.push(`When: ${formatDateLabel(tournament.start_date) ?? tournament.start_date}${tournament.start_time ? ` · ${formatTimeLabel(tournament.start_time)}` : ""}`);
@@ -191,7 +192,7 @@ export async function POST(
     "",
     "—",
     "You can turn off Nearby tournament notifications from your profile:",
-    `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/profile/notifications`,
+    `${EMAIL_PUBLIC_URL}/profile/notifications`,
   ]
     .filter((l) => l !== null)
     .join("\n");

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Img, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -18,7 +19,7 @@ export default function GroupAnnouncement({
   attachmentName,
   attachmentType,
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const isImage = attachmentType?.startsWith("image/");
 
   return (

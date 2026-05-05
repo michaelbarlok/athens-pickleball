@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -46,7 +47,7 @@ export default function TournamentRecap({
   myDivision = null,
   divisions = [],
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const isOrganizer = viewerRole === "organizer";
 
   const myDivisionRecap =

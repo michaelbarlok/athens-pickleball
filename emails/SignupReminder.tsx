@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 import { formatDateInZone, formatDateTimeInZone } from "@/lib/utils";
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export default function SignupReminder({ groupName, eventDate, closesAt, timezone, sheetId }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const tz = timezone ?? "America/New_York";
 
   return (

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import {
   Body,
   Container,
@@ -19,7 +20,7 @@ interface BaseEmailProps {
 }
 
 export default function BaseEmail({ preview, heading, children }: BaseEmailProps) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   return (
     <Html>
       <Head />

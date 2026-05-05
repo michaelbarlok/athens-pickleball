@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
@@ -29,7 +30,7 @@ export default function SheetCancelled({
 }: Props) {
   const tz = timezone ?? "America/New_York";
   const formattedTime = eventTime ? formatTimeInZone(eventTime, tz) : null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const reasonLabel = cancellationReason ? REASON_LABELS[cancellationReason] : null;
 
   return (

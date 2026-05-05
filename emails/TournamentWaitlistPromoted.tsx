@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -17,7 +18,7 @@ export default function TournamentWaitlistPromoted({ tournamentTitle, tournament
         Your registration is now confirmed. No further action is needed.
       </Text>
       <Button
-        href={tournamentId ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tournaments/${tournamentId}` : "#"}
+        href={tournamentId ? `${EMAIL_PUBLIC_URL}/tournaments/${tournamentId}` : "#"}
         style={{
           backgroundColor: "#14b8a6",
           borderRadius: "6px",
