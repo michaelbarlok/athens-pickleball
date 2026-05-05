@@ -515,6 +515,15 @@ export default async function TournamentDetailPage({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
                   {tournament.location}
+                  {(() => {
+                    const cs = [
+                      (tournament as { city?: string | null }).city,
+                      (tournament as { state?: string | null }).state,
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
+                    return cs ? <span className="text-surface-muted"> · {cs}</span> : null;
+                  })()}
                 </span>
                 {tournament.start_time && (
                   <span className="inline-flex items-center gap-1.5">

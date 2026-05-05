@@ -90,7 +90,18 @@ export function TournamentCard({
             {formatDate(t.start_date + "T00:00:00")}
             {t.start_time && ` at ${formatTime(t.start_time)}`}
           </p>
-          <p>{t.location}</p>
+          <p>
+            {t.location}
+            {(() => {
+              const cs = [
+                (t as { city?: string | null }).city,
+                (t as { state?: string | null }).state,
+              ]
+                .filter(Boolean)
+                .join(", ");
+              return cs ? <span> · {cs}</span> : null;
+            })()}
+          </p>
           {weather && <div>{weather}</div>}
         </div>
 
