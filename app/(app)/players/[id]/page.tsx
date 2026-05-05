@@ -281,7 +281,7 @@ export default async function PlayerProfilePage({ params }: PlayerPageProps) {
       {/* Ratings */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="card">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-muted mb-3">DUPR</h3>
+          <h3 className="text-eyebrow mb-3">DUPR</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-surface-muted">ID</span>
@@ -306,7 +306,7 @@ export default async function PlayerProfilePage({ params }: PlayerPageProps) {
           </div>
         </div>
         <div className="card">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-muted mb-3">USA Pickleball</h3>
+          <h3 className="text-eyebrow mb-3">USA Pickleball</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-surface-muted">Member ID</span>

@@ -103,7 +103,7 @@ export function TournamentsList({
 
       {showActive.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-dark-200 mb-3 uppercase tracking-wider">
+          <h2 className="text-eyebrow mb-3">
             {inNearbyMode ? "Near you" : "Upcoming & Active"}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -127,7 +127,7 @@ export function TournamentsList({
           user asks for it later we can add it back behind a toggle. */}
       {!inNearbyMode && past.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-dark-200 mb-3 uppercase tracking-wider">
+          <h2 className="text-eyebrow mb-3">
             Past
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

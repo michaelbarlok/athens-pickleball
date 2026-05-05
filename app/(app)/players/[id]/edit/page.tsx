@@ -1,6 +1,7 @@
 "use client";
 
 import { AvatarUpload } from "@/components/avatar-upload";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { ThemeSelector } from "@/components/theme-selector";
 import { FormError } from "@/components/form-error";
 import { useSupabase } from "@/components/providers/supabase-provider";
@@ -285,7 +286,7 @@ export default function EditProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-surface-muted">Loading...</p>
+        <CenteredSpinner />
       </div>
     );
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useConfirm } from "@/components/confirm-modal";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { distributeCourts, seedSession1, seedSameDaySession } from "@/lib/shootout-engine";
 import type { RankedPlayer, SeedablePlayer } from "@/lib/shootout-engine";
@@ -471,7 +472,7 @@ export default function CheckInPage() {
     setAddingMember(false);
   }
 
-  if (loading) return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+  if (loading) return <CenteredSpinner />;
   if (!session) return <div className="text-center py-12 text-surface-muted">Session not found.</div>;
 
   const isPrivateGroup = session.group?.visibility === "private";

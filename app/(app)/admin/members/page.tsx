@@ -3,6 +3,7 @@ import type { Profile, GroupMembership } from "@/types/database";
 import { isTestUser } from "@/lib/test-users";
 import { MembersTable } from "./members-table";
 import { Breadcrumb } from "@/components/breadcrumb";
+import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
 
 export default async function AdminMembersPage() {
@@ -52,23 +53,22 @@ export default async function AdminMembersPage() {
   return (
     <div className="space-y-6">
       <Breadcrumb items={[{ label: "Admin" }, { label: "Members" }]} />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-dark-100">Member Management</h1>
-          <p className="mt-1 text-surface-muted">
-            {profiles.length} total members
-          </p>
-        </div>
-        <Link
-          href="/admin/members/import"
-          className="btn-secondary flex items-center gap-2 text-sm"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
-          Import CSV
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Member Management"
+        subtitle={`${profiles.length} total ${profiles.length === 1 ? "member" : "members"}`}
+        actions={
+          <Link
+            href="/admin/members/import"
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Import CSV
+          </Link>
+        }
+      />
 
       <MembersTable
         profiles={profiles}

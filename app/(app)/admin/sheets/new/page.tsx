@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/empty-state";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { FormError } from "@/components/form-error";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -277,7 +278,7 @@ export default function NewSheetPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-surface-muted">Loading...</p>
+        <CenteredSpinner />
       </div>
     );
   }

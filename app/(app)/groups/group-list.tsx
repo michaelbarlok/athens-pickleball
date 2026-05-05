@@ -267,13 +267,21 @@ export function GroupList({
           ))}
         </div>
       ) : tab === "mine" ? (
-        <div className="card text-center py-10 space-y-3">
-          <p className="font-medium text-dark-100">You haven&apos;t joined any groups yet</p>
-          <p className="text-sm text-surface-muted">Switch to the Search tab to find one.</p>
+        // Special-cased empty state: the action is a tab switch (in-page
+        // state) rather than a route, so we render the EmptyState shell
+        // ourselves with a button instead of a Link. Visual rhythm
+        // matches the regular EmptyState component.
+        <div className="card text-center py-12 space-y-4">
+          <div className="space-y-1.5">
+            <p className="font-semibold text-dark-100">You haven&apos;t joined any groups yet</p>
+            <p className="text-sm text-surface-muted max-w-sm mx-auto">
+              Switch to the Search tab to find one.
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => setTab("search")}
-            className="inline-block text-sm font-medium text-brand-vivid hover:opacity-80"
+            className="text-sm font-medium text-brand-400 hover:text-brand-300"
           >
             Search for Groups →
           </button>

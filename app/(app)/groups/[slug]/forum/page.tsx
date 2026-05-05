@@ -1,6 +1,7 @@
 "use client";
 
 import { useSupabase } from "@/components/providers/supabase-provider";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -160,7 +161,7 @@ export default function GroupForumPage() {
   }
 
   if (loading)
-    return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+    return <CenteredSpinner />;
   if (!group)
     return <div className="text-center py-12 text-surface-muted">Group not found.</div>;
 

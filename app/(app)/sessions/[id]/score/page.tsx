@@ -1,6 +1,7 @@
 "use client";
 
 import { FirstChoiceBadge } from "@/components/first-choice-badge";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { fetchWithRetry } from "@/lib/fetch-with-retry";
 import { matchFirstChoice } from "@/lib/first-choice";
@@ -204,7 +205,7 @@ export default function ScoreEntryPage() {
   }
 
   if (!session) {
-    return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+    return <CenteredSpinner />;
   }
 
   return (

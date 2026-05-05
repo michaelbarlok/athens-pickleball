@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { US_STATES } from "@/lib/us-states";
 import { Breadcrumb } from "@/components/breadcrumb";
+import { PageHeader } from "@/components/page-header";
 import { GroupsTable, type GroupRow } from "./groups-table";
 
 export default async function AdminGroupsPage() {
@@ -151,12 +152,11 @@ export default async function AdminGroupsPage() {
   return (
     <div className="space-y-6">
       <Breadcrumb items={[{ label: "Admin" }, { label: "Groups" }]} />
-      <div>
-        <h1 className="text-heading">Manage Groups</h1>
-        <p className="mt-1 text-surface-muted">
-          Create and manage shootout groups.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Manage Groups"
+        subtitle="Create and manage groups."
+      />
 
       {/* Create Group */}
       <div className="card">

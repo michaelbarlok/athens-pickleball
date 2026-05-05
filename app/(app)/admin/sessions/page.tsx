@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { SessionsTable, type SessionRow } from "./sessions-table";
+import { PageHeader } from "@/components/page-header";
 
 export default async function AdminSessionsPage() {
   const supabase = await createClient();
@@ -15,9 +16,7 @@ export default async function AdminSessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-heading">Sessions</h1>
-      </div>
+      <PageHeader eyebrow="Admin" title="Sessions" />
 
       <SessionsTable sessions={sessions} />
     </div>

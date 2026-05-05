@@ -1,6 +1,7 @@
 "use client";
 
 import { useSupabase } from "@/components/providers/supabase-provider";
+import { CenteredSpinner } from "@/components/centered-spinner";
 import type { Notification } from "@/types/database";
 import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/utils";
@@ -64,7 +65,7 @@ export default function NotificationsPage() {
     );
   }
 
-  if (loading) return <div className="text-center py-12 text-surface-muted">Loading...</div>;
+  if (loading) return <CenteredSpinner />;
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
