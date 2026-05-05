@@ -33,8 +33,14 @@ const nextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
           {
+            // Camera + microphone stay locked down (we don't use them).
+            // Geolocation is opened to first-party only (`self`) so the
+            // "Find near me" search on the groups + tournaments listings
+            // can prompt the user. Without this it gets silently blocked
+            // by the policy and never asks — the user just sees a dead
+            // button click.
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: "camera=(), microphone=(), geolocation=(self)",
           },
         ],
       },

@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { TournamentCard } from "@/components/tournament-card";
-import {
-  FindNearMeButton,
-  type GeoState,
-} from "@/components/find-near-me-button";
+import { FindNearMeButton } from "@/components/find-near-me-button";
 import type { TournamentWithCounts } from "@/lib/queries/tournament";
 import { EmptyState } from "@/components/empty-state";
 
@@ -35,24 +32,22 @@ export function TournamentsList({
   isSiteAdmin,
   weatherByTournamentId,
 }: Props) {
-  const [geoState, setGeoState] = useState<GeoState>({ kind: "idle" });
   const [nearbyActive, setNearbyActive] = useState<
     TournamentWithCounts[] | null
   >(null);
   const [distanceById, setDistanceById] = useState<Record<string, number>>({});
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   async function handleLocation({ lat, lon }: { lat: number; lon: number }) {
-    setGeoState({ kind: "loading" });
+    setFetchError(null);
     try {
       const res = await fetch(
         `/api/tournaments/nearby?lat=${lat}&lon=${lon}&radius_miles=${NEARBY_RADIUS_MI}`,
         { cache: "no-store" }
       );
       if (!res.ok) {
-        setGeoState({
-          kind: "error",
-          message: "Couldn't load nearby tournaments.",
-        });
+        setFetchError("Couldn't load nearby tournaments.");
+        setNearbyActive([]);
         return;
       }
       const data = await res.json();
@@ -69,20 +64,20 @@ export function TournamentsList({
         .filter((t): t is TournamentWithCounts => Boolean(t));
       setNearbyActive(ordered);
       setDistanceById(distMap);
-      setGeoState({ kind: "ready", lat, lon });
     } catch (e) {
-      setGeoState({
-        kind: "error",
-        message:
-          e instanceof Error ? e.message : "Couldn't load nearby tournaments.",
-      });
+      setFetchError(
+        e instanceof Error
+          ? e.message
+          : "Couldn't load nearby tournaments."
+      );
+      setNearbyActive([]);
     }
   }
 
   function clearNearby() {
     setNearbyActive(null);
     setDistanceById({});
-    setGeoState({ kind: "idle" });
+    setFetchError(null);
   }
 
   const showActive = nearbyActive ?? active;
@@ -95,7 +90,7 @@ export function TournamentsList({
         radiusMi={NEARBY_RADIUS_MI}
         label="tournaments"
         onClear={clearNearby}
-        state={geoState}
+        fetchError={fetchError}
       />
 
       {inNearbyMode && (

@@ -7,7 +7,6 @@ import { EmptyState } from "@/components/empty-state";
 import {
   FindNearMeButton,
   formatDistanceMi,
-  type GeoState,
 } from "@/components/find-near-me-button";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -67,24 +66,26 @@ export function GroupList({
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  // Nearby state — set once the user grants location permission and
-  // /api/groups/nearby returns. When this is non-null we render the
-  // distance-sorted list instead of the bare-text filter.
-  const [geoState, setGeoState] = useState<GeoState>({ kind: "idle" });
+  // Nearby state — populated once the user grants location and the
+  // /api/groups/nearby endpoint returns. nearbyGroups === null means
+  // "not in nearby mode"; an empty array means "in nearby mode but
+  // zero matches within the radius".
   const [nearbyGroups, setNearbyGroups] = useState<GroupCardData[] | null>(null);
   const [nearbyDistanceById, setNearbyDistanceById] = useState<Record<string, number>>({});
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const NEARBY_RADIUS_MI = 30;
 
   async function handleLocation({ lat, lon }: { lat: number; lon: number }) {
-    setGeoState({ kind: "loading" });
+    setFetchError(null);
     try {
       const res = await fetch(
         `/api/groups/nearby?lat=${lat}&lon=${lon}&radius_miles=${NEARBY_RADIUS_MI}`,
         { cache: "no-store" }
       );
       if (!res.ok) {
-        setGeoState({ kind: "error", message: "Couldn't load nearby groups." });
+        setFetchError("Couldn't load nearby groups.");
+        setNearbyGroups([]);
         return;
       }
       const data = await res.json();
@@ -108,19 +109,18 @@ export function GroupList({
         .filter((g): g is GroupCardData => Boolean(g));
       setNearbyGroups(ordered);
       setNearbyDistanceById(distMap);
-      setGeoState({ kind: "ready", lat, lon });
     } catch (e) {
-      setGeoState({
-        kind: "error",
-        message: e instanceof Error ? e.message : "Couldn't load nearby groups.",
-      });
+      setFetchError(
+        e instanceof Error ? e.message : "Couldn't load nearby groups."
+      );
+      setNearbyGroups([]);
     }
   }
 
   function clearNearby() {
     setNearbyGroups(null);
     setNearbyDistanceById({});
-    setGeoState({ kind: "idle" });
+    setFetchError(null);
   }
 
   const { mine, discoverable } = useMemo(() => {
@@ -201,7 +201,7 @@ export function GroupList({
             radiusMi={NEARBY_RADIUS_MI}
             label="groups"
             onClear={clearNearby}
-            state={geoState}
+            fetchError={fetchError}
           />
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
