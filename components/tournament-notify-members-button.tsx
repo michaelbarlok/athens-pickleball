@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { render } from "@react-email/render";
 import TournamentAnnouncement from "@/emails/TournamentAnnouncement";
 import { getDivisionLabel } from "@/lib/divisions";
@@ -93,6 +94,15 @@ export function TournamentNotifyMembersButton({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Portal target — server renders nothing, client mounts on
+  // document.body so the modal isn't a DOM descendant of the
+  // tournament card. Critical: TournamentCard's `.card` class lifts
+  // on hover via `transform`, and a transformed ancestor makes
+  // `position: fixed` descendants position relative to that ancestor
+  // instead of the viewport, which manifested as the modal flickering
+  // between center and top-left as the mouse moved over the card.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const baseEmailProps = useMemo(
     () => ({
@@ -264,15 +274,15 @@ export function TournamentNotifyMembersButton({
         {buttonLabel}
       </button>
 
-      {open && (
+      {mounted && open && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
           onClick={close}
         >
           <div
-            className="card relative w-full max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg"
+            className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-3xl overflow-y-auto rounded-none sm:rounded-xl bg-surface-raised ring-1 ring-surface-border p-4 sm:p-5"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -421,7 +431,8 @@ export function TournamentNotifyMembersButton({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
