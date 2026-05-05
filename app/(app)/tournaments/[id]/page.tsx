@@ -32,6 +32,7 @@ import { BulkPaidButton } from "@/components/bulk-paid-button";
 import { PaymentReminderButton } from "@/components/payment-reminder-button";
 import { ShareTournamentButton } from "@/components/share-tournament-button";
 import { HideTournamentToggle } from "@/app/(app)/admin/tournaments/hide-toggle";
+import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
 import { TournamentWinnersCard } from "@/components/tournament-winners-card";
 import { LocalDateTime } from "@/components/local-date-time";
 import { tournamentHeroGradient } from "@/lib/tournament-hero";
@@ -567,6 +568,26 @@ export default async function TournamentDetailPage({
               <HideTournamentToggle
                 tournamentId={id}
                 isHidden={(tournament as any).is_hidden ?? false}
+              />
+            )}
+            {isAdmin && (
+              <TournamentNotifyMembersButton
+                tournament={{
+                  id: tournament.id,
+                  title: tournament.title,
+                  start_date: tournament.start_date,
+                  start_time: (tournament as any).start_time ?? null,
+                  location: tournament.location,
+                  format: tournament.format,
+                  type: (tournament as any).type ?? "doubles",
+                  divisions: tournament.divisions ?? [],
+                  registration_opens_at: (tournament as any).registration_opens_at ?? null,
+                  registration_closes_at: (tournament as any).registration_closes_at ?? null,
+                  entry_fee: (tournament as any).entry_fee ?? null,
+                  payment_options: (tournament as any).payment_options ?? [],
+                  logo_url: (tournament as any).logo_url ?? null,
+                }}
+                variant="header"
               />
             )}
           </div>

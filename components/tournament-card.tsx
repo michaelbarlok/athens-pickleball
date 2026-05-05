@@ -3,6 +3,7 @@ import type { TournamentWithCounts } from "@/lib/queries/tournament";
 import { formatDate, formatTime } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
 import { WeatherBadge } from "@/components/weather-badge";
+import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
 
 const STATUS_ACCENT: Record<string, string> = {
   draft: "card-accent-gray",
@@ -19,7 +20,16 @@ const FORMAT_LABELS: Record<string, string> = {
   round_robin: "Round Robin",
 };
 
-export function TournamentCard({ tournament }: { tournament: TournamentWithCounts }) {
+export function TournamentCard({
+  tournament,
+  isSiteAdmin = false,
+}: {
+  tournament: TournamentWithCounts;
+  /** Site admins (profile.role === "admin") see a "Notify Members"
+   *  CTA on each card so they can email the membership about the
+   *  tournament without opening the detail page first. */
+  isSiteAdmin?: boolean;
+}) {
   const t = tournament;
   const isOpen = t.status === "registration_open";
   const accent = STATUS_ACCENT[t.status] ?? "card-accent-gray";
@@ -113,6 +123,26 @@ export function TournamentCard({ tournament }: { tournament: TournamentWithCount
         >
           Register
         </Link>
+      )}
+
+      {isSiteAdmin && (
+        <TournamentNotifyMembersButton
+          tournament={{
+            id: t.id,
+            title: t.title,
+            start_date: t.start_date,
+            start_time: (t as any).start_time ?? null,
+            location: t.location,
+            format: t.format,
+            type: (t as any).type ?? "doubles",
+            divisions: t.divisions ?? [],
+            registration_opens_at: (t as any).registration_opens_at ?? null,
+            registration_closes_at: (t as any).registration_closes_at ?? null,
+            entry_fee: (t as any).entry_fee ?? null,
+            payment_options: (t as any).payment_options ?? [],
+            logo_url: (t as any).logo_url ?? null,
+          }}
+        />
       )}
     </div>
   );

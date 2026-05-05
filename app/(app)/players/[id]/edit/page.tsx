@@ -628,6 +628,7 @@ export default function EditProfilePage() {
                   // least one channel is required so they don't miss a
                   // court call or a partner request.
                   types: [
+                    { type: "tournament_announcement", label: "Nearby tournament notifications" },
                     { type: "tournament_registration", label: "Tournament registration" },
                     { type: "tournament_reminder", label: "Tournament reminder" },
                     { type: "tournament_cancelled", label: "Tournament cancelled" },
@@ -671,8 +672,13 @@ export default function EditProfilePage() {
               // hold the entire schedule hostage when they don't show up.
               // Build the set from the rendered groups so this stays in
               // sync with whatever the Tournaments group lists above.
+              // Exception: tournament_announcement is a marketing-style
+              // broadcast users should be able to silence completely.
               const TOURNAMENT_TYPES = new Set<string>(
-                notifGroups.find((g) => g.label === "Tournaments")?.types.map((t) => t.type) ?? []
+                notifGroups
+                  .find((g) => g.label === "Tournaments")
+                  ?.types.map((t) => t.type)
+                  .filter((t) => t !== "tournament_announcement") ?? []
               );
 
               const toggleChannel = (t: string, ch: Channel) =>
@@ -718,7 +724,8 @@ export default function EditProfilePage() {
                         return (
                           <div
                             key={type}
-                            className={`flex items-center justify-between gap-3 px-3 py-2.5 ${!isLast ? "border-b border-surface-border/50" : ""} hover:bg-surface-overlay/30`}
+                            id={`type-${type}`}
+                            className={`flex items-center justify-between gap-3 px-3 py-2.5 scroll-mt-24 ${!isLast ? "border-b border-surface-border/50" : ""} hover:bg-surface-overlay/30 target:bg-brand-500/10`}
                           >
                             <span className={`text-sm ${off ? "text-surface-muted italic" : "text-dark-200"}`}>
                               {label}{off && <span className="ml-2 text-xs">(off)</span>}
