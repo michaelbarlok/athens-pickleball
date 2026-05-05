@@ -52,7 +52,10 @@ export async function WeatherBadge({
   if (!weather) return null;
 
   const showPrecip = weather.precipPercent >= 20;
-  const showWind = weather.windSpeedMph >= 10;
+  // Show wind whenever it's noticeable for outdoor play. 5 mph is
+  // about the threshold where a player can feel it on the ball, so
+  // anything above that is worth surfacing on the chip.
+  const showWind = weather.windSpeedMph > 5;
   const icon = ICONS[weather.iconCategory] ?? "🌡️";
 
   // Tooltip surfaces the bits we don't show in the compact chip,

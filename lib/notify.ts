@@ -178,6 +178,8 @@ export async function notify({
           subject: title,
           template: emailTemplate,
           data: { ...emailData, title, body },
+          type,
+          bodyText: typeof emailData?.bodyText === "string" ? emailData.bodyText : undefined,
         }).catch((err) => {
           console.error("Failed to send email notification:", err);
         })
@@ -274,16 +276,35 @@ const EMAIL_TEMPLATES: Record<string, () => Promise<{ default: (props: any) => R
   TournamentAnnouncement: () => import("@/emails/TournamentAnnouncement"),
 };
 
+/**
+ * Notification types we treat as "bulk" sends (one-to-many, not
+ * triggered by the recipient's own action). These get an extra
+ * `Precedence: bulk` header on top of the universal List-Unsubscribe
+ * + Reply-To so Gmail's classifier has a clear "real bulk sender"
+ * signal instead of treating them as marketing.
+ */
+const BULK_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
+  "tournament_announcement",
+  "group_announcement",
+]);
+
 async function sendEmail({
   to,
   subject,
   template,
   data,
+  type,
+  bodyText,
 }: {
   to: string;
   subject: string;
   template: string;
   data: Record<string, unknown>;
+  type: NotificationType;
+  /** Optional plain-text alternative. Sent alongside the React/HTML
+   *  version so non-HTML clients (and Gmail's classifier) see real
+   *  text content, which improves deliverability. */
+  bodyText?: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -302,11 +323,34 @@ async function sendEmail({
 
   const emailComponent = (await loader()).default;
 
+  // Headers that improve inbox placement (especially for Gmail's
+  // Promotions-vs-Primary classifier):
+  //   * List-Unsubscribe + List-Unsubscribe-Post — RFC 2369 / 8058.
+  //     Without this Gmail treats the message as ambiguous bulk and
+  //     leans Promotions. Both a mailto and an https form are
+  //     included; https points at the existing notifications-prefs
+  //     redirect so the user lands on their per-type opt-out row.
+  //   * Reply-To — replies stay in the same thread the user reads,
+  //     and a "real" reply path is a strong Primary signal.
+  //   * Precedence: bulk — for our few one-to-many sends. Tells
+  //     well-behaved autoresponders to not bounce vacation replies
+  //     back at the inbox.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tristarpickleball.com";
+  const headers: Record<string, string> = {
+    "List-Unsubscribe": `<mailto:info@tristarpickleball.com?subject=Unsubscribe>, <${appUrl}/profile/notifications>`,
+  };
+  if (BULK_NOTIFICATION_TYPES.has(type)) {
+    headers["Precedence"] = "bulk";
+  }
+
   await resend.emails.send({
     from: "Tri-Star Pickleball <info@tristarpickleball.com>",
     to,
+    replyTo: "info@tristarpickleball.com",
     subject,
     react: emailComponent(data),
+    text: bodyText,
+    headers,
   });
 }
 
