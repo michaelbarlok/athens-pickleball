@@ -157,6 +157,45 @@ export async function POST(
     getDivisionLabel(code)
   );
 
+  // Build a plain-text alternative for the email client + Gmail's
+  // classifier. HTML-only emails skew Promotions; sending a real
+  // text part alongside the React HTML keeps us looking transactional.
+  const tournamentUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tournaments/${tournament.id}`;
+  const detailLines: string[] = [];
+  if (tournament.start_date) {
+    detailLines.push(`When: ${formatDateLabel(tournament.start_date) ?? tournament.start_date}${tournament.start_time ? ` · ${formatTimeLabel(tournament.start_time)}` : ""}`);
+  }
+  if (tournament.location) detailLines.push(`Where: ${tournament.location}`);
+  detailLines.push(
+    `Format: ${FORMAT_LABELS[tournament.format] ?? tournament.format} · ${TYPE_LABELS[tournament.type] ?? tournament.type}`
+  );
+  if (divisionLabels.length > 0) detailLines.push(`Divisions: ${divisionLabels.join(", ")}`);
+  const regOpens = formatDateTimeLabel(tournament.registration_opens_at);
+  const regCloses = formatDateTimeLabel(tournament.registration_closes_at);
+  if (regOpens || regCloses) {
+    detailLines.push(
+      `Registration: ${[regOpens ? `opens ${regOpens}` : null, regCloses ? `closes ${regCloses}` : null].filter(Boolean).join(" · ")}`
+    );
+  }
+  if (tournament.entry_fee && tournament.entry_fee > 0) {
+    detailLines.push(`Entry fee: $${tournament.entry_fee} per team`);
+  }
+  const bodyText = [
+    customMessage,
+    customMessage ? "" : null,
+    tournament.title,
+    "",
+    detailLines.join("\n"),
+    "",
+    `Register: ${tournamentUrl}`,
+    "",
+    "—",
+    "You can turn off Nearby tournament notifications from your profile:",
+    `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/profile/notifications`,
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+
   const baseEmailData = {
     customMessage,
     tournamentTitle: tournament.title,
@@ -172,6 +211,8 @@ export async function POST(
     registrationClosesLabel: formatDateTimeLabel(tournament.registration_closes_at),
     entryFee: tournament.entry_fee ?? null,
     paymentOptions: tournament.payment_options ?? [],
+    // Picked up by sendEmail() and forwarded to Resend's `text` field.
+    bodyText,
   };
 
   const inAppTitle = `New tournament: ${tournament.title}`;

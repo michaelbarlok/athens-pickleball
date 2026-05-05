@@ -1,4 +1,4 @@
-import { Button, Hr, Img, Link, Section, Text } from "@react-email/components";
+import { Hr, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
 interface PaymentOption {
@@ -11,6 +11,9 @@ interface Props {
   customMessage?: string;
   tournamentTitle?: string;
   tournamentId?: string;
+  /** Kept for back-compat with the API route's emailData payload —
+   *  no longer rendered. The hero logo image was a Promotions-tab
+   *  signal; we now rely on the BaseEmail header's wordmark only. */
   tournamentLogoUrl?: string | null;
   startDateLabel?: string | null;
   startTimeLabel?: string | null;
@@ -33,11 +36,17 @@ const PAYMENT_LABELS: Record<string, string> = {
   check: "Check",
 };
 
+/**
+ * Tournament announcement broadcast. Designed to read like a personal
+ * note from an organizer rather than a promo — Gmail's Promotions
+ * classifier penalizes hero images, big colored CTAs, and dense
+ * styled blocks, so this template uses plain text + an inline link
+ * for the call to action and a single subtle separator for details.
+ */
 export default function TournamentAnnouncement({
   customMessage,
   tournamentTitle,
   tournamentId,
-  tournamentLogoUrl,
   startDateLabel,
   startTimeLabel,
   location,
@@ -55,10 +64,9 @@ export default function TournamentAnnouncement({
     ? `${appUrl}/tournaments/${tournamentId}`
     : `${appUrl}/tournaments`;
 
-  // Direct anchor to the recipient's "Nearby tournament notifications"
-  // pref row so the opt-out footer lands them exactly where they need
-  // to flip the switch. Falls back to the recipient-agnostic redirect
-  // when we don't have a profile id (preview mode in the modal).
+  // Deep-link straight to the recipient's "Nearby tournament
+  // notifications" pref row when we have their profile id; fall
+  // back to the recipient-agnostic redirect otherwise.
   const prefsUrl = recipientProfileId
     ? `${appUrl}/players/${recipientProfileId}/edit#type-tournament_announcement`
     : `${appUrl}/profile/notifications`;
@@ -68,155 +76,108 @@ export default function TournamentAnnouncement({
     ? `${tournamentTitle} — registration is open`
     : "A new tournament has been posted";
 
+  const detailRows: { label: string; value: string }[] = [];
+  const whenValue = [startDateLabel, startTimeLabel].filter(Boolean).join(" · ");
+  if (whenValue) detailRows.push({ label: "When", value: whenValue });
+  if (location) detailRows.push({ label: "Where", value: location });
+  const formatValue = [formatLabel, typeLabel].filter(Boolean).join(" · ");
+  if (formatValue) detailRows.push({ label: "Format", value: formatValue });
+  if (divisionLabels && divisionLabels.length > 0) {
+    detailRows.push({ label: "Divisions", value: divisionLabels.join(", ") });
+  }
+  const regWindow = [
+    registrationOpensLabel ? `opens ${registrationOpensLabel}` : null,
+    registrationClosesLabel ? `closes ${registrationClosesLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (regWindow) detailRows.push({ label: "Registration", value: regWindow });
+  if (entryFee != null && entryFee > 0) {
+    detailRows.push({ label: "Entry fee", value: `$${entryFee} per team` });
+  }
+  if (paymentOptions && paymentOptions.length > 0) {
+    detailRows.push({
+      label: "Payment",
+      value: paymentOptions
+        .map((o) => {
+          const m = o.method ?? "";
+          const label = PAYMENT_LABELS[m] ?? m;
+          return o.detail ? `${label} (${o.detail})` : label;
+        })
+        .join(" · "),
+    });
+  }
+
   return (
     <BaseEmail preview={previewText} heading={heading}>
       {customMessage && customMessage.trim().length > 0 && (
         <Text
           style={{
             color: "#111827",
-            fontSize: "14px",
+            fontSize: "15px",
             lineHeight: "22px",
-            backgroundColor: "#f0fdfa",
-            border: "1px solid #99f6e4",
-            borderLeft: "4px solid #14b8a6",
-            borderRadius: "6px",
-            padding: "14px 16px",
             whiteSpace: "pre-wrap" as const,
-            margin: "0 0 20px",
+            margin: "0 0 18px",
           }}
         >
           {customMessage}
         </Text>
       )}
 
-      {tournamentLogoUrl && (
-        <Section style={{ textAlign: "center" as const, margin: "0 0 16px" }}>
-          <Img
-            src={tournamentLogoUrl}
-            alt=""
-            width="96"
-            height="96"
-            style={{
-              margin: "0 auto",
-              borderRadius: "8px",
-              border: "1px solid #e2e8f0",
-              objectFit: "contain" as const,
-            }}
-          />
-        </Section>
-      )}
-
-      <Section
-        style={{
-          backgroundColor: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: "8px",
-          padding: "16px 18px",
-          margin: "0 0 20px",
-        }}
-      >
-        <DetailRow label="When" value={[startDateLabel, startTimeLabel].filter(Boolean).join(" · ")} />
-        <DetailRow label="Where" value={location} />
-        <DetailRow label="Format" value={[formatLabel, typeLabel].filter(Boolean).join(" · ")} />
-        {divisionLabels && divisionLabels.length > 0 && (
-          <DetailRow label="Divisions" value={divisionLabels.join(", ")} />
-        )}
-        {(registrationOpensLabel || registrationClosesLabel) && (
-          <DetailRow
-            label="Registration"
-            value={[
-              registrationOpensLabel ? `opens ${registrationOpensLabel}` : null,
-              registrationClosesLabel ? `closes ${registrationClosesLabel}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          />
-        )}
-        {entryFee != null && entryFee > 0 && (
-          <DetailRow label="Entry fee" value={`$${entryFee} per team`} />
-        )}
-        {paymentOptions && paymentOptions.length > 0 && (
-          <DetailRow
-            label="Payment"
-            value={paymentOptions
-              .map((o) => {
-                const m = o.method ?? "";
-                const label = PAYMENT_LABELS[m] ?? m;
-                return o.detail ? `${label} (${o.detail})` : label;
-              })
-              .join(" · ")}
-          />
-        )}
-      </Section>
-
-      <Section style={{ textAlign: "center" as const, margin: "0 0 20px" }}>
-        <Button
-          href={tournamentUrl}
+      {detailRows.map((row) => (
+        <Text
+          key={row.label}
           style={{
-            backgroundColor: "#0d9490",
-            color: "#ffffff",
-            padding: "12px 28px",
-            borderRadius: "6px",
-            fontSize: "15px",
-            fontWeight: "600" as const,
-            textDecoration: "none" as const,
-            display: "inline-block",
+            margin: "0 0 4px",
+            fontSize: "14px",
+            lineHeight: "22px",
+            color: "#374151",
           }}
         >
-          View tournament & register
-        </Button>
-      </Section>
+          <span style={{ color: "#6b7280", fontWeight: "600" as const }}>
+            {row.label}:
+          </span>{" "}
+          {row.value}
+        </Text>
+      ))}
 
-      <Hr style={{ borderColor: "#e2e8f0", margin: "20px 0 16px" }} />
+      <Text
+        style={{
+          margin: "20px 0 0",
+          fontSize: "14px",
+          lineHeight: "22px",
+          color: "#111827",
+        }}
+      >
+        <Link
+          href={tournamentUrl}
+          style={{ color: "#0d9490", textDecoration: "underline" as const }}
+        >
+          View tournament details and register →
+        </Link>
+      </Text>
+
+      <Hr style={{ borderColor: "#e2e8f0", margin: "24px 0 14px" }} />
 
       <Text
         style={{
           color: "#6b7280",
           fontSize: "12px",
           lineHeight: "18px",
-          textAlign: "center" as const,
-          margin: "0 0 6px",
+          margin: "0",
         }}
       >
-        Don&apos;t want emails about new tournaments?
-      </Text>
-      <Text
-        style={{
-          textAlign: "center" as const,
-          margin: "0 0 4px",
-        }}
-      >
+        You&apos;re receiving this because you have an account on
+        tristarpickleball.com. Don&apos;t want emails about new
+        tournaments?{" "}
         <Link
           href={prefsUrl}
-          style={{
-            color: "#0d9490",
-            textDecoration: "underline" as const,
-            fontSize: "13px",
-            fontWeight: "600" as const,
-          }}
+          style={{ color: "#0d9490", textDecoration: "underline" as const }}
         >
-          Turn off Nearby tournament notifications →
+          Turn off Nearby tournament notifications
         </Link>
+        .
       </Text>
     </BaseEmail>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
-  return (
-    <Text
-      style={{
-        margin: "0 0 6px",
-        fontSize: "13px",
-        lineHeight: "20px",
-        color: "#374151",
-      }}
-    >
-      <span style={{ color: "#6b7280", fontWeight: "600" as const, marginRight: "6px" }}>
-        {label}:
-      </span>
-      {value}
-    </Text>
   );
 }
