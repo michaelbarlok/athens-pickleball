@@ -187,7 +187,7 @@ export function CourtPreviewSection({
     <section className="space-y-3">
       <SectionHeader
         title="Court preview"
-        subtitle="Here's how the courts would seed if the shootout started right now."
+        subtitle="Here's how the courts would seed if the session started right now."
         badge={`${numCourts} court${numCourts === 1 ? "" : "s"}`}
         selector={selector}
       />

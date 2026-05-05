@@ -87,7 +87,7 @@ export function CreateGroupForm({
         <label htmlFor="name" className="block text-sm font-medium text-dark-200 mb-1">
           Group Name <span className="text-red-400">*</span>
         </label>
-        <input type="text" id="name" name="name" placeholder="e.g. Monday Shootout" required className="input w-full" />
+        <input type="text" id="name" name="name" placeholder="e.g. Monday Ladder" required className="input w-full" />
       </div>
 
       {/* Description */}

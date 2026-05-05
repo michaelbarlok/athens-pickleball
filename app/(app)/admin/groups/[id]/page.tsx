@@ -557,9 +557,16 @@ export default function AdminGroupDetailPage() {
             const form = new FormData(e.currentTarget);
             const newCity = (form.get("city") as string)?.trim() || null;
             const newState = (form.get("state") as string)?.trim() || null;
+            // Drop stale lat/lon when location changes so the geocode
+            // backfill cron re-resolves on its next tick.
+            const updates: Record<string, unknown> = { city: newCity, state: newState };
+            if (newCity !== group.city || newState !== group.state) {
+              updates.latitude = null;
+              updates.longitude = null;
+            }
             const { error } = await supabase
               .from("shootout_groups")
-              .update({ city: newCity, state: newState })
+              .update(updates)
               .eq("id", id);
             if (error) {
               setMessage({ type: "error", text: `Failed to save: ${error.message}` });

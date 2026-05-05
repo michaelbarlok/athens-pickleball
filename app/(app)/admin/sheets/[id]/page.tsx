@@ -324,7 +324,7 @@ export default function AdminSheetDetailPage() {
       return;
     }
     const ok = await confirm({
-      title: "Start shootout session?",
+      title: "Start session?",
       description: `${numCourts} court${numCourts > 1 ? "s" : ""} · ${confirmed.length} players`,
       confirmLabel: "Start Session",
       variant: "default",

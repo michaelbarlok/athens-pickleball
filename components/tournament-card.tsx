@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { TournamentWithCounts } from "@/lib/queries/tournament";
 import { formatDate, formatTime } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
-import { WeatherBadge } from "@/components/weather-badge";
 import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
+import { formatDistanceMi } from "@/components/find-near-me-button";
 
 const STATUS_ACCENT: Record<string, string> = {
   draft: "card-accent-gray",
@@ -23,12 +23,24 @@ const FORMAT_LABELS: Record<string, string> = {
 export function TournamentCard({
   tournament,
   isSiteAdmin = false,
+  distanceMi,
+  weather,
 }: {
   tournament: TournamentWithCounts;
   /** Site admins (profile.role === "admin") see a "Notify Members"
    *  CTA on each card so they can email the membership about the
    *  tournament without opening the detail page first. */
   isSiteAdmin?: boolean;
+  /** When set (Tournaments listing in nearby mode), surfaces a small
+   *  "X mi" pill on the card so players see how far each event is. */
+  distanceMi?: number;
+  /** Pre-rendered weather chip from the server. Optional — when not
+   *  supplied no chip is shown. We render this as a passed ReactNode
+   *  rather than calling <WeatherBadge> here so the card can also be
+   *  rendered from client components (the new tournaments-list
+   *  client wrapper) without dragging the async server-only weather
+   *  module into the client bundle. */
+  weather?: React.ReactNode;
 }) {
   const t = tournament;
   const isOpen = t.status === "registration_open";
@@ -61,9 +73,16 @@ export function TournamentCard({
               {t.title}
             </h3>
           </div>
-          <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TOURNAMENT_STATUS_COLORS[t.status] ?? ""}`}>
-            {TOURNAMENT_STATUS_LABELS[t.status] ?? t.status}
-          </span>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TOURNAMENT_STATUS_COLORS[t.status] ?? ""}`}>
+              {TOURNAMENT_STATUS_LABELS[t.status] ?? t.status}
+            </span>
+            {distanceMi !== undefined && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
+                📍 {formatDistanceMi(distanceMi)}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-1 text-sm text-surface-muted">
@@ -72,14 +91,7 @@ export function TournamentCard({
             {t.start_time && ` at ${formatTime(t.start_time)}`}
           </p>
           <p>{t.location}</p>
-          {t.start_date && t.start_time && (
-            <div>
-              <WeatherBadge
-                location={t.location}
-                eventTime={`${t.start_date}T${t.start_time}`}
-              />
-            </div>
-          )}
+          {weather && <div>{weather}</div>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mt-3">

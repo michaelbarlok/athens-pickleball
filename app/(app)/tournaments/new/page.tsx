@@ -7,6 +7,7 @@ import { DivisionStartTimes } from "@/components/division-start-times";
 import { fifteenMinuteSlots, localDateTimeToIso } from "@/lib/datetime-local";
 import { DateTimeFifteenMin } from "@/components/date-time-15";
 import { getDivisionGender } from "@/lib/divisions";
+import { US_STATES } from "@/lib/us-states";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -35,6 +36,12 @@ export default function CreateTournamentPage() {
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [location, setLocation] = useState("");
+  // City + state are separate from `location` (which is a free-form
+  // venue name). They power the new "Find tournaments near me"
+  // search by feeding the geocoder a reliable input — venue names
+  // alone often fail to resolve.
+  const [city, setCity] = useState("");
+  const [stateCode, setStateCode] = useState("");
   const [playerCap, setPlayerCap] = useState("");
   const [maxTeamsPerDivision, setMaxTeamsPerDivision] = useState("");
   const [entryFee, setEntryFee] = useState("");
@@ -200,6 +207,8 @@ export default function CreateTournamentPage() {
         end_date: endDate || startDate,
         start_time: startTime || null,
         location: location.trim(),
+        city: city.trim() || null,
+        state: stateCode || null,
         player_cap: playerCap ? parseInt(playerCap) : null,
         max_teams_per_division: maxTeamsPerDivision ? parseInt(maxTeamsPerDivision) : null,
         entry_fee: entryFee.trim() || null,
@@ -490,6 +499,38 @@ export default function CreateTournamentPage() {
                   placeholder="e.g. Athens Community Center"
                 />
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1">
+                City
+              </label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="input"
+                placeholder="e.g. Athens"
+              />
+              <p className="mt-1 text-xs text-surface-muted">
+                Used so this tournament shows up in &quot;Find tournaments near me&quot; for nearby players.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1">
+                State
+              </label>
+              <select
+                value={stateCode}
+                onChange={(e) => setStateCode(e.target.value)}
+                className="input"
+              >
+                <option value="">Select state</option>
+                {US_STATES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </section>

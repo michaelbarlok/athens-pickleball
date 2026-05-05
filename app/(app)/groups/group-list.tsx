@@ -4,6 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
+import {
+  FindNearMeButton,
+  formatDistanceMi,
+  type GeoState,
+} from "@/components/find-near-me-button";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,6 +67,61 @@ export function GroupList({
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  // Nearby state — set once the user grants location permission and
+  // /api/groups/nearby returns. When this is non-null we render the
+  // distance-sorted list instead of the bare-text filter.
+  const [geoState, setGeoState] = useState<GeoState>({ kind: "idle" });
+  const [nearbyGroups, setNearbyGroups] = useState<GroupCardData[] | null>(null);
+  const [nearbyDistanceById, setNearbyDistanceById] = useState<Record<string, number>>({});
+
+  const NEARBY_RADIUS_MI = 30;
+
+  async function handleLocation({ lat, lon }: { lat: number; lon: number }) {
+    setGeoState({ kind: "loading" });
+    try {
+      const res = await fetch(
+        `/api/groups/nearby?lat=${lat}&lon=${lon}&radius_miles=${NEARBY_RADIUS_MI}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) {
+        setGeoState({ kind: "error", message: "Couldn't load nearby groups." });
+        return;
+      }
+      const data = await res.json();
+      type NearbyRow = {
+        id: string;
+        name: string;
+        slug: string;
+        group_type: string;
+        city: string | null;
+        state: string | null;
+        distance_mi: number;
+      };
+      const rows: NearbyRow[] = data.groups ?? [];
+      const distMap: Record<string, number> = {};
+      for (const r of rows) distMap[r.id] = r.distance_mi;
+      // Pull the matching full GroupCardData out of `discoverable` so
+      // we keep memberCount / playTimes / description without re-fetching.
+      const byId = new Map(discoverable.map((g) => [g.id, g]));
+      const ordered: GroupCardData[] = rows
+        .map((r) => byId.get(r.id))
+        .filter((g): g is GroupCardData => Boolean(g));
+      setNearbyGroups(ordered);
+      setNearbyDistanceById(distMap);
+      setGeoState({ kind: "ready", lat, lon });
+    } catch (e) {
+      setGeoState({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Couldn't load nearby groups.",
+      });
+    }
+  }
+
+  function clearNearby() {
+    setNearbyGroups(null);
+    setNearbyDistanceById({});
+    setGeoState({ kind: "idle" });
+  }
 
   const { mine, discoverable } = useMemo(() => {
     const mine: GroupCardData[] = [];
@@ -76,7 +136,10 @@ export function GroupList({
   const filteredSearch = useMemo(() => {
     const s = search.trim().toLowerCase();
     const loc = location.trim().toLowerCase();
-    return discoverable.filter((g) => {
+    // Source list switches to the nearby-sorted set when the user
+    // has shared their location; otherwise full discoverable list.
+    const source = nearbyGroups ?? discoverable;
+    const filtered = source.filter((g) => {
       const matchesSearch =
         !s ||
         g.name.toLowerCase().includes(s) ||
@@ -89,10 +152,14 @@ export function GroupList({
       const matchesType = typeFilter === "all" || g.group_type === typeFilter;
       return matchesSearch && matchesLocation && matchesType;
     });
-  }, [discoverable, search, location, typeFilter]);
+    // Preserve the nearby ordering (distance-ascending) when in
+    // nearby mode; otherwise the natural fetch order.
+    return filtered;
+  }, [discoverable, nearbyGroups, search, location, typeFilter]);
 
   const activeList = tab === "mine" ? mine : filteredSearch;
   const hasFilters = tab === "search" && (search || location || typeFilter !== "all");
+  const inNearbyMode = tab === "search" && nearbyGroups !== null;
 
   return (
     <>
@@ -129,6 +196,14 @@ export function GroupList({
       {/* Filters — only on the Search tab */}
       {tab === "search" && (
         <>
+          <FindNearMeButton
+            onLocation={handleLocation}
+            radiusMi={NEARBY_RADIUS_MI}
+            label="groups"
+            onClear={clearNearby}
+            state={geoState}
+          />
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -160,11 +235,17 @@ export function GroupList({
             </select>
           </div>
 
-          {hasFilters && (
+          {inNearbyMode ? (
+            <p className="text-sm text-surface-muted">
+              Showing {filteredSearch.length}{" "}
+              {filteredSearch.length === 1 ? "group" : "groups"} within{" "}
+              {NEARBY_RADIUS_MI} miles, sorted by distance
+            </p>
+          ) : hasFilters ? (
             <p className="text-sm text-surface-muted">
               Showing {filteredSearch.length} of {discoverable.length} groups
             </p>
-          )}
+          ) : null}
         </>
       )}
 
@@ -179,6 +260,9 @@ export function GroupList({
               showJoinButton={tab === "search" && !!playerId}
               onJoin={joinAction}
               weather={weatherByGroupId?.[group.id]}
+              distanceMi={
+                inNearbyMode ? nearbyDistanceById[group.id] : undefined
+              }
             />
           ))}
         </div>
@@ -210,12 +294,16 @@ function GroupCard({
   showJoinButton,
   onJoin,
   weather,
+  distanceMi,
 }: {
   group: GroupCardData;
   showVisibility: boolean;
   showJoinButton: boolean;
   onJoin: (groupId: string, groupType: string) => Promise<void>;
   weather?: React.ReactNode;
+  /** When set (Search tab + nearby mode), surfaces a small "X mi"
+   *  chip on the card so players can see how far each option is. */
+  distanceMi?: number;
 }) {
   const cityState = [group.city, group.state].filter(Boolean).join(", ");
   const firstPlayTime = group.playTimes[0] ?? null;
@@ -236,6 +324,11 @@ function GroupCard({
             {group.name}
           </h3>
           <div className="flex flex-wrap items-center gap-1 shrink-0">
+            {distanceMi !== undefined && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
+                📍 {formatDistanceMi(distanceMi)}
+              </span>
+            )}
             <span className={group.group_type === "free_play" ? "badge-yellow" : "badge-blue"}>
               {group.group_type === "free_play" ? "Free Play" : "Ladder"}
             </span>

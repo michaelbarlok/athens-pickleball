@@ -168,7 +168,7 @@ export default async function AdminGroupsPage() {
             <input
               type="text"
               name="name"
-              placeholder="Group name (e.g. Monday Shootout)"
+              placeholder="Group name (e.g. Monday Ladder)"
               required
               className="input flex-1"
             />

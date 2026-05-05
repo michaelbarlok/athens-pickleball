@@ -138,14 +138,14 @@ export default async function HomePage() {
             <div className="divide-y divide-surface-border">
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-dark-100">Thursday Shootout</p>
+                  <p className="text-sm font-medium text-dark-100">Thursday Ladder</p>
                   <p className="text-xs text-surface-muted">Mar 20 at Calhoun Courts</p>
                 </div>
                 <span className="badge-green">Open</span>
               </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-dark-100">Saturday Shootout</p>
+                  <p className="text-sm font-medium text-dark-100">Saturday Ladder</p>
                   <p className="text-xs text-surface-muted">Mar 22 at Calhoun Courts</p>
                 </div>
                 <span className="badge-green">12/16</span>
@@ -254,7 +254,7 @@ export default async function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-dark-100">Shootout Sessions</h2>
+              <h2 className="text-xl font-bold text-dark-100">Sessions</h2>
             </div>
             <p className="text-dark-200">
               Real-time tournament management from check-in to final scores. Get your court assignment, enter scores after each game, and watch the live standings update round by round.
@@ -303,7 +303,7 @@ export default async function HomePage() {
               </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-dark-100">Mixed 4.0 Shootout</p>
+                  <p className="text-sm font-medium text-dark-100">Mixed 4.0 Ladder</p>
                   <p className="text-xs text-surface-muted">Apr 19 &middot; Round Robin</p>
                 </div>
                 <span className="badge-blue">16/32</span>
@@ -341,7 +341,7 @@ export default async function HomePage() {
             <div className="divide-y divide-surface-border">
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-dark-100">Thursday Shootout</p>
+                  <p className="text-sm font-semibold text-dark-100">Thursday Ladder</p>
                   <span className="text-[10px] font-medium uppercase tracking-wider text-surface-muted">Ladder</span>
                 </div>
                 <div className="mt-1 flex gap-4 text-xs text-surface-muted">
@@ -406,11 +406,11 @@ export default async function HomePage() {
             },
             {
               q: "What formats does Tri-Star Pickleball support?",
-              a: "Tri-Star Pickleball supports ladder leagues (shootouts with step-based rankings), free play sessions with automatic team rotation, and Round Robin tournaments with seeded playoff brackets.",
+              a: "Tri-Star Pickleball supports ladder leagues with step-based rankings, free play sessions with automatic team rotation, and Round Robin tournaments with seeded playoff brackets.",
             },
             {
               q: "Can I run my own group?",
-              a: "Yes. Organizers can create groups, configure ladder settings, manage sign-up sheets, and run shootout sessions directly from the platform.",
+              a: "Yes. Organizers can create groups, configure ladder settings, manage sign-up sheets, and run sessions directly from the platform.",
             },
             {
               q: "What happens if a session has an odd number of players?",

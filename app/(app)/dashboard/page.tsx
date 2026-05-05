@@ -207,7 +207,7 @@ export default async function DashboardPage() {
       kind: "live-session",
       id: ap.session_id,
       href: `/sessions/${ap.session_id}`,
-      title: ap.session?.group?.name ?? "Shootout",
+      title: ap.session?.group?.name ?? "Session",
       subtitle: ap.court_number
         ? `Court ${ap.court_number} · ${ap.session?.sheet?.location ?? ""}`
         : ap.session?.sheet?.location ?? "",
@@ -327,7 +327,7 @@ export default async function DashboardPage() {
         href: `/sessions/${s.id}`,
         text: (
           <>
-            <span className="font-medium text-dark-100">{s.group?.name ?? "Shootout"}</span>
+            <span className="font-medium text-dark-100">{s.group?.name ?? "Session"}</span>
             <span className="text-surface-muted"> · session completed</span>
           </>
         ),

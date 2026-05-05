@@ -464,7 +464,7 @@ export default async function SheetDetailPage({
             </span>
           </h2>
           {activeSession && (
-            <span className="badge-blue">Shootout in progress</span>
+            <span className="badge-blue">Session in progress</span>
           )}
         </header>
         {confirmed.length > 0 ? (
