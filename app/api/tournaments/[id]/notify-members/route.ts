@@ -70,6 +70,12 @@ export async function POST(
     typeof body.customMessage === "string"
       ? body.customMessage.trim().slice(0, 1000)
       : "";
+  // Test mode restricts the broadcast to active site admins (today
+  // that's Michael + Addison). Lets the calling admin preview the
+  // delivered email without spamming the membership. Skips the
+  // hour-throttle and doesn't stamp last_announced_at, so a real
+  // broadcast can still go out immediately afterwards.
+  const testMode = body.testMode === true;
 
   // Fetch tournament. Use the service client so a future RLS tightening
   // on tournaments doesn't silently empty the broadcast — site admin
@@ -102,7 +108,8 @@ export async function POST(
 
   // Throttle: at most one broadcast per tournament per hour. Prevents
   // a misclick or a confused page reload from double-blasting members.
-  if (tournament.last_announced_at) {
+  // Test sends are always allowed — they only reach admins.
+  if (!testMode && tournament.last_announced_at) {
     const last = new Date(tournament.last_announced_at).getTime();
     const elapsed = Date.now() - last;
     if (elapsed < THROTTLE_MS) {
@@ -121,10 +128,14 @@ export async function POST(
   // Recipients: every active profile, minus test users. Filter by
   // display_name + email per isTestUser() so seeded test accounts are
   // skipped without a separate flag check.
-  const { data: profiles, error: pErr } = await serviceClient
+  // In test mode, narrow to active site admins so admins can preview
+  // the actual delivered email before broadcasting.
+  let profilesQuery = serviceClient
     .from("profiles")
     .select("id, email, display_name")
     .eq("is_active", true);
+  if (testMode) profilesQuery = profilesQuery.eq("role", "admin");
+  const { data: profiles, error: pErr } = await profilesQuery;
 
   if (pErr) {
     return NextResponse.json({ error: pErr.message }, { status: 500 });
@@ -186,13 +197,17 @@ export async function POST(
     emailData: baseEmailData,
   });
 
-  // Stamp last_announced_at so the throttle window starts now.
-  await serviceClient
-    .from("tournaments")
-    .update({ last_announced_at: new Date().toISOString() })
-    .eq("id", tournament.id);
+  // Stamp last_announced_at so the throttle window starts now —
+  // skipped for test sends so a real broadcast can still go out
+  // immediately afterwards.
+  if (!testMode) {
+    await serviceClient
+      .from("tournaments")
+      .update({ last_announced_at: new Date().toISOString() })
+      .eq("id", tournament.id);
+  }
 
-  return NextResponse.json({ sent: recipientIds.length });
+  return NextResponse.json({ sent: recipientIds.length, testMode });
 }
 
 /**

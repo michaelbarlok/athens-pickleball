@@ -183,7 +183,8 @@ export function TournamentNotifyMembersButton({
     setSuccess(null);
   }
 
-  async function handleSend() {
+  async function handleSend(opts?: { testMode?: boolean }) {
+    const testMode = opts?.testMode === true;
     setSending(true);
     setError(null);
     try {
@@ -192,7 +193,7 @@ export function TournamentNotifyMembersButton({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customMessage }),
+          body: JSON.stringify({ customMessage, testMode }),
         }
       );
       const data = await res.json();
@@ -202,7 +203,11 @@ export function TournamentNotifyMembersButton({
         setConfirming(false);
         return;
       }
-      setSuccess(`Sent to ${data.sent ?? 0} members.`);
+      setSuccess(
+        testMode
+          ? `Test sent to ${data.sent ?? 0} site admin${data.sent === 1 ? "" : "s"}. Check your inbox.`
+          : `Sent to ${data.sent ?? 0} members.`
+      );
       setSending(false);
       setConfirming(false);
       router.refresh();
@@ -360,11 +365,22 @@ export function TournamentNotifyMembersButton({
                   >
                     {success ? "Close" : "Cancel"}
                   </button>
+                  {!success && !confirming && (
+                    <button
+                      type="button"
+                      onClick={() => handleSend({ testMode: true })}
+                      disabled={sending}
+                      className="btn-secondary text-sm"
+                      title="Send only to site admins so you can preview the delivered email"
+                    >
+                      {sending ? "Sending…" : "Test send (admins only)"}
+                    </button>
+                  )}
                   {!success &&
                     (confirming ? (
                       <button
                         type="button"
-                        onClick={handleSend}
+                        onClick={() => handleSend()}
                         disabled={sending || cooldownActive}
                         className="btn-primary text-sm"
                       >
