@@ -8,6 +8,7 @@ import { TournamentLogoUpload } from "@/components/tournament-logo-upload";
 import { fifteenMinuteSlots, isoToLocalDateTimeInput, localDateTimeToIso } from "@/lib/datetime-local";
 import { DateTimeFifteenMin } from "@/components/date-time-15";
 import { getDivisionGender } from "@/lib/divisions";
+import { US_STATES } from "@/lib/us-states";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -29,6 +30,8 @@ export default function EditTournamentPage() {
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [location, setLocation] = useState("");
+  const [city, setCity] = useState("");
+  const [stateCode, setStateCode] = useState("");
   const [playerCap, setPlayerCap] = useState("");
   const [maxTeamsPerDivision, setMaxTeamsPerDivision] = useState("");
   const [entryFee, setEntryFee] = useState("");
@@ -76,6 +79,8 @@ export default function EditTournamentPage() {
         setEndDate(data.end_date);
         setStartTime(data.start_time ?? "");
         setLocation(data.location);
+        setCity((data as any).city ?? "");
+        setStateCode((data as any).state ?? "");
         setPlayerCap(data.player_cap?.toString() ?? "");
         setMaxTeamsPerDivision(data.max_teams_per_division?.toString() ?? "");
         setEntryFee(data.entry_fee ?? "");
@@ -203,6 +208,8 @@ export default function EditTournamentPage() {
         end_date: endDate || startDate,
         start_time: startTime || null,
         location: location.trim(),
+        city: city.trim() || null,
+        state: stateCode || null,
         player_cap: playerCap ? parseInt(playerCap) : null,
         max_teams_per_division: maxTeamsPerDivision ? parseInt(maxTeamsPerDivision) : null,
         entry_fee: entryFee.trim() || null,
@@ -429,6 +436,34 @@ export default function EditTournamentPage() {
             ) : (
               <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input" required />
             )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-200 mb-1">City</label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="input"
+              placeholder="e.g. Athens"
+            />
+            <p className="mt-1 text-xs text-surface-muted">
+              Used so this tournament shows up in &quot;Find tournaments near me&quot; for nearby players.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-200 mb-1">State</label>
+            <select
+              value={stateCode}
+              onChange={(e) => setStateCode(e.target.value)}
+              className="input"
+            >
+              <option value="">Select state</option>
+              {US_STATES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

@@ -53,6 +53,8 @@ const EDITABLE_FIELDS = new Set([
   "end_date",
   "start_time",
   "location",
+  "city",
+  "state",
   "player_cap",
   "max_teams_per_division",
   "entry_fee",
@@ -91,10 +93,21 @@ export async function PUT(
   const service = await createServiceClient();
   const { data: current } = await service
     .from("tournaments")
-    .select("type, divisions, status")
+    .select("type, divisions, status, city, state")
     .eq("id", tournamentId)
     .single();
   if (!current) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+
+  // If city or state actually changed, drop lat/lon so the geocode
+  // backfill cron re-resolves the new location on its next tick.
+  // We do this before applying updates so the writer can't forget.
+  const currentRow = current as { city: string | null; state: string | null };
+  const cityChanged = "city" in updates && (updates.city as unknown) !== currentRow.city;
+  const stateChanged = "state" in updates && (updates.state as unknown) !== currentRow.state;
+  if (cityChanged || stateChanged) {
+    updates.latitude = null;
+    updates.longitude = null;
+  }
 
   const { data: liveRegs } = await service
     .from("tournament_registrations")

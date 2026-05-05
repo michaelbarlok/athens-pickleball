@@ -1,8 +1,8 @@
-import { EmptyState } from "@/components/empty-state";
 import { listTournaments } from "@/lib/queries/tournament";
-import { TournamentCard } from "@/components/tournament-card";
 import { TournamentFilterBar } from "./filter-bar";
+import { TournamentsList } from "./tournaments-list";
 import { createClient } from "@/lib/supabase/server";
+import { WeatherBadge } from "@/components/weather-badge";
 import Link from "next/link";
 
 export default async function TournamentsPage({
@@ -47,6 +47,24 @@ export default async function TournamentsPage({
     ["completed", "cancelled"].includes(t.status)
   );
 
+  // Pre-render weather chips on the server so the client TournamentsList
+  // wrapper doesn't have to pull the async weather module into the
+  // client bundle. WeatherBadge returns null itself when there's no
+  // forecast in the 5-day window, so we can pre-render every active
+  // tournament here without conditionally guarding.
+  const weatherByTournamentId: Record<string, React.ReactNode> = {};
+  for (const t of active) {
+    if (t.start_date && (t as { start_time?: string | null }).start_time) {
+      weatherByTournamentId[t.id] = (
+        <WeatherBadge
+          location={t.location}
+          cityState={[(t as { city?: string | null }).city, (t as { state?: string | null }).state].filter(Boolean).join(", ") || null}
+          eventTime={`${t.start_date}T${(t as { start_time?: string | null }).start_time}`}
+        />
+      );
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -58,38 +76,12 @@ export default async function TournamentsPage({
 
       <TournamentFilterBar />
 
-      {/* Active Tournaments */}
-      {active.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-dark-200 mb-3 uppercase tracking-wider">Upcoming & Active</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {active.map((t) => (
-              <TournamentCard key={t.id} tournament={t} isSiteAdmin={isSiteAdmin} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Past Tournaments */}
-      {past.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-dark-200 mb-3 uppercase tracking-wider">Past</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {past.map((t) => (
-              <TournamentCard key={t.id} tournament={t} isSiteAdmin={isSiteAdmin} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tournaments.length === 0 && (
-        <EmptyState
-          title="No tournaments yet"
-          description="Be the first to create one!"
-          actionLabel="Create Tournament"
-          actionHref="/tournaments/new"
-        />
-      )}
+      <TournamentsList
+        active={active}
+        past={past}
+        isSiteAdmin={isSiteAdmin}
+        weatherByTournamentId={weatherByTournamentId}
+      />
     </div>
   );
 }
