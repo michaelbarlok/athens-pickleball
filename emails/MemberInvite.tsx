@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -22,7 +23,7 @@ export default function MemberInvite({ displayName, message }: Props) {
         </Text>
       )}
       <Button
-        href={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/register`}
+        href={`${EMAIL_PUBLIC_URL}/register`}
         style={{
           backgroundColor: "#0ea5a0",
           borderRadius: "6px",

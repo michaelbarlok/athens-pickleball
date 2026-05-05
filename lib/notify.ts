@@ -335,9 +335,9 @@ async function sendEmail({
   //   * Precedence: bulk — for our few one-to-many sends. Tells
   //     well-behaved autoresponders to not bounce vacation replies
   //     back at the inbox.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tristarpickleball.com";
+  const { EMAIL_PUBLIC_URL } = await import("@/lib/email-urls");
   const headers: Record<string, string> = {
-    "List-Unsubscribe": `<mailto:info@tristarpickleball.com?subject=Unsubscribe>, <${appUrl}/profile/notifications>`,
+    "List-Unsubscribe": `<mailto:info@tristarpickleball.com?subject=Unsubscribe>, <${EMAIL_PUBLIC_URL}/profile/notifications>`,
   };
   if (BULK_NOTIFICATION_TYPES.has(type)) {
     headers["Precedence"] = "bulk";

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -12,7 +13,7 @@ export default function TournamentPartnerRequest({
   tournamentTitle = "this tournament",
   requesterName = "Someone",
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   return (
     <BaseEmail
       preview={`${requesterName} wants to be your partner`}

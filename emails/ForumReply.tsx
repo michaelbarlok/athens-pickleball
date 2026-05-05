@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -13,7 +14,7 @@ export default function ForumReply({ threadTitle, threadId }: Props) {
         Someone replied to your forum thread: <strong>{threadTitle ?? "your thread"}</strong>
       </Text>
       <Button
-        href={threadId ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/forum/${threadId}` : "#"}
+        href={threadId ? `${EMAIL_PUBLIC_URL}/forum/${threadId}` : "#"}
         style={{
           backgroundColor: "#14b8a6",
           borderRadius: "6px",

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -40,7 +41,7 @@ export default function TournamentWithdrawal({ tournamentTitle, tournamentId, pa
         </>
       )}
       <Button
-        href={tournamentId ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tournaments/${tournamentId}` : "#"}
+        href={tournamentId ? `${EMAIL_PUBLIC_URL}/tournaments/${tournamentId}` : "#"}
         style={button}
       >
         {partnerWithdrew ? "Register Again" : "View Tournament"}

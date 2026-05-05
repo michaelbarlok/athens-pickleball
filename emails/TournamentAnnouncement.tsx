@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Hr, Link, Section, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -62,7 +63,7 @@ export default function TournamentAnnouncement({
   paymentOptions,
   recipientProfileId,
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const tournamentUrl = tournamentId
     ? `${appUrl}/tournaments/${tournamentId}`
     : `${appUrl}/tournaments`;

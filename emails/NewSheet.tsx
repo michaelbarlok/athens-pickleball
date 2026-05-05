@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
@@ -14,7 +15,7 @@ interface Props {
 export default function NewSheet({ groupName, eventDate, eventTime, location, timezone, sheetId }: Props) {
   const tz = timezone ?? "America/New_York";
   const formattedTime = eventTime ? formatTimeInZone(eventTime, tz) : null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
 
   return (
     <BaseEmail preview="New event posted!" heading="New Sign-Up Sheet">

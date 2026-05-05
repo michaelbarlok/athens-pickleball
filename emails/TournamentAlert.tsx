@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -24,7 +25,7 @@ export default function TournamentAlert({
   alertBody = "",
   link,
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const href = link ? `${appUrl}${link}` : `${appUrl}/sessions/active`;
   return (
     <BaseEmail preview={alertTitle} heading={alertTitle}>

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 import { formatDate } from "@/lib/utils";
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export default function SheetUpdated({ groupName, eventDate, changes, sheetId }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
 
   return (
     <BaseEmail preview="Event details updated" heading="Event Updated">

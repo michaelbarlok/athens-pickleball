@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -28,7 +29,7 @@ export default function FreePlayRecap({
   sessionId,
   groupSlug,
 }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   const pct = pointsPossible > 0 ? Math.round((pointsWon / pointsPossible) * 100) : 0;
 
   return (

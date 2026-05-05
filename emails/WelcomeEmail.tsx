@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -6,7 +7,7 @@ interface Props {
 }
 
 export default function WelcomeEmail({ displayName }: Props) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = EMAIL_PUBLIC_URL;
   return (
     <BaseEmail preview="Welcome to Tri-Star Pickleball!" heading="Welcome to Tri-Star Pickleball!">
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>

@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -15,7 +16,7 @@ export default function ForumMention({
   groupSlug,
 }: Props) {
   const url = groupSlug && threadId
-    ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/groups/${groupSlug}/forum/${threadId}`
+    ? `${EMAIL_PUBLIC_URL}/groups/${groupSlug}/forum/${threadId}`
     : "#";
 
   return (

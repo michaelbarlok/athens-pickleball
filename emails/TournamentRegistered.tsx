@@ -1,3 +1,4 @@
+import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
 
@@ -25,7 +26,7 @@ export default function TournamentRegistered({
 }: Props) {
   const isWaitlist = status === "waitlist";
   const tournamentUrl = tournamentId
-    ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tournaments/${tournamentId}`
+    ? `${EMAIL_PUBLIC_URL}/tournaments/${tournamentId}`
     : "#";
 
   // Recipient-was-added-as-partner branch. Auto-confirmed (or
