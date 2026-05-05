@@ -106,7 +106,7 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
         keyFn={(s) => s.id}
         empty={{
           title: "No sessions yet",
-          description: "Start a shootout from a sign-up sheet to see it here.",
+          description: "Start a session from a sign-up sheet to see it here.",
         }}
       />
     );
@@ -125,7 +125,7 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
           keyFn={(s) => s.id}
           rowHref={(s) => `/admin/sessions/${s.id}`}
           mobileMode="auto-hide"
-          caption="Shootout sessions across all groups"
+          caption="Sessions across all groups"
         />
       </div>
 

@@ -16,7 +16,7 @@ export default async function AdminSessionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-heading">Shootout Sessions</h1>
+        <h1 className="text-heading">Sessions</h1>
       </div>
 
       <SessionsTable sessions={sessions} />

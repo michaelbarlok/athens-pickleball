@@ -206,7 +206,7 @@ export function GroupsTable({
           columns={columns}
           keyFn={(g) => g.id}
           mobileMode="auto-hide"
-          caption="All shootout groups"
+          caption="All groups"
         />
       </div>
 
