@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { LightbulbIcon, BugIcon } from "@/components/icons";
 
 type FeedbackKind = "feature" | "bug";
 
@@ -249,13 +250,14 @@ export function FeedbackButton({
                   aria-checked={kind === "feature"}
                   onClick={() => setKind("feature")}
                   className={
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors " +
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors " +
                     (kind === "feature"
                       ? "bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40"
                       : "text-dark-200 hover:text-dark-100")
                   }
                 >
-                  💡 Feature request
+                  <LightbulbIcon className="h-3.5 w-3.5" />
+                  Feature request
                 </button>
                 <button
                   type="button"
@@ -263,13 +265,14 @@ export function FeedbackButton({
                   aria-checked={kind === "bug"}
                   onClick={() => setKind("bug")}
                   className={
-                    "px-3 py-1.5 text-xs font-medium rounded-md transition-colors " +
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors " +
                     (kind === "bug"
                       ? "bg-red-500/15 text-red-300 ring-1 ring-red-500/40"
                       : "text-dark-200 hover:text-dark-100")
                   }
                 >
-                  🐞 Bug report
+                  <BugIcon className="h-3.5 w-3.5" />
+                  Bug report
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@ import { getDivisionLabel } from "@/lib/divisions";
 import type { TournamentMatch } from "@/types/database";
 import type { PartnerMap } from "@/components/tournament-bracket";
 import { tournamentHeroGradient } from "@/lib/tournament-hero";
+import { TrophyIcon } from "@/components/icons";
 
 interface Props {
   tournamentId: string;
@@ -143,9 +144,7 @@ export function TournamentWinnersCard({
       className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${heroTint} ring-1 ring-surface-border p-5 sm:p-6`}
     >
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-xl" aria-hidden>
-          🏆
-        </span>
+        <TrophyIcon className="h-5 w-5 text-accent-300" />
         <h2 className="text-base font-semibold text-dark-100 tracking-tight">
           Final results
         </h2>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MapPinIcon } from "@/components/icons";
 
 type InternalState =
   | { kind: "idle" }
@@ -84,8 +85,9 @@ export function FindNearMeButton({
     return (
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-500/40 bg-brand-500/5 px-3 py-2 text-sm">
-          <span className="text-dark-200">
-            📍 Showing {label} within {radiusMi} miles of you
+          <span className="text-dark-200 inline-flex items-center gap-1.5">
+            <MapPinIcon className="h-4 w-4 text-brand-300" />
+            Showing {label} within {radiusMi} miles of you
           </span>
           <button
             type="button"
@@ -146,7 +148,7 @@ export function FindNearMeButton({
       disabled={state.kind === "loading"}
       className="flex items-center justify-center gap-2 w-full rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2.5 text-sm font-medium text-brand-300 hover:bg-brand-500/20 transition-colors disabled:opacity-60"
     >
-      <span aria-hidden>📍</span>
+      <MapPinIcon className="h-4 w-4" />
       {state.kind === "loading"
         ? "Getting your location…"
         : `Find ${label} near me (within ${radiusMi} miles)`}

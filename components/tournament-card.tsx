@@ -4,6 +4,7 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
 import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
 import { formatDistanceMi } from "@/components/find-near-me-button";
+import { MapPinIcon } from "@/components/icons";
 
 const STATUS_ACCENT: Record<string, string> = {
   draft: "card-accent-gray",
@@ -78,8 +79,9 @@ export function TournamentCard({
               {TOURNAMENT_STATUS_LABELS[t.status] ?? t.status}
             </span>
             {distanceMi !== undefined && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
-                📍 {formatDistanceMi(distanceMi)}
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
+                <MapPinIcon className="h-3 w-3" />
+                {formatDistanceMi(distanceMi)}
               </span>
             )}
           </div>

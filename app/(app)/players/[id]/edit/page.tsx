@@ -700,13 +700,66 @@ export default function EditProfilePage() {
                   return { ...prev, [t]: next };
                 });
 
+              // Bulk channel switch. Sets every notification type to a
+              // single channel in one click. Two important rules:
+              //   1. Rows the user has explicitly turned off stay off —
+              //      this toggle is for "I want all my active alerts on
+              //      the same channel," not "turn everything back on."
+              //      Off rows have to be re-enabled per-row.
+              //   2. The "All Push" side is disabled when push isn't
+              //      actually available, so a click can't silently
+              //      silence everything by switching to a channel that
+              //      can't deliver.
+              const allTypes = notifGroups.flatMap((g) => g.types.map((t) => t.type));
+              const pushUnavailable = !pushSupported || !notifyPush;
+              const setAllChannels = (channel: Channel) =>
+                setNotificationPrefs((prev) => {
+                  const next = { ...prev };
+                  for (const t of allTypes) {
+                    const current = prev[t] ?? getChannels(t);
+                    if (current.length === 0) continue; // keep "off" off
+                    next[t] = [channel];
+                  }
+                  return next;
+                });
+
               return (
-                <div className="rounded-lg border border-surface-border overflow-hidden">
-                  {/* Column headers */}
-                  <div className="grid grid-cols-[1fr_auto] bg-surface-overlay border-b border-surface-border px-3 py-2">
-                    <span className="text-xs font-medium text-surface-muted uppercase tracking-wider">Notification</span>
-                    <span className="text-xs font-medium text-surface-muted uppercase tracking-wider pr-1">Deliver via</span>
+                <>
+                  {/* Bulk channel switch — flips every active row to
+                      a single channel without touching "off" rows. */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-xs text-surface-muted shrink-0">Set all to:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAllChannels("email")}
+                      className="rounded-md border border-surface-border bg-surface-overlay px-2.5 py-1 text-xs font-medium text-dark-100 hover:bg-dark-600 hover:border-brand-500/50 transition-colors"
+                    >
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllChannels("push")}
+                      disabled={pushUnavailable}
+                      title={
+                        pushUnavailable
+                          ? "Enable push notifications above first"
+                          : undefined
+                      }
+                      className="rounded-md border border-surface-border bg-surface-overlay px-2.5 py-1 text-xs font-medium text-dark-100 hover:bg-dark-600 hover:border-brand-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-overlay disabled:hover:border-surface-border"
+                    >
+                      Push
+                    </button>
+                    <span className="text-[11px] text-surface-muted">
+                      Rows you&apos;ve turned off stay off.
+                    </span>
                   </div>
+
+                  <div className="rounded-lg border border-surface-border overflow-hidden">
+                    {/* Column headers */}
+                    <div className="grid grid-cols-[1fr_auto] bg-surface-overlay border-b border-surface-border px-3 py-2">
+                      <span className="text-xs font-medium text-surface-muted uppercase tracking-wider">Notification</span>
+                      <span className="text-xs font-medium text-surface-muted uppercase tracking-wider pr-1">Deliver via</span>
+                    </div>
 
                   {notifGroups.map((group, gi) => (
                     <div key={group.label}>
@@ -759,8 +812,9 @@ export default function EditProfilePage() {
                         );
                       })}
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               );
             })()}
           </div>

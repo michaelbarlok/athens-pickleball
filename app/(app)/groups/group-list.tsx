@@ -8,6 +8,7 @@ import {
   FindNearMeButton,
   formatDistanceMi,
 } from "@/components/find-near-me-button";
+import { MapPinIcon } from "@/components/icons";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -333,8 +334,9 @@ function GroupCard({
           </h3>
           <div className="flex flex-wrap items-center gap-1 shrink-0">
             {distanceMi !== undefined && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
-                📍 {formatDistanceMi(distanceMi)}
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
+                <MapPinIcon className="h-3 w-3" />
+                {formatDistanceMi(distanceMi)}
               </span>
             )}
             <span className={group.group_type === "free_play" ? "badge-yellow" : "badge-blue"}>
