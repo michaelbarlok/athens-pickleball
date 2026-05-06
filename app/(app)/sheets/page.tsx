@@ -55,13 +55,14 @@ export default async function SheetsPage() {
   cutoffDate.setDate(cutoffDate.getDate() - 1);
 
   // Members-only visibility — only show sheets from groups the
-  // current player belongs to (site admins see everything).
-  // Defence-in-depth: RLS (migration 088) enforces the same rule at
-  // the DB level, so this filter primarily exists to make the
-  // intention explicit and to avoid a wasted round-trip for users
-  // with no memberships.
-  let groupIdFilter: string[] | null = null;
-  if (profile && profile.role !== "admin") {
+  // current player belongs to. The "see everything" view for site
+  // admins lives on /admin/sheets; this page is the player-facing
+  // "what can I sign up for" view, and seeing other groups' rosters
+  // makes the list noisy for cross-state admins. RLS (migration
+  // 088) still allows site admins to read other groups' sheets if
+  // they request them by id; this filter is the UX gate.
+  let groupIdFilter: string[] = [];
+  if (profile) {
     const { data: memberGroups } = await supabase
       .from("group_memberships")
       .select("group_id")
@@ -75,12 +76,10 @@ export default async function SheetsPage() {
     .gte("event_date", cutoffDate.toISOString().split("T")[0])
     .order("event_date", { ascending: false });
 
-  if (groupIdFilter !== null) {
-    // Placeholder id forces an empty result when the user has no
-    // memberships — PostgREST rejects `.in("col", [])`.
-    const ids = groupIdFilter.length === 0 ? ["__none__"] : groupIdFilter;
-    sheetsQuery = sheetsQuery.in("group_id", ids);
-  }
+  // Placeholder id forces an empty result when the user has no
+  // memberships — PostgREST rejects `.in("col", [])`.
+  const ids = groupIdFilter.length === 0 ? ["__none__"] : groupIdFilter;
+  sheetsQuery = sheetsQuery.in("group_id", ids);
 
   const { data: sheets, error } = await sheetsQuery;
 
