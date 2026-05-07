@@ -42,6 +42,21 @@ const TYPE_CHANNEL_DEFAULTS: Partial<Record<NotificationType, ("email" | "push")
   tournament_announcement: ["email"],
 };
 
+/**
+ * Just the profile columns notify() actually reads. Exported so
+ * notifyMany (and the per-recipient broadcast loop in the
+ * notify-members route) can pre-fetch a Map<profileId, NotifyProfile>
+ * via fetchNotifyProfiles() and pass each recipient's row through —
+ * cutting N profile SELECTs down to one for the whole batch.
+ */
+export interface NotifyProfile {
+  email: string | null;
+  phone: string | null;
+  preferred_notify: string[] | null;
+  notification_preferences: Record<string, unknown> | null;
+  display_name: string;
+}
+
 interface NotifyParams {
   profileId: string;
   type: NotificationType;
@@ -51,6 +66,37 @@ interface NotifyParams {
   groupId?: string;
   emailTemplate?: string;
   emailData?: Record<string, unknown>;
+  /** Pre-fetched profile to skip the per-recipient SELECT. Used by
+   *  notifyMany to batch the profile read into a single round trip. */
+  prefetchedProfile?: NotifyProfile;
+}
+
+/**
+ * Batch fetch the profile fields that notify() needs. Keeps the
+ * single-row SELECT in notify() as a fallback for callers that don't
+ * pass a prefetched profile.
+ */
+export async function fetchNotifyProfiles(
+  profileIds: string[]
+): Promise<Map<string, NotifyProfile>> {
+  const map = new Map<string, NotifyProfile>();
+  if (profileIds.length === 0) return map;
+  const supabase = await createServiceClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, phone, preferred_notify, notification_preferences, display_name")
+    .in("id", profileIds);
+  for (const row of data ?? []) {
+    map.set((row as { id: string }).id, {
+      email: (row as { email: string | null }).email,
+      phone: (row as { phone: string | null }).phone,
+      preferred_notify: (row as { preferred_notify: string[] | null }).preferred_notify,
+      notification_preferences: (row as { notification_preferences: Record<string, unknown> | null })
+        .notification_preferences,
+      display_name: (row as { display_name: string }).display_name,
+    });
+  }
+  return map;
 }
 
 /**
@@ -68,19 +114,26 @@ export async function notify({
   groupId,
   emailTemplate,
   emailData,
+  prefetchedProfile,
 }: NotifyParams): Promise<void> {
   const supabase = await createServiceClient();
 
-  // 1. Fetch user preferences first so we can respect "off" before writing in-app
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select("email, phone, preferred_notify, notification_preferences, display_name")
-    .eq("id", profileId)
-    .single();
-
+  // 1. Fetch user preferences first so we can respect "off" before writing in-app.
+  //    notifyMany pre-fetches every recipient's profile in one bulk
+  //    SELECT and passes it through here, so the per-recipient round
+  //    trip below only fires for solo notify() callers.
+  let profile: NotifyProfile | null = prefetchedProfile ?? null;
   if (!profile) {
-    console.error("Profile not found for notification:", profileId, profileErr?.message);
-    return;
+    const { data, error: profileErr } = await supabase
+      .from("profiles")
+      .select("email, phone, preferred_notify, notification_preferences, display_name")
+      .eq("id", profileId)
+      .single();
+    if (!data) {
+      console.error("Profile not found for notification:", profileId, profileErr?.message);
+      return;
+    }
+    profile = data as NotifyProfile;
   }
 
   const prefs: string[] = profile.preferred_notify ?? ["email"];
@@ -211,20 +264,37 @@ export async function notify({
 
 /**
  * Send bulk notifications to multiple users.
- * Processes in batches of 10 with a short delay between batches
- * to avoid overwhelming Resend/Twilio rate limits.
+ *
+ * Pre-fetches every recipient's profile in a single SELECT and
+ * threads it through to notify() via prefetchedProfile, replacing
+ * what used to be N separate per-recipient profile SELECTs (one
+ * per call to notify()). On a 200-recipient broadcast that's a
+ * 200× round-trip reduction.
+ *
+ * Still processes the actual sends in batches of 10 with a short
+ * delay between batches to avoid overwhelming Resend / Twilio /
+ * the browser push service.
  */
 export async function notifyMany(
   profileIds: string[],
-  params: Omit<NotifyParams, "profileId">
+  params: Omit<NotifyParams, "profileId" | "prefetchedProfile">
 ): Promise<void> {
   const BATCH_SIZE = 10;
   let totalFailures = 0;
 
+  // One SELECT for the whole broadcast.
+  const profileMap = await fetchNotifyProfiles(profileIds);
+
   for (let i = 0; i < profileIds.length; i += BATCH_SIZE) {
     const batch = profileIds.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
-      batch.map((profileId) => notify({ ...params, profileId }))
+      batch.map((profileId) =>
+        notify({
+          ...params,
+          profileId,
+          prefetchedProfile: profileMap.get(profileId),
+        })
+      )
     );
     const failures = results.filter((r) => r.status === "rejected");
     totalFailures += failures.length;

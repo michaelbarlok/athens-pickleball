@@ -18,10 +18,12 @@ export async function POST(
   const body = await request.json();
   const { partner_id, division } = body;
 
-  // Fetch tournament
+  // Fetch tournament — narrow to the columns this handler reads.
   const { data: tournament } = await auth.supabase
     .from("tournaments")
-    .select("*")
+    .select(
+      "status, is_hidden, type, title, created_by, registration_opens_at, registration_closes_at"
+    )
     .eq("id", tournamentId)
     .single();
 

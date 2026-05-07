@@ -188,20 +188,6 @@ export async function getTournamentMatches(
   return data as unknown as TournamentMatchWithPlayers[];
 }
 
-/**
- * Get the current user's registration for a tournament. With
- * multi-division registration enabled, a player may have more
- * than one row (Men's + Mixed, Women's + Mixed). Returns the
- * "primary" — first by registered_at — for backward compatibility
- * with callers that only handle one. Use getMyRegistrations for
- * the full list.
- */
-export async function getMyRegistration(
-  tournamentId: string
-): Promise<TournamentRegistration | null> {
-  const all = await getMyRegistrations(tournamentId);
-  return all[0] ?? null;
-}
 
 /**
  * All non-withdrawn registrations the current user has for this

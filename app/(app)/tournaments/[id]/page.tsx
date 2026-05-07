@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
-import { getTournament, getTournamentRegistrations, getTournamentMatches, getMyRegistration, getMyRegistrations } from "@/lib/queries/tournament";
+import { getTournament, getTournamentRegistrations, getTournamentMatches, getMyRegistrations } from "@/lib/queries/tournament";
 import { createClient } from "@/lib/supabase/server";
 import { TournamentRegistrationButton } from "@/components/tournament-registration";
 import { TournamentBracketView } from "@/components/tournament-bracket";
@@ -92,22 +92,25 @@ export default async function TournamentDetailPage({
   // reused for the organizers fetch without an extra createClient() call.
   const supabase = await createClient();
 
+  // Pre-compute the live-invite cutoff once so it doesn't drift between
+  // the Promise.all build site and the result consumer.
+  const inviteExpiryCutoff = new Date().toISOString();
+
   const [
     tournament,
     registrations,
     matches,
-    myRegistration,
     myRegistrations,
     organizersResult,
     activeDivisionsResult,
     pendingPartnerRequestsResult,
     courtRangesResult,
+    pendingInvitesResult,
     { data: { user } },
   ] = await Promise.all([
       getTournament(id),
       getTournamentRegistrations(id),
       getTournamentMatches(id),
-      getMyRegistration(id),
       getMyRegistrations(id),
       supabase
         .from("tournament_organizers")
@@ -129,10 +132,22 @@ export default async function TournamentDetailPage({
         .select("id, label, court_start, court_end, divisions, position")
         .eq("tournament_id", id)
         .order("position", { ascending: true }),
+      supabase
+        .from("tournament_partner_invites")
+        .select("registration_id")
+        .eq("tournament_id", id)
+        .eq("status", "pending")
+        .gt("expires_at", inviteExpiryCutoff),
       supabase.auth.getUser(),
     ]);
 
   if (!tournament) notFound();
+
+  // Primary registration shorthand — used by old "single registration"
+  // call sites that pre-date the multi-division (gendered + Mixed)
+  // support. Derived from the full list to avoid issuing a second
+  // identical SELECT against tournament_registrations.
+  const myRegistration = myRegistrations[0] ?? null;
 
   const { data: profile } = user
     ? await supabase.from("profiles").select("id, role").eq("user_id", user.id).single()
@@ -204,15 +219,10 @@ export default async function TournamentDetailPage({
   // already waiting on a specific person to claim, and the row
   // should render as "Waiting on partner to join" (no inbound Ask
   // button). Computed here once and shared by both render sites
-  // (confirmed list + waitlist).
-  const { data: pendingInviteRows } = await supabase
-    .from("tournament_partner_invites")
-    .select("registration_id")
-    .eq("tournament_id", id)
-    .eq("status", "pending")
-    .gt("expires_at", new Date().toISOString());
+  // (confirmed list + waitlist). The query itself is part of the
+  // top-level Promise.all batch above.
   const waitingForInvite = new Set<string>(
-    (pendingInviteRows ?? []).map(
+    (pendingInvitesResult.data ?? []).map(
       (r: { registration_id: string }) => r.registration_id
     )
   );

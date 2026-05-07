@@ -124,18 +124,34 @@ export async function POST(
     .delete()
     .eq("tournament_id", tournamentId);
 
-  // Insert all matches
-  const matchInserts = bracketMatches.map((m) => ({
-    tournament_id: tournamentId,
-    round: m.round,
-    match_number: m.match_number,
-    bracket: m.bracket,
-    player1_id: m.player1_id,
-    player2_id: m.player2_id,
-    status: m.status,
-    score1: [],
-    score2: [],
-  }));
+  // Insert all matches.
+  //
+  // Bye-match auto-advance is folded into the insert payload itself
+  // — for elimination brackets, a bye where one player is null
+  // becomes a completed match with that player as winner. The old
+  // implementation ran a separate UPDATE per bye after the insert,
+  // which scaled linearly with bracket size (5+ extra round trips
+  // on a 32-team draw). Round robin still keeps byes as bye-status
+  // skips because round robin doesn't record stats for them.
+  const isElimination = tournament.format !== "round_robin";
+  const matchInserts = bracketMatches.map((m) => {
+    const autoWinnerId =
+      isElimination && m.status === "bye"
+        ? m.player1_id || m.player2_id || null
+        : null;
+    return {
+      tournament_id: tournamentId,
+      round: m.round,
+      match_number: m.match_number,
+      bracket: m.bracket,
+      player1_id: m.player1_id,
+      player2_id: m.player2_id,
+      status: autoWinnerId ? "completed" : m.status,
+      winner_id: autoWinnerId,
+      score1: [],
+      score2: [],
+    };
+  });
 
   const { error: insertError } = await supabase
     .from("tournament_matches")
@@ -143,24 +159,6 @@ export async function POST(
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
-  }
-
-  // Auto-advance bye matches: if one player is null, the other wins
-  // Only for elimination brackets — in round robin, byes simply skip (no stats recorded)
-  if (tournament.format !== "round_robin") {
-    const byeMatches = bracketMatches.filter((m) => m.status === "bye");
-    for (const bye of byeMatches) {
-      const winnerId = bye.player1_id || bye.player2_id;
-      if (winnerId) {
-        await supabase
-          .from("tournament_matches")
-          .update({ winner_id: winnerId, status: "completed" })
-          .eq("tournament_id", tournamentId)
-          .eq("round", bye.round)
-          .eq("match_number", bye.match_number)
-          .eq("bracket", bye.bracket);
-      }
-    }
   }
 
   // Advance tournament status
