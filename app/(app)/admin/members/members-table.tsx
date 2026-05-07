@@ -4,6 +4,7 @@ import { useConfirm } from "@/components/confirm-modal";
 import { EmptyState } from "@/components/empty-state";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useToast } from "@/components/toast";
+import { PlayerAvatar } from "@/components/player-avatar";
 import { cn, formatDate } from "@/lib/utils";
 import type { Profile } from "@/types/database";
 import Link from "next/link";
@@ -728,17 +729,7 @@ export function MembersTable({ profiles, membershipMap, currentProfileId }: Memb
                     className="h-4 w-4 rounded border-surface-border bg-surface-overlay text-brand-500 focus:ring-brand-500 flex-shrink-0"
                   />
                 )}
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-sm font-medium flex-shrink-0">
-                    {profile.display_name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <PlayerAvatar displayName={profile.display_name} avatarUrl={profile.avatar_url} size="md" />
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/players/${profile.id}`}
@@ -842,13 +833,7 @@ export function MembersTable({ profiles, membershipMap, currentProfileId }: Memb
                   {/* Avatar + Name + Skill */}
                   <td className="whitespace-nowrap px-3 py-1.5">
                     <div className="flex items-center gap-2">
-                      {profile.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-xs font-medium flex-shrink-0">
-                          {profile.display_name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <PlayerAvatar displayName={profile.display_name} avatarUrl={profile.avatar_url} size="sm" />
                       <div>
                         <Link href={`/players/${profile.id}`} className="text-sm font-medium text-dark-100 hover:text-brand-400 leading-tight block">
                           {profile.display_name}

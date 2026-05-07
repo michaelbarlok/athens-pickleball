@@ -1,10 +1,13 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type Size = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 
 interface PlayerAvatarProps {
   displayName: string;
-  avatarUrl: string | null;
+  /** Accepts undefined for callers that read from optionally-joined
+   *  rows (e.g. `member.player?.avatar_url`); coerced to null inside. */
+  avatarUrl: string | null | undefined;
   size?: Size;
   className?: string;
 }
@@ -16,6 +19,18 @@ const sizeClasses: Record<Size, string> = {
   lg: "h-10 w-10 text-base",
   xl: "h-14 w-14 text-lg",
   "2xl": "h-20 w-20 text-2xl",
+};
+
+/** Pixel dimensions matching `sizeClasses`. Used to feed next/image's
+ *  required width/height — which it consumes for layout reservation
+ *  + automatic resizing of the underlying remote asset. */
+const sizePixels: Record<Size, number> = {
+  xs: 24,
+  sm: 28,
+  md: 32,
+  lg: 40,
+  xl: 56,
+  "2xl": 80,
 };
 
 /** Eight gentle gradients keyed off a hash of the name, so the same person
@@ -52,11 +67,18 @@ function initialsOf(name: string): string {
 
 export function PlayerAvatar({ displayName, avatarUrl, size = "md", className }: PlayerAvatarProps) {
   if (avatarUrl) {
+    const px = sizePixels[size];
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt=""
-        className={cn("rounded-full object-cover shrink-0 ring-1 ring-surface-border/60", sizeClasses[size], className)}
+        width={px}
+        height={px}
+        className={cn(
+          "rounded-full object-cover shrink-0 ring-1 ring-surface-border/60",
+          sizeClasses[size],
+          className
+        )}
       />
     );
   }
@@ -75,3 +97,4 @@ export function PlayerAvatar({ displayName, avatarUrl, size = "md", className }:
     </div>
   );
 }
+

@@ -3,6 +3,7 @@
 import { useConfirm } from "@/components/confirm-modal";
 import { CenteredSpinner } from "@/components/centered-spinner";
 import { EmptyState } from "@/components/empty-state";
+import { PlayerAvatar } from "@/components/player-avatar";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
@@ -693,17 +694,7 @@ export default function AdminGroupDetailPage() {
                         className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-surface-overlay"
                       >
                         <div className="flex items-center gap-3">
-                          {player.avatar_url ? (
-                            <img
-                              src={player.avatar_url}
-                              alt=""
-                              className="h-8 w-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-overlay text-xs font-medium text-surface-muted">
-                              {player.display_name.charAt(0)}
-                            </div>
-                          )}
+                          <PlayerAvatar displayName={player.display_name} avatarUrl={player.avatar_url} size="md" />
                           <div>
                             <p className="text-sm font-medium text-dark-100">
                               {player.display_name}
@@ -783,17 +774,7 @@ export default function AdminGroupDetailPage() {
                             }}
                             className="h-4 w-4 rounded border-surface-border text-brand-600 focus:ring-brand-500 shrink-0"
                           />
-                          {player.avatar_url ? (
-                            <img
-                              src={player.avatar_url}
-                              alt=""
-                              className="h-8 w-8 rounded-full object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-overlay text-xs font-medium text-surface-muted shrink-0">
-                              {player.display_name.charAt(0)}
-                            </div>
-                          )}
+                          <PlayerAvatar displayName={player.display_name} avatarUrl={player.avatar_url} size="md" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-dark-100 truncate">
                               {player.display_name}
@@ -852,13 +833,11 @@ export default function AdminGroupDetailPage() {
                     {/* Name + email */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        {member.player?.avatar_url ? (
-                          <img src={member.player.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-overlay text-xs font-medium text-surface-muted shrink-0">
-                            {member.player?.display_name?.charAt(0) ?? "?"}
-                          </div>
-                        )}
+                        <PlayerAvatar
+                          displayName={member.player?.display_name ?? "Unknown"}
+                          avatarUrl={member.player?.avatar_url ?? null}
+                          size="sm"
+                        />
                         <div className="min-w-0">
                           <p className="text-xs font-medium text-dark-100 truncate max-w-[140px]">
                             {member.player?.display_name}

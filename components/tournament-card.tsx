@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { TournamentWithCounts } from "@/lib/queries/tournament";
 import { formatDate, formatTime } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
@@ -62,11 +63,12 @@ export function TournamentCard({
               // tall / transparent org logos render fully without
               // getting cropped. p-1 keeps them off the frame edge.
               <div className="h-12 w-12 shrink-0 rounded-md bg-surface-overlay ring-1 ring-surface-border flex items-center justify-center overflow-hidden">
-                <img
+                <Image
                   src={logoUrl}
                   alt=""
+                  width={48}
+                  height={48}
                   className="h-full w-full object-contain p-1"
-                  loading="lazy"
                 />
               </div>
             )}
