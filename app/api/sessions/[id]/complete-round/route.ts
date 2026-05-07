@@ -23,9 +23,12 @@ export async function POST(
 
   const { id: sessionId } = await params;
 
+  // Narrow each select to just the columns this handler reads.
+  // The full row of game_results in particular has 12+ columns; we
+  // only need 1 (pool_number) for the coverage check below.
   const { data: session } = await auth.supabase
     .from("shootout_sessions")
-    .select("*")
+    .select("status, current_round")
     .eq("id", sessionId)
     .single();
 
@@ -43,7 +46,7 @@ export async function POST(
   // game scored, otherwise pool_finish is meaningless.
   const { data: participants } = await auth.supabase
     .from("session_participants")
-    .select("*")
+    .select("player_id, court_number")
     .eq("session_id", sessionId)
     .eq("checked_in", true)
     .not("court_number", "is", null);
@@ -64,7 +67,7 @@ export async function POST(
 
   const { data: gameResults } = await auth.supabase
     .from("game_results")
-    .select("*")
+    .select("pool_number")
     .eq("session_id", sessionId)
     .eq("round_number", session.current_round || 1);
 

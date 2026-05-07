@@ -27,10 +27,13 @@ export async function POST(
     return NextResponse.json({ error: "Scores must be numbers" }, { status: 400 });
   }
 
-  // Fetch session and group preferences for validation
+  // Fetch session and group preferences for validation. Both
+  // queries narrow to the columns we actually consume — `session`
+  // is only used for `session.group_id`, and `prefs` only feeds
+  // the score validator below.
   const { data: session } = await auth.supabase
     .from("shootout_sessions")
-    .select("*, group:shootout_groups(id)")
+    .select("group_id")
     .eq("id", sessionId)
     .single();
 
@@ -40,7 +43,7 @@ export async function POST(
 
   const { data: prefs } = await auth.supabase
     .from("group_preferences")
-    .select("*")
+    .select("game_limit_4p, game_limit_5p, win_by_2")
     .eq("group_id", session.group_id)
     .single();
 

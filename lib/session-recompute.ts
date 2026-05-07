@@ -19,10 +19,13 @@ export async function recomputeSessionStats(
   sessionId: string,
   opts: { skipSteps?: boolean } = {}
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  // Fetch session
+  // Fetch session — narrow to the columns we actually consume
+  // here (group_id + current_round). The full row of
+  // shootout_sessions has 11 columns including JSONB current_round
+  // payload, none of which we need below.
   const { data: session } = await supabase
     .from("shootout_sessions")
-    .select("*")
+    .select("group_id, current_round")
     .eq("id", sessionId)
     .single();
   if (!session) return { ok: false, error: "Session not found" };
@@ -30,7 +33,7 @@ export async function recomputeSessionStats(
   // Checked-in participants with court assignments
   const { data: participants } = await supabase
     .from("session_participants")
-    .select("*")
+    .select("id, player_id, court_number, step_before")
     .eq("session_id", sessionId)
     .eq("checked_in", true)
     .not("court_number", "is", null);
@@ -49,7 +52,9 @@ export async function recomputeSessionStats(
   // All game results for this session / round
   const { data: gameResults } = await supabase
     .from("game_results")
-    .select("*")
+    .select(
+      "pool_number, team_a_p1, team_a_p2, team_b_p1, team_b_p2, score_a, score_b"
+    )
     .eq("session_id", sessionId)
     .eq("round_number", session.current_round || 1);
   if (!gameResults) return { ok: false, error: "Failed to fetch game results" };
@@ -254,7 +259,9 @@ export async function recomputeSessionStats(
 
     const { data: playerGames } = await supabase
       .from("game_results")
-      .select("*")
+      .select(
+        "session_id, team_a_p1, team_a_p2, team_b_p1, team_b_p2, score_a, score_b"
+      )
       .in("session_id", sessionIds);
 
     let pointsScored = 0;
