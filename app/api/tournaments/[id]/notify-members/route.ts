@@ -126,14 +126,16 @@ export async function POST(
     }
   }
 
-  // Recipients: every active profile, minus test users. Filter by
-  // display_name + email per isTestUser() so seeded test accounts are
-  // skipped without a separate flag check.
-  // In test mode, narrow to active site admins so admins can preview
-  // the actual delivered email before broadcasting.
+  // Recipients: every active profile, minus test users, minus
+  // anyone who's explicitly turned tournament_announcement off in
+  // their per-type prefs. Pre-filtering opt-outs at the route
+  // saves the per-recipient profile fetch + insert that notify()
+  // would have done before bailing on the empty channel set.
+  // In test mode, narrow to active site admins so admins can
+  // preview the actual delivered email before broadcasting.
   let profilesQuery = serviceClient
     .from("profiles")
-    .select("id, email, display_name")
+    .select("id, email, display_name, notification_preferences")
     .eq("is_active", true);
   if (testMode) profilesQuery = profilesQuery.eq("role", "admin");
   const { data: profiles, error: pErr } = await profilesQuery;
@@ -142,9 +144,19 @@ export async function POST(
     return NextResponse.json({ error: pErr.message }, { status: 500 });
   }
 
-  const recipients = (profiles ?? []).filter(
-    (p) => !isTestUser(p.email, p.display_name)
-  );
+  const recipients = (profiles ?? []).filter((p) => {
+    if (isTestUser(p.email, p.display_name)) return false;
+    // Read the per-type pref for tournament_announcement. Both the
+    // new array shape (["email","push"]) and the legacy string
+    // shape ("off"|"email"|"push") are handled — match the
+    // resolution in notify().
+    const prefs =
+      (p.notification_preferences as Record<string, unknown> | null) ?? null;
+    const v = prefs?.tournament_announcement;
+    if (Array.isArray(v) && v.length === 0) return false;
+    if (typeof v === "string" && v === "off") return false;
+    return true;
+  });
   const recipientIds = recipients.map((p) => p.id);
 
   if (recipientIds.length === 0) {
@@ -314,14 +326,22 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const serviceClient = await createServiceClient();
+  // Mirror the POST handler's filter set so the modal's "This will
+  // email N members" line matches the count POST will actually send.
   const { data: profiles } = await serviceClient
     .from("profiles")
-    .select("email, display_name")
+    .select("email, display_name, notification_preferences")
     .eq("is_active", true);
 
-  const count = (profiles ?? []).filter(
-    (p) => !isTestUser(p.email, p.display_name)
-  ).length;
+  const count = (profiles ?? []).filter((p) => {
+    if (isTestUser(p.email, p.display_name)) return false;
+    const prefs =
+      (p.notification_preferences as Record<string, unknown> | null) ?? null;
+    const v = prefs?.tournament_announcement;
+    if (Array.isArray(v) && v.length === 0) return false;
+    if (typeof v === "string" && v === "off") return false;
+    return true;
+  }).length;
 
   const { data: t } = await serviceClient
     .from("tournaments")

@@ -92,6 +92,10 @@ export default async function TournamentDetailPage({
   // reused for the organizers fetch without an extra createClient() call.
   const supabase = await createClient();
 
+  // Pre-compute the live-invite cutoff once so it doesn't drift between
+  // the Promise.all build site and the result consumer.
+  const inviteExpiryCutoff = new Date().toISOString();
+
   const [
     tournament,
     registrations,
@@ -101,6 +105,7 @@ export default async function TournamentDetailPage({
     activeDivisionsResult,
     pendingPartnerRequestsResult,
     courtRangesResult,
+    pendingInvitesResult,
     { data: { user } },
   ] = await Promise.all([
       getTournament(id),
@@ -127,6 +132,12 @@ export default async function TournamentDetailPage({
         .select("id, label, court_start, court_end, divisions, position")
         .eq("tournament_id", id)
         .order("position", { ascending: true }),
+      supabase
+        .from("tournament_partner_invites")
+        .select("registration_id")
+        .eq("tournament_id", id)
+        .eq("status", "pending")
+        .gt("expires_at", inviteExpiryCutoff),
       supabase.auth.getUser(),
     ]);
 
@@ -208,15 +219,10 @@ export default async function TournamentDetailPage({
   // already waiting on a specific person to claim, and the row
   // should render as "Waiting on partner to join" (no inbound Ask
   // button). Computed here once and shared by both render sites
-  // (confirmed list + waitlist).
-  const { data: pendingInviteRows } = await supabase
-    .from("tournament_partner_invites")
-    .select("registration_id")
-    .eq("tournament_id", id)
-    .eq("status", "pending")
-    .gt("expires_at", new Date().toISOString());
+  // (confirmed list + waitlist). The query itself is part of the
+  // top-level Promise.all batch above.
   const waitingForInvite = new Set<string>(
-    (pendingInviteRows ?? []).map(
+    (pendingInvitesResult.data ?? []).map(
       (r: { registration_id: string }) => r.registration_id
     )
   );
