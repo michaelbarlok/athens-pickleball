@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
-import { getTournament, getTournamentRegistrations, getTournamentMatches, getMyRegistration, getMyRegistrations } from "@/lib/queries/tournament";
+import { getTournament, getTournamentRegistrations, getTournamentMatches, getMyRegistrations } from "@/lib/queries/tournament";
 import { createClient } from "@/lib/supabase/server";
 import { TournamentRegistrationButton } from "@/components/tournament-registration";
 import { TournamentBracketView } from "@/components/tournament-bracket";
@@ -96,7 +96,6 @@ export default async function TournamentDetailPage({
     tournament,
     registrations,
     matches,
-    myRegistration,
     myRegistrations,
     organizersResult,
     activeDivisionsResult,
@@ -107,7 +106,6 @@ export default async function TournamentDetailPage({
       getTournament(id),
       getTournamentRegistrations(id),
       getTournamentMatches(id),
-      getMyRegistration(id),
       getMyRegistrations(id),
       supabase
         .from("tournament_organizers")
@@ -133,6 +131,12 @@ export default async function TournamentDetailPage({
     ]);
 
   if (!tournament) notFound();
+
+  // Primary registration shorthand — used by old "single registration"
+  // call sites that pre-date the multi-division (gendered + Mixed)
+  // support. Derived from the full list to avoid issuing a second
+  // identical SELECT against tournament_registrations.
+  const myRegistration = myRegistrations[0] ?? null;
 
   const { data: profile } = user
     ? await supabase.from("profiles").select("id, role").eq("user_id", user.id).single()

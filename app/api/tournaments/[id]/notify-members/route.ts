@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
-import { notify } from "@/lib/notify";
+import { notify, fetchNotifyProfiles } from "@/lib/notify";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getDivisionLabel } from "@/lib/divisions";
 import { isTestUser } from "@/lib/utils";
@@ -269,6 +269,14 @@ async function notifyManyWithRecipientId(
   }
 ): Promise<void> {
   const BATCH_SIZE = 10;
+
+  // Pre-fetch every recipient's profile in a single SELECT instead
+  // of letting notify() hit the DB per recipient. notifyMany() does
+  // the same — we duplicate that pattern here because this loop
+  // injects per-recipient emailData (recipientProfileId) which the
+  // standard notifyMany() doesn't support.
+  const profileMap = await fetchNotifyProfiles(recipients.map((r) => r.id));
+
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
     const batch = recipients.slice(i, i + BATCH_SIZE);
     await Promise.allSettled(
@@ -281,6 +289,7 @@ async function notifyManyWithRecipientId(
           link: base.link,
           emailTemplate: base.emailTemplate,
           emailData: { ...base.emailData, recipientProfileId: r.id },
+          prefetchedProfile: profileMap.get(r.id),
         })
       )
     );
