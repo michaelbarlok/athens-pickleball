@@ -6,9 +6,14 @@ import type { Notification } from "@/types/database";
 import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/utils";
 
+type NotificationRow = Pick<
+  Notification,
+  "id" | "title" | "body" | "link" | "created_at" | "read_at"
+>;
+
 export default function NotificationsPage() {
   const { supabase } = useSupabase();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,7 +31,7 @@ export default function NotificationsPage() {
 
       const { data } = await supabase
         .from("notifications")
-        .select("*")
+        .select("id, title, body, link, created_at, read_at")
         .eq("user_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(50);

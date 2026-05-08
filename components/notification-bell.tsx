@@ -6,11 +6,16 @@ import { createPortal } from "react-dom";
 import type { Notification } from "@/types/database";
 import { formatDateTime } from "@/lib/utils";
 
+type NotificationRow = Pick<
+  Notification,
+  "id" | "title" | "body" | "link" | "created_at" | "read_at"
+>;
+
 export function NotificationBell({ profileId }: { profileId: string }) {
   const { supabase } = useSupabase();
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -21,7 +26,7 @@ export function NotificationBell({ profileId }: { profileId: string }) {
     async function fetchCount() {
       const { count } = await supabase
         .from("notifications")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", profileId)
         .is("read_at", null);
       setUnreadCount(count ?? 0);
@@ -48,7 +53,7 @@ export function NotificationBell({ profileId }: { profileId: string }) {
     setLoadingNotifs(true);
     const { data } = await supabase
       .from("notifications")
-      .select("*")
+      .select("id, title, body, link, created_at, read_at")
       .eq("user_id", profileId)
       .order("created_at", { ascending: false })
       .limit(25);
