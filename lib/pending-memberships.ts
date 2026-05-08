@@ -30,7 +30,9 @@ export async function claimPendingMemberships(
   const nameQuery = (() => {
     const q = serviceClient
       .from("pending_group_members")
-      .select("*")
+      .select(
+        "id, group_id, step, win_pct, total_sessions, last_played_at, joined_at, skill_level"
+      )
       .is("claimed_by", null)
       .ilike("name", displayName);
     return groupId ? q.eq("group_id", groupId) : q;

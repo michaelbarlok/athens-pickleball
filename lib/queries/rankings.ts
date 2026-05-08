@@ -32,10 +32,12 @@ export async function recalculateWinPct(
 
   const sessionIds = recentParticipations.map((p) => p.session_id);
 
-  // Get game results for this player in those sessions
+  // Get game results for this player in those sessions. We only need
+  // the four player slots (to detect side) and the two scores, not the
+  // full row — this function runs N times in recalculateAllWinPcts.
   const { data: games } = await supabase
     .from("game_results")
-    .select("*")
+    .select("team_a_p1, team_a_p2, score_a, score_b")
     .eq("group_id", groupId)
     .in("session_id", sessionIds)
     .or(

@@ -2,6 +2,7 @@
 
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { FeedbackButton } from "@/components/feedback-button";
+import { PlayerAvatar } from "@/components/player-avatar";
 import type { Profile } from "@/types/database";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -382,17 +383,12 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
         >
           {/* Profile header */}
           <div className="flex items-center gap-3 border-b border-surface-border px-4 py-3">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt=""
-                className="h-9 w-9 rounded-full object-cover ring-2 ring-brand-500/30"
-              />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-sm font-medium">
-                {profile.display_name?.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <PlayerAvatar
+              displayName={profile.display_name}
+              avatarUrl={profile.avatar_url}
+              size="md"
+              className="ring-2 ring-brand-500/30"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-dark-100 truncate">
                 {profile.display_name}

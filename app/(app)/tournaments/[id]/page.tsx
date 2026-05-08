@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { EmptyState } from "@/components/empty-state";
 import { getTournament, getTournamentRegistrations, getTournamentMatches, getMyRegistrations } from "@/lib/queries/tournament";
 import { createClient } from "@/lib/supabase/server";
@@ -507,11 +508,13 @@ export default async function TournamentDetailPage({
               <div className="mt-2 flex items-start gap-3 min-w-0">
                 {(tournament as any).logo_url && (
                   <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-lg bg-surface-overlay ring-1 ring-surface-border flex items-center justify-center overflow-hidden">
-                    <img
+                    <Image
                       src={(tournament as any).logo_url}
                       alt=""
+                      width={64}
+                      height={64}
+                      priority
                       className="h-full w-full object-contain p-1"
-                      loading="eager"
                     />
                   </div>
                 )}

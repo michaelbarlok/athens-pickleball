@@ -5,7 +5,9 @@ import { FeedbackButton } from "@/components/feedback-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { useSupabase } from "@/components/providers/supabase-provider";
+import { PlayerAvatar } from "@/components/player-avatar";
 import type { Profile } from "@/types/database";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -199,7 +201,14 @@ export function Sidebar({ profile, isGroupAdmin = false }: SidebarProps) {
       >
         {collapsed ? (
           <Link href="/">
-            <img src="/TriStarPB-light-minimal.jpg" alt="Tri-Star Pickleball" className="h-8 w-8 object-contain shrink-0 rounded" />
+            <Image
+              src="/TriStarPB-light-minimal.jpg"
+              alt="Tri-Star Pickleball"
+              width={32}
+              height={32}
+              priority
+              className="h-8 w-8 object-contain shrink-0 rounded"
+            />
           </Link>
         ) : (
           <Link href="/" className="flex items-center gap-2 min-w-0">
@@ -287,17 +296,12 @@ export function Sidebar({ profile, isGroupAdmin = false }: SidebarProps) {
             collapsed && "justify-center px-0"
           )}
         >
-          {profile.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt=""
-              className="h-7 w-7 rounded-full object-cover ring-2 ring-brand-500/40 shrink-0"
-            />
-          ) : (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900/50 text-brand-vivid text-xs font-medium shrink-0">
-              {profile.display_name?.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <PlayerAvatar
+            displayName={profile.display_name}
+            avatarUrl={profile.avatar_url}
+            size="sm"
+            className="ring-2 ring-brand-500/40"
+          />
           {!collapsed && (
             <span className="truncate font-medium">{profile.display_name}</span>
           )}

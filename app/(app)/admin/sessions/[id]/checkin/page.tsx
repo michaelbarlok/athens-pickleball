@@ -2,6 +2,7 @@
 
 import { useConfirm } from "@/components/confirm-modal";
 import { CenteredSpinner } from "@/components/centered-spinner";
+import { PlayerAvatar } from "@/components/player-avatar";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { distributeCourts, seedSession1, seedSameDaySession } from "@/lib/shootout-engine";
 import type { RankedPlayer, SeedablePlayer } from "@/lib/shootout-engine";
@@ -564,13 +565,7 @@ export default function CheckInPage() {
                       onClick={() => setSelectedMember(m)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-overlay transition-colors text-left"
                     >
-                      {m.avatar_url ? (
-                        <img src={m.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
-                      ) : (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-xs font-medium shrink-0">
-                          {m.display_name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <PlayerAvatar displayName={m.display_name} avatarUrl={m.avatar_url} size="sm" />
                       <span className="flex-1 text-sm font-medium text-dark-100">{m.display_name}</span>
                       <span className="text-xs text-surface-muted">Step {m.current_step} · {m.win_pct.toFixed(1)}%</span>
                     </button>
@@ -590,13 +585,7 @@ export default function CheckInPage() {
             <div className="space-y-4">
               {/* Selected member */}
               <div className="flex items-center gap-3 rounded-lg bg-teal-900/20 border border-teal-500/30 px-3 py-2.5">
-                {selectedMember.avatar_url ? (
-                  <img src={selectedMember.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-xs font-medium shrink-0">
-                    {selectedMember.display_name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <PlayerAvatar displayName={selectedMember.display_name} avatarUrl={selectedMember.avatar_url} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-teal-300">{selectedMember.display_name}</p>
                   <p className="text-xs text-surface-muted">Step {selectedMember.current_step} · {selectedMember.win_pct.toFixed(1)}% Pt</p>
@@ -766,13 +755,7 @@ export default function CheckInPage() {
                 </td>
                 <td className="px-2 sm:px-4 py-3">
                   <div className="flex items-center gap-2">
-                    {p.avatar_url ? (
-                      <img src={p.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-xs font-medium shrink-0">
-                        {p.display_name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <PlayerAvatar displayName={p.display_name} avatarUrl={p.avatar_url} size="sm" />
                     <span className="text-sm font-medium text-dark-100">{p.display_name}</span>
                     {p.is_guest && (
                       <span className="badge-yellow text-[10px]">Guest</span>

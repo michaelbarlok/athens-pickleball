@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
+import { PlayerAvatar } from "@/components/player-avatar";
 import { createClient } from "@/lib/supabase/server";
 import { getAllBadgeDefinitions, getPlayerBadges, getBadgeLeaderboard } from "@/lib/queries/badges";
 import type { BadgeCategory, BadgeDefinition } from "@/types/database";
@@ -170,17 +171,11 @@ export default async function BadgesPage() {
                   <span className="w-6 text-center text-sm font-bold text-surface-muted">
                     {idx + 1}
                   </span>
-                  {entry.avatar_url ? (
-                    <img
-                      src={entry.avatar_url}
-                      alt={entry.display_name}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-sm font-medium">
-                      {entry.display_name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <PlayerAvatar
+                    displayName={entry.display_name}
+                    avatarUrl={entry.avatar_url}
+                    size="md"
+                  />
                   <span className="flex-1 text-sm font-medium text-dark-100">
                     {entry.display_name}
                   </span>

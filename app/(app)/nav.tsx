@@ -2,6 +2,7 @@
 
 import { NotificationBell } from "@/components/notification-bell";
 import { Logo } from "@/components/logo";
+import { PlayerAvatar } from "@/components/player-avatar";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import type { Profile } from "@/types/database";
 import Link from "next/link";
@@ -140,17 +141,12 @@ export function AppNav({ profile, isGroupAdmin = false }: { profile: Profile; is
               href={`/players/${profile.id}`}
               className="flex items-center gap-2 text-sm text-surface-muted hover:text-dark-100"
             >
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="h-8 w-8 rounded-full object-cover ring-2 ring-brand-500/20"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-900/50 text-brand-300 text-sm font-medium">
-                  {profile.display_name?.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <PlayerAvatar
+                displayName={profile.display_name}
+                avatarUrl={profile.avatar_url}
+                size="md"
+                className="ring-2 ring-brand-500/20"
+              />
               <span className="hidden sm:block">{profile.display_name}</span>
             </Link>
             <button
