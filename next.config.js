@@ -7,6 +7,14 @@ const nextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // Google OAuth profile photos. ~20 users sign in with Google and
+      // their auto-imported avatar_url points here; without this entry
+      // next/image refuses to render and the avatar shows a broken-
+      // image placeholder instead of the photo.
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
     ],
   },
 
