@@ -726,7 +726,7 @@ export default async function TournamentDetailPage({
             <DetailRow label="Pay Via">
               <div className="space-y-1">
                 {tournament.payment_options.map((opt) => (
-                  <p key={opt.method} className="text-sm text-dark-100">
+                  <p key={opt.method} className="text-sm text-dark-100 break-all">
                     <span className="font-medium capitalize">{opt.method}</span>
                     {opt.detail && (
                       <span className="text-dark-200">
@@ -758,7 +758,7 @@ export default async function TournamentDetailPage({
         {(tournament as any).payment_directions && (
           <div className="pt-3 border-t border-surface-border">
             <p className="text-xs text-surface-muted uppercase font-medium mb-1">Payment Directions</p>
-            <p className="text-sm text-dark-100 whitespace-pre-line">{(tournament as any).payment_directions}</p>
+            <p className="text-sm text-dark-100 whitespace-pre-line break-words">{(tournament as any).payment_directions}</p>
           </div>
         )}
 
@@ -791,7 +791,7 @@ export default async function TournamentDetailPage({
 
         {tournament.description && (
           <div className="pt-3 border-t border-surface-border">
-            <p className="text-sm text-dark-200 whitespace-pre-wrap leading-relaxed">{tournament.description}</p>
+            <p className="text-sm text-dark-200 whitespace-pre-wrap leading-relaxed break-words">{tournament.description}</p>
           </div>
         )}
 

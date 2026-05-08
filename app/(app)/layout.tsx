@@ -99,7 +99,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
              iOS home-indicator safe-area. Without the env() term, the
              last bit of content slips behind the nav on phones with a
              home indicator. */}
-        <main className="flex-1 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8">
+        <main className="flex-1 overflow-x-hidden px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-6 lg:px-8">
           {/* Small screens keep a reading-friendly 5xl cap. On lg+
                we widen the layout so data-dense pages (tournament
                detail, court tracker) can fill the screen — pages
