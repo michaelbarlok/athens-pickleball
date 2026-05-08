@@ -206,7 +206,22 @@ export function TournamentNotifyMembersButton({
           body: JSON.stringify({ customMessage, testMode }),
         }
       );
-      const data = await res.json();
+      // Defensive parse: a Vercel function timeout returns an HTML 504
+      // page, which makes res.json() throw with the cryptic "Unexpected
+      // token '<'" — we'd rather show a clear message.
+      let data: { error?: string; sent?: number } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError(
+          res.status === 504
+            ? "Send timed out — try again. Some members may have been emailed."
+            : `Send failed (${res.status}). Try again.`
+        );
+        setSending(false);
+        setConfirming(false);
+        return;
+      }
       if (!res.ok) {
         setError(data.error ?? "Failed to send");
         setSending(false);

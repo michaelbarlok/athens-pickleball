@@ -6,6 +6,13 @@ import { isTestUser } from "@/lib/utils";
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { NextRequest, NextResponse } from "next/server";
 
+// Each recipient costs ~1 Resend round trip; batches of 10 with 200ms
+// gaps mean 100 recipients ≈ 12-20s wall time. Vercel's 15s default
+// timed out and returned an HTML 504, which broke `await res.json()`
+// on the client. 60s is the Hobby ceiling and well under the Pro
+// ceiling — comfortable headroom up to ~400 recipients.
+export const maxDuration = 60;
+
 const FORMAT_LABELS: Record<string, string> = {
   single_elimination: "Single Elimination",
   double_elimination: "Double Elimination",
