@@ -2,14 +2,27 @@
  * Auto-claim pending group member records.
  *
  * Called after a profile is created (signup) or when a player joins a group.
- * Matches pending records by display_name (case-insensitive) OR invite_email,
- * then creates/updates group_memberships with the stored stats.
+ * Matches pending records by invite_email (always, exact, case-insensitive)
+ * and by display_name (within a group only) — then creates / updates
+ * group_memberships with the stored stats.
+ *
+ * Cross-group name matching is intentionally NOT supported: two unrelated
+ * groups can each have a pending "John Smith" who are different humans, so
+ * letting a fresh signup auto-claim both records would silently merge two
+ * strangers' identities. Email is the only identity signal we trust across
+ * groups — if Group A and Group B both invited "alice@x.com" to their
+ * pending list, both intentionally invited her by email and both claims
+ * are honest.
  *
  * @param serviceClient  Service-role Supabase client (bypasses RLS)
  * @param profileId      The newly-created or joining profile's id
  * @param displayName    The player's current display_name
  * @param email          The player's email address
- * @param groupId        If provided, only claim pending records for this group
+ * @param groupId        If provided, name-match is scoped to this group
+ *                       AND email-match is scoped to this group. If
+ *                       omitted (signup flow), name-match is skipped
+ *                       entirely and only exact-email matches across all
+ *                       groups are claimed.
  */
 export async function claimPendingMemberships(
   serviceClient: any,
@@ -18,33 +31,38 @@ export async function claimPendingMemberships(
   email: string,
   groupId?: string
 ): Promise<void> {
-  // Two parameterized queries (one by name, one by email), then dedupe
-  // in JS. The previous implementation built a single `.or()` filter by
-  // string-interpolating the name + email into the PostgREST query —
-  // which broke on legitimate display names containing a comma
-  // ("Smith, Jane") because commas are the OR separator in that syntax.
-  // Going through the typed `.ilike()` method escapes values properly
-  // and doesn't care about special characters in the input.
+  // Two parameterized queries, then dedupe in JS. The previous
+  // implementation built a single `.or()` filter by string-interpolating
+  // the name + email into the PostgREST query — which broke on legitimate
+  // display names containing a comma ("Smith, Jane") because commas are
+  // the OR separator in that syntax. Going through the typed `.ilike()`
+  // method escapes values properly and doesn't care about special
+  // characters in the input.
   const byId = new Map<string, Record<string, unknown>>();
 
-  const nameQuery = (() => {
-    const q = serviceClient
+  // Name match — only when scoped to a specific group. See module
+  // docstring for why we never name-match across groups.
+  if (groupId) {
+    const { data: byName } = await serviceClient
       .from("pending_group_members")
       .select(
         "id, group_id, step, win_pct, total_sessions, last_played_at, joined_at, skill_level"
       )
       .is("claimed_by", null)
-      .ilike("name", displayName);
-    return groupId ? q.eq("group_id", groupId) : q;
-  })();
-  const { data: byName } = await nameQuery;
-  for (const row of byName ?? []) byId.set(row.id, row);
+      .ilike("name", displayName)
+      .eq("group_id", groupId);
+    for (const row of byName ?? []) byId.set(row.id, row);
+  }
 
+  // Email match — always run when the user has an email. Email is the
+  // only cross-group identity signal we trust.
   if (email) {
     const emailQuery = (() => {
       const q = serviceClient
         .from("pending_group_members")
-        .select("*")
+        .select(
+          "id, group_id, step, win_pct, total_sessions, last_played_at, joined_at, skill_level"
+        )
         .is("claimed_by", null)
         .ilike("invite_email", email);
       return groupId ? q.eq("group_id", groupId) : q;
