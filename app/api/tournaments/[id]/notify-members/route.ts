@@ -25,6 +25,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const THROTTLE_MS = 60 * 60 * 1000; // 1 hour per tournament
+const DAILY_BROADCAST_QUOTA = 5;     // org-wide broadcasts per 24h
+const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function formatDateLabel(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -127,6 +129,29 @@ export async function POST(
           error: `Already sent in the last hour — try again in ${minutesLeft} minute${
             minutesLeft === 1 ? "" : "s"
           }.`,
+        },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Org-wide daily quota: even with the per-tournament hourly throttle,
+  // an admin running 5 tournaments could fan out 5 broadcasts in 5
+  // minutes across all of them, dumping ~500 inboxes at once. Cap the
+  // total platform-wide broadcast volume at DAILY_BROADCAST_QUOTA per
+  // 24h. Counted from tournaments.last_announced_at (same column the
+  // hourly throttle uses) so no new table is needed. Test sends are
+  // exempt — they only deliver to site admins and don't burn quota.
+  if (!testMode) {
+    const cutoff = new Date(Date.now() - DAILY_WINDOW_MS).toISOString();
+    const { count: dailyCount } = await serviceClient
+      .from("tournaments")
+      .select("id", { count: "exact", head: true })
+      .gte("last_announced_at", cutoff);
+    if ((dailyCount ?? 0) >= DAILY_BROADCAST_QUOTA) {
+      return NextResponse.json(
+        {
+          error: `Daily broadcast quota reached (${DAILY_BROADCAST_QUOTA} per 24h across all tournaments). Please try again later.`,
         },
         { status: 429 }
       );
@@ -364,9 +389,19 @@ export async function GET(
       )
     : 0;
 
+  // Daily quota usage — same window the POST handler enforces so the
+  // modal can show "3 of 5 used today" before the admin commits.
+  const dailyCutoff = new Date(Date.now() - DAILY_WINDOW_MS).toISOString();
+  const { count: dailyUsed } = await serviceClient
+    .from("tournaments")
+    .select("id", { count: "exact", head: true })
+    .gte("last_announced_at", dailyCutoff);
+
   return NextResponse.json({
     recipientCount: count,
     lastAnnouncedAt,
     cooldownRemainingMs,
+    dailyQuotaUsed: dailyUsed ?? 0,
+    dailyQuotaLimit: DAILY_BROADCAST_QUOTA,
   });
 }

@@ -90,6 +90,8 @@ export function TournamentNotifyMembersButton({
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [recipientCount, setRecipientCount] = useState<number | null>(null);
   const [cooldownRemainingMs, setCooldownRemainingMs] = useState<number>(0);
+  const [dailyQuotaUsed, setDailyQuotaUsed] = useState<number>(0);
+  const [dailyQuotaLimit, setDailyQuotaLimit] = useState<number>(0);
   const [sending, setSending] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +144,8 @@ export function TournamentNotifyMembersButton({
         if (res.ok) {
           setRecipientCount(data.recipientCount ?? null);
           setCooldownRemainingMs(data.cooldownRemainingMs ?? 0);
+          setDailyQuotaUsed(data.dailyQuotaUsed ?? 0);
+          setDailyQuotaLimit(data.dailyQuotaLimit ?? 0);
         }
       } catch {
         /* non-fatal — modal still works without the count */
@@ -343,6 +347,20 @@ export function TournamentNotifyMembersButton({
                 <p className="mt-1 text-amber-400">
                   Just sent. Please wait {cooldownMinutes} minute
                   {cooldownMinutes === 1 ? "" : "s"} before sending again.
+                </p>
+              )}
+              {dailyQuotaLimit > 0 && (
+                <p
+                  className={`mt-1 ${
+                    dailyQuotaUsed >= dailyQuotaLimit
+                      ? "text-red-400"
+                      : dailyQuotaUsed >= dailyQuotaLimit - 1
+                        ? "text-amber-400"
+                        : "text-surface-muted"
+                  }`}
+                >
+                  Daily quota: {dailyQuotaUsed} of {dailyQuotaLimit} broadcasts
+                  used in the last 24 hours.
                 </p>
               )}
             </div>
