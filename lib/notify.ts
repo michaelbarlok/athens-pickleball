@@ -55,6 +55,10 @@ export interface NotifyProfile {
   preferred_notify: string[] | null;
   notification_preferences: Record<string, unknown> | null;
   display_name: string;
+  /** Set true by the Resend webhook after 3+ bounces. notify() skips
+   *  the email channel for these profiles until the flag clears
+   *  (auto-clears via DB trigger when the user changes their email). */
+  email_bouncing?: boolean | null;
 }
 
 interface NotifyParams {
@@ -84,7 +88,9 @@ export async function fetchNotifyProfiles(
   const supabase = await createServiceClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, email, phone, preferred_notify, notification_preferences, display_name")
+    .select(
+      "id, email, phone, preferred_notify, notification_preferences, display_name, email_bouncing"
+    )
     .in("id", profileIds);
   for (const row of data ?? []) {
     map.set((row as { id: string }).id, {
@@ -94,6 +100,7 @@ export async function fetchNotifyProfiles(
       notification_preferences: (row as { notification_preferences: Record<string, unknown> | null })
         .notification_preferences,
       display_name: (row as { display_name: string }).display_name,
+      email_bouncing: (row as { email_bouncing: boolean | null }).email_bouncing,
     });
   }
   return map;
@@ -126,7 +133,9 @@ export async function notify({
   if (!profile) {
     const { data, error: profileErr } = await supabase
       .from("profiles")
-      .select("email, phone, preferred_notify, notification_preferences, display_name")
+      .select(
+        "email, phone, preferred_notify, notification_preferences, display_name, email_bouncing"
+      )
       .eq("id", profileId)
       .single();
     if (!data) {
@@ -224,8 +233,16 @@ export async function notify({
   // users on push-only notifications experienced a 30s+ perceived lag
   // compared to email. Each channel is independent and failures are
   // already handled locally, so there's no reason to serialize.
+  // Skip the email channel for known-bouncing addresses. The webhook
+  // at /api/webhooks/resend flips email_bouncing=true after 3+ bounces;
+  // the trigger on profiles auto-resets the flag when the user updates
+  // their email. Push and in-app notifications still fire normally.
   const emailPromise =
-    shouldEmail && emailTemplate && profile.email && !isTestUser(profile.email, profile.display_name)
+    shouldEmail &&
+    emailTemplate &&
+    profile.email &&
+    !profile.email_bouncing &&
+    !isTestUser(profile.email, profile.display_name)
       ? sendEmail({
           to: profile.email,
           subject: title,
