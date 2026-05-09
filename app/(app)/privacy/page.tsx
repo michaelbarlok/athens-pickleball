@@ -9,7 +9,14 @@ export default function PrivacyPage() {
     <div className="max-w-2xl mx-auto py-10 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-dark-100">Privacy Policy</h1>
-        <p className="mt-1 text-sm text-surface-muted">Last updated: April 14, 2026</p>
+        <p className="mt-1 text-sm text-surface-muted">Last updated: May 9, 2026</p>
+        <p className="mt-3 text-sm text-dark-200 leading-relaxed">
+          This Privacy Policy describes how Tri-Star Pickleball, LLC, a
+          Tennessee limited liability company (&ldquo;Tri-Star Pickleball,&rdquo;
+          &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), collects,
+          uses, and protects your personal information when you use our
+          website and services.
+        </p>
       </div>
 
       <div className="space-y-6 text-sm text-dark-200 leading-relaxed">

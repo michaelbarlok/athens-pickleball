@@ -88,7 +88,10 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <div className="pt-4 border-t border-surface-border">
+      <div className="pt-4 border-t border-surface-border space-y-3">
+        <p className="text-xs text-surface-muted">
+          Operated by Tri-Star Pickleball, LLC. Registered in Tennessee, 2026.
+        </p>
         <Link href="/" className="text-sm text-brand-400 hover:text-brand-300">
           ← Back to home
         </Link>

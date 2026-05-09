@@ -111,10 +111,18 @@ export default async function HomePage() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Tri-Star Pickleball",
+    legalName: "Tri-Star Pickleball, LLC",
+    foundingDate: "2026",
     url: appUrl,
     logo: `${appUrl}/icon.png`,
     description:
       "Pickleball ladder league, free play, and tournament platform for community groups.",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Athens",
+      addressRegion: "TN",
+      addressCountry: "US",
+    },
     contactPoint: [
       {
         "@type": "ContactPoint",
