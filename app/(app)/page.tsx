@@ -77,10 +77,19 @@ const getLandingStats = unstable_cache(
   { revalidate: 3600 }
 );
 
+// Floor each count to the nearest "nice" magnitude and append "+", so
+// the strip reads as honest approximate social proof rather than a
+// precision claim. 6 → "5+", 105 → "100+", 177 → "150+", 4827 → "4k+".
+// Bucket size grows with the count so the number keeps useful signal
+// as the platform scales.
 function formatStat(n: number | null): string {
   if (n === null) return "—";
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
+  if (n < 10) return "5+";
+  if (n < 50) return "10+";
+  if (n < 100) return "50+";
+  if (n < 500) return `${Math.floor(n / 50) * 50}+`;
+  if (n < 1000) return `${Math.floor(n / 100) * 100}+`;
+  return `${Math.floor(n / 1000)}k+`;
 }
 
 export default async function HomePage() {
