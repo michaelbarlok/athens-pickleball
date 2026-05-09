@@ -9,7 +9,13 @@ export default function TermsPage() {
     <div className="max-w-2xl mx-auto py-10 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-dark-100">Terms of Service</h1>
-        <p className="mt-1 text-sm text-surface-muted">Last updated: April 14, 2026</p>
+        <p className="mt-1 text-sm text-surface-muted">Last updated: May 9, 2026</p>
+        <p className="mt-3 text-sm text-dark-200 leading-relaxed">
+          These Terms of Service are an agreement between you and Tri-Star
+          Pickleball, LLC, a Tennessee limited liability company
+          (&ldquo;Tri-Star Pickleball,&rdquo; &ldquo;we,&rdquo;
+          &ldquo;us,&rdquo; or &ldquo;our&rdquo;).
+        </p>
       </div>
 
       <div className="space-y-6 text-sm text-dark-200 leading-relaxed">
@@ -85,7 +91,19 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-semibold text-dark-100">8. Contact</h2>
+          <h2 className="text-base font-semibold text-dark-100">8. Governing Law</h2>
+          <p>
+            These Terms are governed by the laws of the State of Tennessee,
+            without regard to its conflict-of-laws principles. Any dispute
+            arising under or in connection with these Terms shall be resolved
+            exclusively in the state or federal courts located in the State
+            of Tennessee, and you consent to personal jurisdiction in those
+            courts.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold text-dark-100">9. Contact</h2>
           <p>
             Questions about these terms? Email us at{" "}
             <a href="mailto:info@tristarpickleball.com" className="text-brand-400 hover:text-brand-300 underline underline-offset-2">

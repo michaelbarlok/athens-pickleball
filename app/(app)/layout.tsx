@@ -111,7 +111,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* Persistent copyright notice — visible on every authenticated
                page so the ownership claim is consistent across the app. */}
           <p className="mx-auto mt-10 max-w-5xl text-center text-[11px] text-surface-muted">
-            &copy; {new Date().getFullYear()} Tri-Star Pickleball. All rights reserved.
+            &copy; {new Date().getFullYear()} Tri-Star Pickleball, LLC. All rights reserved.
           </p>
         </main>
       </div>

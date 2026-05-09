@@ -36,6 +36,8 @@ export default function ContactPage() {
             Based in
           </h2>
           <address className="mt-1 text-base not-italic text-dark-200">
+            Tri-Star Pickleball, LLC
+            <br />
             Athens, TN
             <br />
             <span className="text-sm text-surface-muted">

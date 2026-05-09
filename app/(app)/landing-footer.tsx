@@ -83,7 +83,7 @@ export function LandingFooter() {
         {/* Bottom bar */}
         <div className="mt-10 border-t border-surface-border/50 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-dark-400">
-            &copy; {new Date().getFullYear()} Tri-Star Pickleball. All rights reserved.
+            &copy; {new Date().getFullYear()} Tri-Star Pickleball, LLC. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <Link href="/about" className="text-xs text-dark-400 hover:text-dark-200 transition-colors">
