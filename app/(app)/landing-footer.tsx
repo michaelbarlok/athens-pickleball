@@ -10,7 +10,8 @@ export function LandingFooter() {
           <div className="space-y-3">
             <Logo className="h-8 w-auto" />
             <p className="text-sm text-dark-300">
-              Your pickleball community, all in one place.
+              Pickleball ladder leagues, free play, and tournaments. Based in
+              East Tennessee — used by groups across the Southeast.
             </p>
           </div>
 

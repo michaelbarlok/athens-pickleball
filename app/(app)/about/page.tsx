@@ -13,8 +13,9 @@ export default function AboutPage() {
         <p className="text-eyebrow">About</p>
         <h1 className="text-heading">Built by pickleball players, for pickleball players.</h1>
         <p className="text-dark-200">
-          Tri-Star Pickleball is a Tennessee-based platform that grew out of the
-          Athens, Tennessee pickleball community.
+          Tri-Star Pickleball is an East Tennessee–based platform that grew out
+          of the Athens, TN pickleball community and now serves groups across
+          the Southeast. Founded in 2026 by Michael Barlok.
         </p>
       </header>
 

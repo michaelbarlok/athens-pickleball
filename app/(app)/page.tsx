@@ -175,8 +175,8 @@ export default async function HomePage() {
           </h1>
           <p className="max-w-2xl mx-auto text-base text-dark-200 sm:text-lg leading-relaxed">
             Sign-ups, scores, live rankings, and court tracking — all in one
-            place. Built for ladder leagues, free-play groups, and Round Robin
-            tournaments across the Southeast.
+            place. Built in East Tennessee for ladder leagues, free-play groups,
+            and Round Robin tournaments across the Southeast.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Link href="/register" className="btn-primary btn-lg">

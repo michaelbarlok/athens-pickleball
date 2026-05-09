@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
   description:
-    "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets. Sign-ups, scores, live rankings, and court tracking — built for community groups across the Southeast.",
+    "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets. Sign-ups, scores, live rankings, and court tracking — built in East Tennessee for community groups across the Southeast.",
   keywords: [
     "pickleball ladder league",
     "pickleball tournament software",
@@ -36,7 +36,8 @@ export const metadata: Metadata = {
     "pickleball sign-up sheet",
     "pickleball rankings",
     "round robin pickleball",
-    "pickleball Athens GA",
+    "pickleball Athens TN",
+    "pickleball East Tennessee",
   ],
   // Icons are served from Next.js magic files in app/: favicon.ico,
   // icon.png, apple-icon.png. Google checks /favicon.ico first, so that
