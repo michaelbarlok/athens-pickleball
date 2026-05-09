@@ -3,17 +3,39 @@ import Link from "next/link";
 export const metadata = {
   title: "How it Works — Tri-Star Pickleball",
   description:
-    "How Tri-Star Pickleball calculates ladder steps, points %, free-play point differential, and runs tournaments.",
+    "How Tri-Star Pickleball calculates ladder steps, Points %, and free-play point differential — including the difference between Court Promotion and Dynamic Ranking modes — and how Round Robin tournaments seed and advance teams.",
+  keywords: [
+    "pickleball ladder system",
+    "Court Promotion vs Dynamic Ranking",
+    "pickleball points percentage",
+    "free play point differential",
+    "round robin pickleball seeding",
+  ],
+  alternates: { canonical: "/how-it-works" },
 };
 
 export default function HowItWorksPage() {
   return (
     <div className="max-w-3xl mx-auto py-10 space-y-10">
-      <div>
+      <div className="space-y-3">
         <h1 className="text-2xl font-bold text-dark-100">How it Works</h1>
-        <p className="mt-1 text-sm text-surface-muted">
+        <p className="text-sm text-surface-muted">
           A quick reference for how standings, percentages, and tournaments are
           calculated on Tri-Star Pickleball.
+        </p>
+        <p className="text-sm text-dark-200 leading-relaxed">
+          Tri-Star supports two ladder-league modes —{" "}
+          <a href="#ladder-steps" className="text-brand-vivid hover:opacity-80">
+            Court Promotion
+          </a>{" "}
+          and{" "}
+          <a href="#ladder-steps" className="text-brand-vivid hover:opacity-80">
+            Dynamic Ranking
+          </a>{" "}
+          — alongside Free Play with point-differential standings and Round
+          Robin tournaments with seeded playoffs. This page explains how each
+          system calculates standings, when sessions affect your stats, and
+          how seeding works.
         </p>
       </div>
 

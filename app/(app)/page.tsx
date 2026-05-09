@@ -1,15 +1,154 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Logo } from "@/components/logo";
 import { LandingFooter } from "./landing-footer";
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tristarpickleball.com";
+
+export const metadata: Metadata = {
+  // Canonical only on the landing page itself — search engines
+  // collapse www/non-www and trailing-slash variants here. Setting
+  // this at the root layout would force EVERY page to canonical to
+  // /, which is wrong for product/group/tournament URLs.
+  alternates: { canonical: "/" },
+};
+
+// FAQ entries. Single source of truth for both the visible accordion
+// below and the FAQPage JSON-LD that lets Google show these Q&As as
+// "rich result" expandable snippets directly under the search listing.
+const FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: "Do I need to be invited or can anyone join?",
+    a: "Anyone can create an account. To join a specific group or ladder league, you request access and the group organizer approves you.",
+  },
+  {
+    q: "What formats does Tri-Star Pickleball support?",
+    a: "Tri-Star Pickleball supports ladder leagues with step-based rankings, free play sessions with automatic team rotation, and Round Robin tournaments with seeded playoff brackets.",
+  },
+  {
+    q: "Can I run my own group?",
+    a: "Yes. Organizers can create groups, configure ladder settings, manage sign-up sheets, and run sessions directly from the platform.",
+  },
+  {
+    q: "What happens if a session has an odd number of players?",
+    a: "Free Play handles it automatically — it rotates players fairly so everyone gets balanced game time, no matter how many people show up.",
+  },
+];
+
+// Live community counts shown in the hero. Cached for an hour so a
+// flood of bots / scraper hits doesn't fire three SELECTs every
+// render. If the DB is unreachable we fall back to nulls and the
+// strip just renders the labels with em-dashes — never blocks the
+// page from loading.
+const getLandingStats = unstable_cache(
+  async () => {
+    try {
+      const supabase = await createServiceClient();
+      const [players, groups, fpMatches, ladderMatches] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_active", true)
+          .or("is_test.is.null,is_test.eq.false"),
+        supabase
+          .from("shootout_groups")
+          .select("id", { count: "exact", head: true })
+          .eq("is_active", true),
+        supabase
+          .from("free_play_matches")
+          .select("id", { count: "exact", head: true }),
+        supabase
+          .from("game_results")
+          .select("id", { count: "exact", head: true }),
+      ]);
+      return {
+        players: players.count ?? null,
+        groups: groups.count ?? null,
+        games: (fpMatches.count ?? 0) + (ladderMatches.count ?? 0) || null,
+      };
+    } catch {
+      return { players: null, groups: null, games: null };
+    }
+  },
+  ["landing-stats"],
+  { revalidate: 3600 }
+);
+
+function formatStat(n: number | null): string {
+  if (n === null) return "—";
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
+}
+
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const isLoggedIn = !!user;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Logged-in users have no business looking at the marketing pitch —
+  // send them straight to the dashboard. Lets the public landing be
+  // tuned aggressively for SEO/conversion without surprising members.
+  if (user) redirect("/dashboard");
+
+  const stats = await getLandingStats();
+
+  // JSON-LD schemas: Organization (logo + contact), WebSite (canonical
+  // URL + name), and FAQPage (drives rich-result accordions in Google).
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Tri-Star Pickleball",
+    url: appUrl,
+    logo: `${appUrl}/icon.png`,
+    description:
+      "Pickleball ladder league, free play, and tournament platform for community groups.",
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        email: "info@tristarpickleball.com",
+        contactType: "customer support",
+      },
+    ],
+  };
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Tri-Star Pickleball",
+    url: appUrl,
+  };
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
 
   return (
     <div className="space-y-16 sm:space-y-24 py-4 sm:py-10">
+      {/* JSON-LD structured data — picked up by Google for the
+          knowledge graph (Organization), site links (WebSite), and
+          rich-result FAQ accordions (FAQPage). One <script> per
+          schema is the canonical pattern. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
       {/* ── Hero ── */}
       <section className="relative overflow-hidden rounded-3xl">
         {/* Layered gradient backdrop — keeps the hero grounded without heavy imagery */}
@@ -29,36 +168,59 @@ export default async function HomePage() {
           <Logo className="mx-auto h-24 w-auto sm:h-32" />
           <span className="inline-flex items-center gap-1.5 rounded-full bg-dark-950/40 ring-1 ring-surface-border px-3 py-1 text-xs font-medium text-brand-vivid">
             <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-            Built for ladder leagues, free play, and everything in between
+            Built for ladder leagues, free play & tournaments
           </span>
           <h1 className="text-3xl font-bold text-dark-100 sm:text-5xl tracking-tight">
-            Your pickleball community,<br className="hidden sm:block" /> all in one place.
+            Run your pickleball league<br className="hidden sm:block" /> without the spreadsheets.
           </h1>
-          <p className="max-w-xl mx-auto text-base text-dark-200 sm:text-lg leading-relaxed">
-            Show up with any number of players and let Free Play manage the teams and
-            scores. Or sign up for shootouts, climb the rankings, and never miss a match.
+          <p className="max-w-2xl mx-auto text-base text-dark-200 sm:text-lg leading-relaxed">
+            Sign-ups, scores, live rankings, and court tracking — all in one
+            place. Built in East Tennessee for ladder leagues, free-play groups,
+            and Round Robin tournaments across the Southeast.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="btn-primary btn-lg">
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/register" className="btn-primary btn-lg">
-                  Get Started
-                </Link>
-                <Link href="#features" className="btn-secondary btn-lg">
-                  See how it works
-                </Link>
-              </>
-            )}
+            <Link href="/register" className="btn-primary btn-lg">
+              Get Started
+            </Link>
+            <Link href="#features" className="btn-secondary btn-lg">
+              See how it works
+            </Link>
           </div>
-          {!isLoggedIn && (
-            <p className="text-xs text-surface-muted">
-              Free to join — no credit card, no app install.
-            </p>
-          )}
+          <p className="text-xs text-surface-muted">
+            Free to join — no credit card, no app install.
+          </p>
+
+          {/* Live community counters — pulled from the DB once an
+              hour and cached. Three numbers grounds the page in
+              "this is a real product, real users." Falls back to em-
+              dashes if the count fetch fails so the strip never
+              breaks the layout. */}
+          <dl className="mx-auto grid max-w-xl grid-cols-3 gap-2 pt-6 sm:gap-6">
+            <div className="rounded-xl bg-dark-950/40 ring-1 ring-surface-border px-3 py-3 sm:py-4">
+              <dt className="text-[10px] font-medium uppercase tracking-wider text-surface-muted">
+                Active Players
+              </dt>
+              <dd className="mt-1 text-xl sm:text-2xl font-bold text-dark-100">
+                {formatStat(stats.players)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-dark-950/40 ring-1 ring-surface-border px-3 py-3 sm:py-4">
+              <dt className="text-[10px] font-medium uppercase tracking-wider text-surface-muted">
+                Groups
+              </dt>
+              <dd className="mt-1 text-xl sm:text-2xl font-bold text-dark-100">
+                {formatStat(stats.groups)}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-dark-950/40 ring-1 ring-surface-border px-3 py-3 sm:py-4">
+              <dt className="text-[10px] font-medium uppercase tracking-wider text-surface-muted">
+                Games Tracked
+              </dt>
+              <dd className="mt-1 text-xl sm:text-2xl font-bold text-dark-100">
+                {formatStat(stats.games)}
+              </dd>
+            </div>
+          </dl>
         </div>
       </section>
 
@@ -399,24 +561,7 @@ export default async function HomePage() {
           <h2 className="text-2xl font-bold text-dark-100 sm:text-3xl tracking-tight">Answers before you sign up</h2>
         </div>
         <div className="space-y-2">
-          {[
-            {
-              q: "Do I need to be invited or can anyone join?",
-              a: "Anyone can create an account. To join a specific group or ladder league, you request access and the group organizer approves you.",
-            },
-            {
-              q: "What formats does Tri-Star Pickleball support?",
-              a: "Tri-Star Pickleball supports ladder leagues with step-based rankings, free play sessions with automatic team rotation, and Round Robin tournaments with seeded playoff brackets.",
-            },
-            {
-              q: "Can I run my own group?",
-              a: "Yes. Organizers can create groups, configure ladder settings, manage sign-up sheets, and run sessions directly from the platform.",
-            },
-            {
-              q: "What happens if a session has an odd number of players?",
-              a: "Free Play handles it automatically — it rotates players fairly so everyone gets balanced game time, no matter how many people show up.",
-            },
-          ].map((item) => (
+          {FAQ_ITEMS.map((item) => (
             <details
               key={item.q}
               className="group rounded-xl bg-surface-raised ring-1 ring-surface-border transition-colors hover:ring-brand-500/30"
@@ -459,20 +604,12 @@ export default async function HomePage() {
               Join the community and start tracking your games — casual or competitive.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-              {isLoggedIn ? (
-                <Link href="/dashboard" className="btn-primary btn-lg">
-                  Go to Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link href="/register" className="btn-primary btn-lg">
-                    Create your account
-                  </Link>
-                  <Link href="/login" className="btn-secondary btn-lg">
-                    Log in
-                  </Link>
-                </>
-              )}
+              <Link href="/register" className="btn-primary btn-lg">
+                Create your account
+              </Link>
+              <Link href="/login" className="btn-secondary btn-lg">
+                Log in
+              </Link>
             </div>
           </div>
         </div>

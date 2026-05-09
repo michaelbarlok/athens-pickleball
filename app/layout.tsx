@@ -26,30 +26,49 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
-  title: "Tri-Star Pickleball",
-  description: "Pickleball ladder league platform",
+  title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
+  description:
+    "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets. Sign-ups, scores, live rankings, and court tracking — built in East Tennessee for community groups across the Southeast.",
+  keywords: [
+    "pickleball ladder league",
+    "pickleball tournament software",
+    "pickleball free play",
+    "pickleball sign-up sheet",
+    "pickleball rankings",
+    "round robin pickleball",
+    "pickleball Athens TN",
+    "pickleball East Tennessee",
+  ],
   // Icons are served from Next.js magic files in app/: favicon.ico,
   // icon.png, apple-icon.png. Google checks /favicon.ico first, so that
   // file MUST resolve (previously 404'd, which is why the search result
   // showed the globe placeholder).
   manifest: "/manifest.json",
   openGraph: {
-    title: "Tri-Star Pickleball",
-    description: "Pickleball ladder league platform",
+    title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
+    description:
+      "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets.",
+    // pkl-og.png is the dedicated 1200x630 share image. The previous
+    // TriStarPB-dark-Photoroom.png is 1280x365, which Twitter/iMessage
+    // letterbox awkwardly with the wrong aspect ratio.
     images: [
       {
-        url: "/TriStarPB-dark-Photoroom.png",
-        alt: "Tri-Star Pickleball – Pickleball ladder league platform",
+        url: "/pkl-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Tri-Star Pickleball — Pickleball ladder league, free play, and tournament platform",
       },
     ],
     siteName: "Tri-Star Pickleball",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tri-Star Pickleball",
-    description: "Pickleball ladder league platform",
-    images: ["/TriStarPB-dark-Photoroom.png"],
+    title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
+    description:
+      "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets.",
+    images: ["/pkl-og.png"],
   },
 };
 
