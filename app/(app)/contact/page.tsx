@@ -1,3 +1,10 @@
+export const metadata = {
+  title: "Contact — Tri-Star Pickleball",
+  description:
+    "Contact Tri-Star Pickleball with questions, feedback, or to move your pickleball ladder league or free-play group onto the platform. Based in Athens, TN.",
+  alternates: { canonical: "/contact" },
+};
+
 export default function ContactPage() {
   return (
     <div className="max-w-xl mx-auto py-16 sm:py-24 space-y-6">
@@ -20,6 +27,22 @@ export default function ContactPage() {
         <p className="text-sm text-dark-300">
           We typically respond within 24 hours.
         </p>
+        {/* Semantic <address> with city/state — gives Google a postal-
+            style block to parse for the local-SEO Knowledge Graph. We
+            don't have a public street address, but city + state alone
+            is still a strong local-intent signal. */}
+        <div className="pt-3 border-t border-surface-border">
+          <h2 className="text-sm font-semibold text-dark-100 uppercase tracking-wide">
+            Based in
+          </h2>
+          <address className="mt-1 text-base not-italic text-dark-200">
+            Athens, TN
+            <br />
+            <span className="text-sm text-surface-muted">
+              East Tennessee · Serving groups across the Southeast
+            </span>
+          </address>
+        </div>
       </div>
     </div>
   );

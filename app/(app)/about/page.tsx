@@ -3,7 +3,8 @@ import Link from "next/link";
 export const metadata = {
   title: "About — Tri-Star Pickleball",
   description:
-    "Tri-Star Pickleball is a community-run platform for ladder leagues, free play, and tournaments.",
+    "Tri-Star Pickleball is a community-run platform for pickleball ladder leagues, free play, and Round Robin tournaments. Founded in 2026 by Michael Barlok in Athens, TN.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {
@@ -18,6 +19,27 @@ export default function AboutPage() {
           the Southeast. Founded in 2026 by Michael Barlok.
         </p>
       </header>
+
+      <section className="space-y-4">
+        <h2 className="text-title">Why we built Tri-Star</h2>
+        <p className="text-sm text-dark-200 leading-relaxed">
+          Tri-Star started because the existing options for running a ladder
+          league only handled one playing style. Some groups want{" "}
+          <strong>Court Promotion</strong>, where 1st on each court moves up
+          one court and last moves down between sessions and players carry
+          their court forward. Other groups want{" "}
+          <strong>Dynamic Ranking</strong>, where every player&apos;s step and
+          Points % recompute after each session and the courts re-seed from
+          scratch the next time. Both are valid — they just suit different
+          communities. Tri-Star supports both, plus Free Play with
+          point-differential standings and Round Robin tournaments with seeded
+          playoffs, in one place.
+        </p>
+        <p className="text-sm text-dark-200 leading-relaxed">
+          We started in Athens, TN and are actively expanding to new
+          pickleball communities across the Southeast.
+        </p>
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-title">Our mission</h2>
