@@ -186,9 +186,6 @@ export default async function HomePage() {
               See how it works
             </Link>
           </div>
-          <p className="text-xs text-surface-muted">
-            Free to join — no credit card, no app install.
-          </p>
 
           {/* Live community counters — pulled from the DB once an
               hour and cached. Three numbers grounds the page in
