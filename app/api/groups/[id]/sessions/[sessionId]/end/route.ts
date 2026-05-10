@@ -197,9 +197,15 @@ async function sendFreePlayRecapNotifications(
     }
   }
 
-  const sessionDate = new Date(createdAt).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
+  // Render in the platform-default zone (ET). shootout_groups doesn't
+  // have a timezone column yet — when it does, swap DEFAULT_TZ for
+  // group.timezone so a TX/CA group's recap email shows the local
+  // wall-clock date instead of ET. Still strictly better than the
+  // previous toLocaleDateString call, which used the Vercel runtime
+  // zone (UTC) and could roll the date back a day for late-night
+  // sessions in the Americas.
+  const { formatDateInZone, DEFAULT_TZ } = await import("@/lib/utils");
+  const sessionDate = formatDateInZone(createdAt, DEFAULT_TZ);
 
   for (const sp of sessionPlayers) {
     const s = statsMap.get(sp.player_id);

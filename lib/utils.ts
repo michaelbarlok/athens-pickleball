@@ -12,6 +12,15 @@ export function cn(...inputs: ClassValue[]) {
 /** Priority sort order: high first, then normal, then low. */
 export const PRIORITY_ORDER: Record<string, number> = { high: 0, normal: 1, low: 2 };
 
+/**
+ * Default IANA timezone for any record that doesn't have its own.
+ * The platform was built in East Tennessee — every existing group,
+ * tournament, and sheet was created in this zone — so falling back
+ * here is the least-surprising behavior. Always prefer the record's
+ * explicit `timezone` column when available.
+ */
+export const DEFAULT_TZ = "America/New_York";
+
 /** Format date as Day M-D-YYYY (e.g. "Fri 3-15-2026").
  *
  *  Parses date-only ("YYYY-MM-DD") and no-zone ("YYYY-MM-DDTHH:mm[:ss]")

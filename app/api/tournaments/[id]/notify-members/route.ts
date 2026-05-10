@@ -2,7 +2,13 @@ import { requireAdmin } from "@/lib/auth";
 import { notify, fetchNotifyProfiles } from "@/lib/notify";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getDivisionLabel } from "@/lib/divisions";
-import { isTestUser } from "@/lib/utils";
+import {
+  isTestUser,
+  formatDateInZone,
+  formatTimeInZone,
+  formatDateTimeInZone,
+  DEFAULT_TZ,
+} from "@/lib/utils";
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,42 +34,23 @@ const THROTTLE_MS = 60 * 60 * 1000; // 1 hour per tournament
 const DAILY_BROADCAST_QUOTA = 5;     // org-wide broadcasts per 24h
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-function formatDateLabel(iso: string | null | undefined): string | null {
+// Three small adapters around the canonical zone-aware helpers in
+// lib/utils. They preserve the previous null-safe call shape so the
+// per-recipient fan-out stays simple (`startTimeLabel: maybeFmt(t,
+// tz)`), and always render in the tournament's timezone — formerly
+// these were server-zone, which produced wrong wall-clock times in
+// emails for any tournament not in the deploy region.
+function formatDateLabel(iso: string | null | undefined, tz: string): string | null {
   if (!iso) return null;
-  // ISO date-only strings (YYYY-MM-DD) get parsed in UTC and then
-  // formatted in the server zone, which can shift the date a day.
-  // Append T12:00:00 to anchor mid-day so the date is stable.
-  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDateInZone(iso, tz);
 }
-
-function formatDateTimeLabel(iso: string | null | undefined): string | null {
+function formatDateTimeLabel(iso: string | null | undefined, tz: string): string | null {
   if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
+  return formatDateTimeInZone(iso, tz);
 }
-
-function formatTimeLabel(time: string | null | undefined): string | null {
+function formatTimeLabel(time: string | null | undefined, tz: string): string | null {
   if (!time) return null;
-  const [h, m] = time.split(":");
-  const hour = parseInt(h, 10);
-  if (isNaN(hour)) return null;
-  const suffix = hour >= 12 ? "pm" : "am";
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:${m ?? "00"} ${suffix}`;
+  return formatTimeInZone(time, tz);
 }
 
 export async function POST(
@@ -94,7 +81,7 @@ export async function POST(
   const { data: tournament, error: tErr } = await serviceClient
     .from("tournaments")
     .select(
-      "id, title, status, is_hidden, start_date, start_time, location, format, type, divisions, registration_opens_at, registration_closes_at, entry_fee, payment_options, logo_url, last_announced_at"
+      "id, title, status, is_hidden, start_date, start_time, location, format, type, divisions, registration_opens_at, registration_closes_at, entry_fee, payment_options, logo_url, last_announced_at, timezone"
     )
     .eq("id", tournamentId)
     .maybeSingle();
@@ -205,18 +192,24 @@ export async function POST(
   // Build a plain-text alternative for the email client + Gmail's
   // classifier. HTML-only emails skew Promotions; sending a real
   // text part alongside the React HTML keeps us looking transactional.
+  // Render every email date/time in the tournament's own zone so a
+  // California recipient sees the same wall-clock time the Nashville
+  // organizer typed in. Falls back to ET for tournaments created
+  // before migration 114, which backfilled the column.
+  const tz = (tournament as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
+
   const tournamentUrl = `${EMAIL_PUBLIC_URL}/tournaments/${tournament.id}`;
   const detailLines: string[] = [];
   if (tournament.start_date) {
-    detailLines.push(`When: ${formatDateLabel(tournament.start_date) ?? tournament.start_date}${tournament.start_time ? ` · ${formatTimeLabel(tournament.start_time)}` : ""}`);
+    detailLines.push(`When: ${formatDateLabel(tournament.start_date, tz) ?? tournament.start_date}${tournament.start_time ? ` · ${formatTimeLabel(tournament.start_time, tz)}` : ""}`);
   }
   if (tournament.location) detailLines.push(`Where: ${tournament.location}`);
   detailLines.push(
     `Format: ${FORMAT_LABELS[tournament.format] ?? tournament.format} · ${TYPE_LABELS[tournament.type] ?? tournament.type}`
   );
   if (divisionLabels.length > 0) detailLines.push(`Divisions: ${divisionLabels.join(", ")}`);
-  const regOpens = formatDateTimeLabel(tournament.registration_opens_at);
-  const regCloses = formatDateTimeLabel(tournament.registration_closes_at);
+  const regOpens = formatDateTimeLabel(tournament.registration_opens_at, tz);
+  const regCloses = formatDateTimeLabel(tournament.registration_closes_at, tz);
   if (regOpens || regCloses) {
     detailLines.push(
       `Registration: ${[regOpens ? `opens ${regOpens}` : null, regCloses ? `closes ${regCloses}` : null].filter(Boolean).join(" · ")}`
@@ -246,14 +239,14 @@ export async function POST(
     tournamentTitle: tournament.title,
     tournamentId: tournament.id,
     tournamentLogoUrl: tournament.logo_url ?? null,
-    startDateLabel: formatDateLabel(tournament.start_date),
-    startTimeLabel: formatTimeLabel(tournament.start_time),
+    startDateLabel: formatDateLabel(tournament.start_date, tz),
+    startTimeLabel: formatTimeLabel(tournament.start_time, tz),
     location: tournament.location,
     formatLabel: FORMAT_LABELS[tournament.format] ?? tournament.format,
     typeLabel: TYPE_LABELS[tournament.type] ?? tournament.type,
     divisionLabels,
-    registrationOpensLabel: formatDateTimeLabel(tournament.registration_opens_at),
-    registrationClosesLabel: formatDateTimeLabel(tournament.registration_closes_at),
+    registrationOpensLabel: formatDateTimeLabel(tournament.registration_opens_at, tz),
+    registrationClosesLabel: formatDateTimeLabel(tournament.registration_closes_at, tz),
     entryFee: tournament.entry_fee ?? null,
     paymentOptions: tournament.payment_options ?? [],
     // Picked up by sendEmail() and forwarded to Resend's `text` field.

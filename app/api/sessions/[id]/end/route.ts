@@ -2,7 +2,7 @@ import { requireAuth, isGroupAdmin } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { recomputeSessionStats } from "@/lib/session-recompute";
 import { NextRequest, NextResponse } from "next/server";
-import { formatDate } from "@/lib/utils";
+import { formatDateInZone, DEFAULT_TZ } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -27,7 +27,7 @@ export async function POST(
   // Fetch session with group and sheet info
   const { data: session } = await auth.supabase
     .from("shootout_sessions")
-    .select("*, group:shootout_groups(id, name, ladder_type), sheet:signup_sheets(event_date, location)")
+    .select("*, group:shootout_groups(id, name, ladder_type), sheet:signup_sheets(event_date, location, timezone)")
     .eq("id", sessionId)
     .single();
 
@@ -187,7 +187,11 @@ async function sendRecapNotifications(
   }
 
   const groupName = session.group?.name ?? "Session";
-  const eventDate = session.sheet?.event_date ? formatDate(session.sheet.event_date) : null;
+  const sheetTz =
+    (session.sheet as { timezone?: string | null } | null)?.timezone ?? DEFAULT_TZ;
+  const eventDate = session.sheet?.event_date
+    ? formatDateInZone(session.sheet.event_date, sheetTz)
+    : null;
 
   const ordinal = (n: number) => {
     const s = ["th", "st", "nd", "rd"];

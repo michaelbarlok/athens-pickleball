@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { formatDate, isTestUser } from "@/lib/utils";
+import { formatDateInZone, DEFAULT_TZ, isTestUser } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -35,7 +35,7 @@ export async function POST(
     // Get the sheet and its group
     const { data: sheet } = await admin
       .from("signup_sheets")
-      .select("group_id, event_date, group:shootout_groups(name)")
+      .select("group_id, event_date, timezone, group:shootout_groups(name)")
       .eq("id", sheetId)
       .single();
 
@@ -45,6 +45,8 @@ export async function POST(
 
     const groupName = (sheet as any)?.group?.name ?? "the group";
     const eventDate = sheet.event_date ?? "";
+    const sheetTz =
+      (sheet as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
 
     // Get all group admins (group_role = 'admin') and global admins
     const { data: groupAdminMemberships } = await admin
@@ -124,7 +126,7 @@ export async function POST(
         senderName: senderProfile.display_name,
         groupName,
         eventDate: eventDate
-          ? formatDate(eventDate)
+          ? formatDateInZone(eventDate, sheetTz)
           : "upcoming date",
         message,
         sheetUrl,

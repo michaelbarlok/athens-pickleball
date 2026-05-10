@@ -1,23 +1,28 @@
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
-import { formatDate } from "@/lib/utils";
+import { formatDateInZone, DEFAULT_TZ } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
   eventDate?: string;
   changes?: string;
   sheetId?: string;
+  /** IANA timezone of the sheet's group. Defaults to ET if the
+   *  caller didn't pass one (every existing sheet was created in
+   *  ET pre-multitenant). */
+  tz?: string;
 }
 
-export default function SheetUpdated({ groupName, eventDate, changes, sheetId }: Props) {
+export default function SheetUpdated({ groupName, eventDate, changes, sheetId, tz }: Props) {
   const appUrl = EMAIL_PUBLIC_URL;
+  const zone = tz ?? DEFAULT_TZ;
 
   return (
     <BaseEmail preview="Event details updated" heading="Event Updated">
       <Text style={{ color: "#374151", fontSize: "14px", lineHeight: "24px" }}>
         The {groupName ?? "pickleball"} event on{" "}
-        {eventDate ? formatDate(eventDate) : "the scheduled date"} has been updated.
+        {eventDate ? formatDateInZone(eventDate, zone) : "the scheduled date"} has been updated.
       </Text>
       {changes && (
         <Text style={{ color: "#6b7280", fontSize: "14px" }}>

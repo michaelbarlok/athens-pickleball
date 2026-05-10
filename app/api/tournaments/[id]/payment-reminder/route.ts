@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isTestUser } from "@/lib/utils";
-import { formatDate } from "@/lib/utils";
+import { formatDateInZone, DEFAULT_TZ } from "@/lib/utils";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -19,7 +19,7 @@ export async function POST(
     // Get tournament with payment info
     const { data: tournament } = await admin
       .from("tournaments")
-      .select("title, start_date, entry_fee, payment_options, payment_link, payment_directions, created_by")
+      .select("title, start_date, entry_fee, payment_options, payment_link, payment_directions, created_by, timezone")
       .eq("id", tournamentId)
       .single();
 
@@ -89,7 +89,10 @@ export async function POST(
         react: emailComponent({
           playerName: player.display_name ?? "Player",
           tournamentName: tournament.title,
-          tournamentDate: formatDate(tournament.start_date),
+          tournamentDate: formatDateInZone(
+            tournament.start_date,
+            (tournament as { timezone?: string | null }).timezone ?? DEFAULT_TZ
+          ),
           entryFee: tournament.entry_fee,
           paymentOptions,
           paymentLink,
