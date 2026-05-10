@@ -4,6 +4,52 @@ import { US_STATES } from "@/lib/us-states";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageHeader } from "@/components/page-header";
 import { GroupsTable, type GroupRow } from "./groups-table";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Lower-snake-case slug from a free-text group name. Strips anything
+ * outside [a-z0-9 -], collapses whitespace to single dashes, then
+ * collapses runs of dashes. Pure derivation — collision-free uniqueness
+ * is the resolveUniqueSlug helper's job.
+ */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Walk slug, slug-2, slug-3, ... until we find one that no other
+ * shootout_groups row owns. Stops at 100 to avoid pathological loops
+ * — if we ever hit that, something else is wrong upstream.
+ *
+ * `excludeId` lets the rename path keep its own slug if the new name
+ * happens to derive to it.
+ */
+async function resolveUniqueSlug(
+  supabase: SupabaseClient,
+  base: string,
+  excludeId?: string
+): Promise<string> {
+  for (let i = 1; i <= 100; i++) {
+    const candidate = i === 1 ? base : `${base}-${i}`;
+    const query = supabase
+      .from("shootout_groups")
+      .select("id", { head: true, count: "exact" })
+      .eq("slug", candidate);
+    const { count } = excludeId
+      ? await query.neq("id", excludeId)
+      : await query;
+    if ((count ?? 0) === 0) return candidate;
+  }
+  // Defensive fallback — append a short random suffix so the insert
+  // can't fail with a duplicate-key error even in worst case.
+  return `${base}-${Math.random().toString(36).slice(2, 6)}`;
+}
 
 export default async function AdminGroupsPage() {
   const supabase = await createClient();
@@ -41,14 +87,11 @@ export default async function AdminGroupsPage() {
     const state = (formData.get("state") as string)?.trim() || null;
     if (!name?.trim()) return;
 
-    const slug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
+    const baseSlug = slugify(name);
+    if (!baseSlug) return;
 
     const supabase = await createClient();
+    const slug = await resolveUniqueSlug(supabase, baseSlug);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -133,14 +176,11 @@ export default async function AdminGroupsPage() {
     const newName = formData.get("newName") as string;
     if (!newName?.trim()) return;
 
-    const newSlug = newName
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
+    const baseSlug = slugify(newName);
+    if (!baseSlug) return;
 
     const supabase = await createClient();
+    const newSlug = await resolveUniqueSlug(supabase, baseSlug, groupId);
     await supabase
       .from("shootout_groups")
       .update({ name: newName.trim(), slug: newSlug })
@@ -176,6 +216,10 @@ export default async function AdminGroupsPage() {
               Create Group
             </button>
           </div>
+          <p className="text-xs text-surface-muted">
+            URL slug is auto-generated from the name. If a group already owns that
+            slug, we&apos;ll append a number (e.g. <code className="text-dark-200">monday-ladder-2</code>).
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
