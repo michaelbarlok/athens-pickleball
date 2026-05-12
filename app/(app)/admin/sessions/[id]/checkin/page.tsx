@@ -42,6 +42,7 @@ export default function CheckInPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
 
   // Guest form state
@@ -370,22 +371,34 @@ export default function CheckInPage() {
   }
 
   async function confirmAndStartSeeding() {
-    // Final gate before leaving the check-in screen. The admin is
-    // about to lock the roster and move the session into seeding,
-    // which is the point of no return for check-in edits — anyone
-    // arriving after this is a walk-in.
+    // Single confirm-and-launch step. Previously this only moved the
+    // session into the "seeding" status and the admin had to tap
+    // "Advance to Round Active" on the next screen to actually fire
+    // the per-player pushes. That second tap was redundant — the
+    // roster was already locked by the time the admin saw it — so
+    // we collapse it: confirm here, then POST /sessions/[id]/start
+    // which writes status=round_active and fans out "Head to Court N"
+    // to every checked-in player in the same beat.
     const ok = await confirm({
-      title: "Confirm roster and start the session?",
+      title: "Start the round now?",
       description:
-        "This locks in everyone who's currently checked in and moves the session to seeding. Players who arrive after this will need to be added manually as walk-ins.",
+        "Every checked-in player will be notified of their court assignment and the session goes live. Anyone arriving after this needs to be added manually as a walk-in.",
       confirmLabel: "Confirm & Start",
     });
     if (!ok) return;
 
-    await supabase
-      .from("shootout_sessions")
-      .update({ status: "seeding" })
-      .eq("id", sessionId);
+    setStarting(true);
+    setSeedError(null);
+
+    const res = await fetch(`/api/sessions/${sessionId}/start`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSeedError(data.error ?? "Failed to start the session.");
+      setStarting(false);
+      return;
+    }
 
     router.push(`/admin/sessions/${sessionId}`);
   }
@@ -534,8 +547,12 @@ export default function CheckInPage() {
           >
             {seeding ? "Seeding..." : "Seed Players"}
           </button>
-          <button onClick={confirmAndStartSeeding} className="btn-primary">
-            Confirm &amp; Start
+          <button
+            onClick={confirmAndStartSeeding}
+            className="btn-primary"
+            disabled={starting || seeding}
+          >
+            {starting ? "Starting..." : "Confirm & Start"}
           </button>
         </div>
       </div>
