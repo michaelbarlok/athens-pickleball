@@ -365,6 +365,26 @@ export default function PlayerSessionPage() {
     return Array.from(courts).sort((a, b) => a - b);
   }, [participants]);
 
+  /**
+   * True when every court has its expected game count submitted for
+   * the current round. Drives the disabled state on the "Advance to
+   * Round Complete" button — admins can't move the round forward
+   * until play is actually done. Returns true when there are no
+   * courts yet (no scoring to be done means nothing to wait for).
+   */
+  const allScoredThisRound = useMemo(() => {
+    if (!session) return false;
+    const currentRound = session.current_round || 1;
+    let expected = 0;
+    for (const court of allCourts) {
+      const count = participants.filter((p) => p.court_number === court).length;
+      expected += expectedGamesPerCourt(count);
+    }
+    if (expected === 0) return true;
+    const completed = scores.filter((s) => s.round_number === currentRound).length;
+    return completed >= expected;
+  }, [session, allCourts, participants, scores]);
+
   // First-choice map for the whole session, keyed by
   // `${round}:${court}:${gameNumber}`. Walks rounds in order so prior-
   // round counts seed the current round — keeps a player who got
@@ -480,6 +500,7 @@ export default function PlayerSessionPage() {
         <SessionAdminControls
           session={session as any}
           participants={participants as any}
+          allScored={allScoredThisRound}
           onChange={refetchAll}
         />
       )}
