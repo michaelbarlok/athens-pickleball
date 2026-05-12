@@ -1272,146 +1272,154 @@ export default function AdminSessionDetailPage() {
         </div>
       )}
 
-      {/* Participants */}
+      {/* Participants — court-grouped compact list.
+           Pre-seeding (no court_number assigned anywhere) renders a
+           single "Roster" card with one tight row per player. After
+           seeding, each court gets its own card with the players
+           grouped under it, so the spatial layout matches what's
+           actually happening at the venue. */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-dark-200">Participants</h2>
-
-        {/* Mobile: stacked card list. Shows all the data a desktop admin
-             sees, but without the horizontal scroll that was clipping
-             columns on phones. */}
-        <div className="space-y-2 sm:hidden">
-          {participants.map((p) => {
-            const ordinal = p.pool_finish != null
-              ? `${p.pool_finish}${["st", "nd", "rd"][p.pool_finish - 1] ?? "th"}`
-              : null;
-            const stepDelta =
-              p.step_after != null && p.step_before != null
-                ? p.step_after - p.step_before
-                : null;
-            const curr = p.court_number;
-            const next = p.target_court_next;
+        {(() => {
+          const anyCourt = participants.some((p) => p.court_number != null);
+          if (!anyCourt) {
+            // Roster mode — pre-seeding. Just names + check-in state.
+            const checkedIn = participants.filter((p) => p.checked_in).length;
             return (
-              <div key={p.id} className="card !p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex-1 text-sm font-medium text-dark-100">
-                    {(p as any).player?.display_name ?? "Unknown"}
+              <div className="card !p-3 space-y-1">
+                <div className="flex items-center justify-between pb-1 border-b border-surface-border/60">
+                  <h3 className="text-sm font-semibold text-dark-100">Roster</h3>
+                  <span className="text-xs text-surface-muted">
+                    {checkedIn}/{participants.length} checked in
                   </span>
-                  {p.checked_in ? (
-                    <span className="badge-green">Checked in</span>
-                  ) : (
-                    <span className="badge-gray">Not checked in</span>
-                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  <Stat label="Court" value={curr ?? "—"} />
-                  <Stat label="Finish" value={ordinal ?? "—"} />
-                  <Stat
-                    label="Step"
-                    value={
-                      p.step_after != null ? (
-                        <span className={stepDelta != null && stepDelta < 0 ? "text-teal-300 font-medium" : stepDelta != null && stepDelta > 0 ? "text-red-400 font-medium" : ""}>
-                          {p.step_before} → {p.step_after}
-                          {stepDelta != null && stepDelta < 0 && " ↑"}
-                          {stepDelta != null && stepDelta > 0 && " ↓"}
-                        </span>
-                      ) : (
-                        `${p.step_before}`
-                      )
-                    }
-                  />
-                  <Stat
-                    label="Next court"
-                    value={
-                      next == null ? (
-                        <span className="text-surface-muted">—</span>
-                      ) : curr == null || next === curr ? (
-                        <span className="text-surface-muted">→ {next}</span>
-                      ) : next < curr ? (
-                        <span className="text-teal-300 font-semibold">↑ {next}</span>
-                      ) : (
-                        <span className="text-red-400 font-semibold">↓ {next}</span>
-                      )
-                    }
-                  />
-                </div>
+                <ul className="divide-y divide-surface-border/40">
+                  {participants.map((p) => (
+                    <ParticipantRow
+                      key={p.id}
+                      participant={p}
+                      showCourtMove={false}
+                    />
+                  ))}
+                </ul>
               </div>
             );
-          })}
-        </div>
-
-        {/* Desktop: full table */}
-        <div className="hidden sm:block card overflow-x-auto p-0">
-          <table className="min-w-full divide-y divide-surface-border">
-            <thead className="bg-surface-overlay">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Player</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Checked In</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Court</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Step Before</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Step After</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Finish</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-surface-muted">Next Court</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-border bg-surface-raised">
-              {participants.map((p) => (
-                <tr key={p.id}>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-dark-100">
-                    {(p as any).player?.display_name ?? "Unknown"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    {p.checked_in ? (
-                      <span className="badge-green">Yes</span>
-                    ) : (
-                      <span className="badge-gray">No</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-dark-200">
-                    {p.court_number ?? "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-dark-200">
-                    {p.step_before}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-dark-200">
-                    {p.step_after != null ? (
-                      <span className={p.step_after < p.step_before ? "text-teal-300 font-medium" : p.step_after > p.step_before ? "text-red-400 font-medium" : ""}>
-                        {p.step_after}
-                        {p.step_after < p.step_before && " ↑"}
-                        {p.step_after > p.step_before && " ↓"}
+          }
+          // Seeded mode — group by court_number; nulls go in an
+          // "Unassigned" bucket at the bottom so they're visible
+          // (e.g. walk-ins added post-seed before re-seed).
+          const byCourt = new Map<number | null, SessionParticipant[]>();
+          for (const p of participants) {
+            const key = p.court_number ?? null;
+            const arr = byCourt.get(key) ?? [];
+            arr.push(p);
+            byCourt.set(key, arr);
+          }
+          const sortedKeys = Array.from(byCourt.keys()).sort((a, b) => {
+            if (a == null) return 1;
+            if (b == null) return -1;
+            return a - b;
+          });
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {sortedKeys.map((court) => {
+                const players = byCourt.get(court) ?? [];
+                const checkedIn = players.filter((p) => p.checked_in).length;
+                return (
+                  <div key={court ?? "unassigned"} className="card !p-3 space-y-1">
+                    <div className="flex items-center justify-between pb-1 border-b border-surface-border/60">
+                      <h3 className="text-sm font-semibold text-dark-100">
+                        {court == null ? "Unassigned" : `Court ${court}`}
+                      </h3>
+                      <span className="text-xs text-surface-muted">
+                        {checkedIn}/{players.length}
                       </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-dark-200">
-                    {p.pool_finish != null ? `${p.pool_finish}${["st","nd","rd"][p.pool_finish-1] ?? "th"}` : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-                    {(() => {
-                      const next = p.target_court_next;
-                      const curr = p.court_number;
-                      if (next == null) return <span className="text-surface-muted">—</span>;
-                      if (curr == null || next === curr) return <span className="text-surface-muted">→ {next}</span>;
-                      if (next < curr) return <span className="text-teal-300 font-semibold">↑ Court {next}</span>;
-                      return <span className="text-red-400 font-semibold">↓ Court {next}</span>;
-                    })()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                    <ul className="divide-y divide-surface-border/40">
+                      {players.map((p) => (
+                        <ParticipantRow
+                          key={p.id}
+                          participant={p}
+                          showCourtMove
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
 }
 
-/** Compact label/value pair used inside the mobile participant cards. */
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+/**
+ * One tight row inside the court-grouped participants UI. Replaces the
+ * old per-player card (which was too tall to scroll through on a phone)
+ * and the old full-width table (which clipped columns horizontally).
+ * Renders inline:
+ *   - name
+ *   - checked-in status as a tiny dot (green/gray) so the row stays
+ *     one-line on phones
+ *   - step + step delta when post-round (e.g. "5 → 4 ↑")
+ *   - pool finish (1st/2nd/...) when scored
+ *   - target_court_next arrow only when it differs from current court
+ */
+function ParticipantRow({
+  participant: p,
+  showCourtMove,
+}: {
+  participant: SessionParticipant;
+  showCourtMove: boolean;
+}) {
+  const stepDelta =
+    p.step_after != null && p.step_before != null ? p.step_after - p.step_before : null;
+  const ordinal =
+    p.pool_finish != null
+      ? `${p.pool_finish}${["st", "nd", "rd"][p.pool_finish - 1] ?? "th"}`
+      : null;
+  const curr = p.court_number;
+  const next = p.target_court_next;
+  const movesNext = showCourtMove && next != null && curr != null && next !== curr;
   return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wide text-surface-muted">{label}</p>
-      <p className="text-sm text-dark-100">{value}</p>
-    </div>
+    <li className="flex items-center gap-2 py-1.5 text-sm">
+      <span
+        aria-hidden
+        className={`h-2 w-2 rounded-full shrink-0 ${
+          p.checked_in ? "bg-teal-400" : "bg-surface-muted/40"
+        }`}
+        title={p.checked_in ? "Checked in" : "Not checked in"}
+      />
+      <span className="flex-1 truncate text-dark-100">
+        {(p as { player?: { display_name?: string } }).player?.display_name ?? "Unknown"}
+      </span>
+      {/* Step / step change. Compact: "5 → 4 ↑" when changed, "5" otherwise. */}
+      {p.step_before != null && (
+        <span className="text-xs text-surface-muted whitespace-nowrap">
+          {p.step_after != null && p.step_after !== p.step_before ? (
+            <span className={stepDelta! < 0 ? "text-teal-300 font-medium" : "text-red-400 font-medium"}>
+              {p.step_before} → {p.step_after} {stepDelta! < 0 ? "↑" : "↓"}
+            </span>
+          ) : (
+            `step ${p.step_after ?? p.step_before}`
+          )}
+        </span>
+      )}
+      {ordinal && (
+        <span className="text-xs text-surface-muted whitespace-nowrap">{ordinal}</span>
+      )}
+      {movesNext && (
+        <span
+          className={`text-xs whitespace-nowrap font-semibold ${
+            next! < curr! ? "text-teal-300" : "text-red-400"
+          }`}
+        >
+          {next! < curr! ? "↑" : "↓"} {next}
+        </span>
+      )}
+    </li>
   );
 }
+
