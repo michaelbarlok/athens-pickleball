@@ -25,17 +25,27 @@ function useHasActivePlay(profileId: string): boolean {
   const [hasActive, setHasActive] = useState(false);
 
   const check = useCallback(async () => {
-    // Active shootout (ladder) session the viewer is checked into.
+    // Active shootout (ladder) session — two cases pulse the Play tab:
+    //   1. The viewer is checked_in AND the session is mid-flight
+    //      (any non-complete, non-created status). They're either
+    //      mid-round or waiting for the next round to start.
+    //   2. The viewer is on the roster (checked_in OR not) AND the
+    //      session has moved to status=checking_in. This catches the
+    //      "check-in is open, tap to say I'm here" case — without it
+    //      the player wouldn't see the pulse until after the admin
+    //      checked them in manually.
     const { data: shootout } = await supabase
       .from("session_participants")
-      .select("session:shootout_sessions(id, status)")
+      .select("checked_in, session:shootout_sessions(id, status)")
       .eq("player_id", profileId)
-      .eq("checked_in", true)
       .limit(10);
     if (
       (shootout ?? []).some((p: any) => {
         const s = p.session?.status;
-        return s && !["session_complete", "created"].includes(s);
+        if (!s) return false;
+        if (p.checked_in && !["session_complete", "created"].includes(s)) return true;
+        if (s === "checking_in") return true;
+        return false;
       })
     ) {
       setHasActive(true);

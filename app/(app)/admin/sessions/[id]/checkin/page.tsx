@@ -66,6 +66,38 @@ export default function CheckInPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
+  // Realtime: when a player taps "I'm here" on their phone, their
+  // session_participants row gets checked_in=true via the self-
+  // check-in endpoint. Subscribe to that table filtered by the
+  // current session so the admin's check-in screen reflects it
+  // without a manual refresh. INSERT (walk-in added from another
+  // admin's tab) and DELETE (no-show removed) are also covered.
+  useEffect(() => {
+    if (!sessionId) return;
+    const channel = supabase
+      .channel(`session-participants-${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "session_participants",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => {
+          // Cheap path: refetch everything. The participant set is
+          // bounded by sheet capacity (typically <30) so the cost
+          // is negligible relative to the realtime cadence.
+          fetchData();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, supabase]);
+
   async function fetchData() {
     // Fetch session
     const { data: sess } = await supabase
