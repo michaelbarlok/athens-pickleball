@@ -159,6 +159,22 @@ export default function CheckInPage() {
         };
       });
 
+      // Sort by (court ASC, step ASC, win_pct DESC) so the table reads
+      // top-to-bottom in seeded order — Court 1 first with the lowest-
+      // step / highest-pct player at the top, then down the ladder.
+      // The post-seed setParticipants in seedPlayers does the same
+      // thing locally, but the realtime subscription refetches via
+      // this function on any participant change and would otherwise
+      // restore the unsorted DB order (court_number ASC only) right
+      // after seeding lands. nulls (unassigned) sink to the bottom.
+      rows.sort((a, b) => {
+        const aCourt = a.court_number ?? 999;
+        const bCourt = b.court_number ?? 999;
+        if (aCourt !== bCourt) return aCourt - bCourt;
+        if (a.current_step !== b.current_step) return a.current_step - b.current_step;
+        return b.win_pct - a.win_pct;
+      });
+
       setParticipants(rows);
     }
     setLoading(false);
