@@ -730,25 +730,120 @@ export default function CheckInPage() {
       )}
 
       {/* Court Distribution Preview */}
-      {checkedInCount > 0 && (
-        <div className="card">
-          <h3 className="text-sm font-semibold text-dark-200 mb-2">Court Distribution</h3>
-          <div className="flex gap-3 flex-wrap">
-            {(() => {
-              try {
-                const courts = distributeCourts(checkedInCount, session.num_courts);
-                return courts.map((c) => (
-                  <span key={c.court} className="badge-blue">
-                    Court {c.court}: {c.size} players
-                  </span>
-                ));
-              } catch {
-                return <span className="text-sm text-red-400">Cannot distribute {checkedInCount} players across {session.num_courts} courts (need 4-5 per court)</span>;
-              }
-            })()}
+      {checkedInCount > 0 && (() => {
+        // Valid court counts for the current checked-in roster — each
+        // court has to hold 4-5 players, so for N checked-in the
+        // candidates are floor(N/5) ... floor(N/4) (with both bounds
+        // included). 20 players → 4 or 5 courts; 21 → 5 only (≥21
+        // can't fit in 4 courts at 5 each).
+        const candidates: number[] = [];
+        for (let c = Math.max(1, Math.floor(checkedInCount / 5)); c <= Math.floor(checkedInCount / 4); c++) {
+          const per = checkedInCount / c;
+          if (per >= 4 && per <= 5) candidates.push(c);
+        }
+        const currentNum = session.num_courts as number;
+        const isValid = candidates.includes(currentNum);
+        // Suggested = the candidate closest to current. Ties prefer
+        // FEWER courts so a session that lost a player consolidates
+        // rather than spreading thinner.
+        const suggested = candidates.length > 0
+          ? candidates.reduce((best, c) =>
+              Math.abs(c - currentNum) < Math.abs(best - currentNum) ? c : best,
+              candidates[0])
+          : null;
+
+        async function setCourts(n: number) {
+          if (n === session.num_courts) return;
+          setSession({ ...session, num_courts: n });
+          await supabase
+            .from("shootout_sessions")
+            .update({ num_courts: n })
+            .eq("id", sessionId);
+        }
+
+        return (
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-sm font-semibold text-dark-200">Court Distribution</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-surface-muted">Courts:</span>
+                <button
+                  type="button"
+                  onClick={() => setCourts(currentNum - 1)}
+                  disabled={!candidates.length || currentNum <= Math.min(...candidates)}
+                  className="rounded-md border border-surface-border bg-surface-overlay px-2 py-1 text-sm font-semibold text-dark-100 disabled:opacity-40"
+                  aria-label="Decrease courts"
+                >
+                  −
+                </button>
+                <span className="min-w-[2ch] text-center text-base font-semibold text-dark-100">
+                  {currentNum}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCourts(currentNum + 1)}
+                  disabled={!candidates.length || currentNum >= Math.max(...candidates)}
+                  className="rounded-md border border-surface-border bg-surface-overlay px-2 py-1 text-sm font-semibold text-dark-100 disabled:opacity-40"
+                  aria-label="Increase courts"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Suggestion banner. Two flavors:
+                  - Current num_courts is INVALID for the checked-in
+                    count (e.g. set to 5 but only 16 checked in). Red
+                    danger styling; admin can't seed until they fix.
+                  - Current is VALID but not the closest match (e.g.
+                    set to 5 with 20 checked in — 4 fits cleaner).
+                    Amber heads-up with a one-tap Apply button. */}
+            {!isValid && suggested != null && (
+              <div className="rounded-md border border-red-900/40 bg-red-500/10 px-3 py-2 text-xs text-red-300 flex items-center justify-between gap-2">
+                <span>
+                  {currentNum} courts can&apos;t fit {checkedInCount} checked-in players (need 4–5 per court).
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCourts(suggested)}
+                  className="btn-secondary text-xs whitespace-nowrap"
+                >
+                  Use {suggested} {suggested === 1 ? "court" : "courts"}
+                </button>
+              </div>
+            )}
+            {isValid && suggested != null && suggested !== currentNum && (
+              <div className="rounded-md border border-amber-900/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-300 flex items-center justify-between gap-2">
+                <span>
+                  With {checkedInCount} checked in, {suggested} {suggested === 1 ? "court" : "courts"} fits more evenly.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCourts(suggested)}
+                  className="btn-secondary text-xs whitespace-nowrap"
+                >
+                  Switch to {suggested}
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-3 flex-wrap">
+              {(() => {
+                try {
+                  const courts = distributeCourts(checkedInCount, currentNum);
+                  return courts.map((c) => (
+                    <span key={c.court} className="badge-blue">
+                      Court {c.court}: {c.size} players
+                    </span>
+                  ));
+                } catch {
+                  return <span className="text-sm text-red-400">Cannot distribute {checkedInCount} players across {currentNum} courts (need 4-5 per court)</span>;
+                }
+              })()}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {seedError && (
         <div className="alert-danger p-4 text-sm">
