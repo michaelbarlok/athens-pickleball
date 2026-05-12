@@ -6,6 +6,7 @@ import { runWithdrawReminders } from "@/lib/cron-jobs/withdraw-reminders";
 import { runStartReminders } from "@/lib/cron-jobs/start-reminders";
 import { runTournamentRegistrationWindows } from "@/lib/cron-jobs/tournament-registration-windows";
 import { runBackfillGeocodes } from "@/lib/cron-jobs/backfill-geocodes";
+import { runAutoCompleteIdleSessions } from "@/lib/cron-jobs/auto-complete-idle-sessions";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -34,13 +35,15 @@ export async function GET(request: NextRequest) {
   const authError = verifyCronSecret(request);
   if (authError) return authError;
 
-  const [signup, withdraw, start, windows, geocodes] = await Promise.allSettled([
-    runSignupReminders(),
-    runWithdrawReminders(),
-    runStartReminders(),
-    runTournamentRegistrationWindows(),
-    runBackfillGeocodes(),
-  ]);
+  const [signup, withdraw, start, windows, geocodes, autoComplete] =
+    await Promise.allSettled([
+      runSignupReminders(),
+      runWithdrawReminders(),
+      runStartReminders(),
+      runTournamentRegistrationWindows(),
+      runBackfillGeocodes(),
+      runAutoCompleteIdleSessions(),
+    ]);
 
   return NextResponse.json({
     signup_reminders: settle(signup),
@@ -48,6 +51,7 @@ export async function GET(request: NextRequest) {
     start_reminders: settle(start),
     tournament_registration_windows: settle(windows),
     backfill_geocodes: settle(geocodes),
+    auto_complete_idle_sessions: settle(autoComplete),
   });
 }
 
