@@ -182,7 +182,12 @@ export default function CheckInPage() {
       return;
     }
 
-    // Confirm before removing no-show players
+    // Confirm before seeding. Two flavors:
+    //   - With no-shows: name them and warn they'll be removed
+    //     (danger variant — destructive, can't be undone).
+    //   - Without no-shows: lighter sanity check; reminds the admin
+    //     that anyone who checks in after this point has to be added
+    //     as a walk-in.
     if (unchecked.length > 0) {
       const names = unchecked.map((p) => p.display_name).join(", ");
       const ok = await confirm({
@@ -190,6 +195,17 @@ export default function CheckInPage() {
         description: `${names} ${unchecked.length > 1 ? "are" : "is"} not checked in and will be removed from this session. This cannot be undone.`,
         confirmLabel: "Remove & Seed",
         variant: "danger",
+      });
+      if (!ok) {
+        setSeeding(false);
+        return;
+      }
+    } else {
+      const ok = await confirm({
+        title: "Seed courts now?",
+        description:
+          "Seeding locks in who's playing. Anyone who hasn't checked in will need to be added manually as a walk-in.",
+        confirmLabel: "Seed Courts",
       });
       if (!ok) {
         setSeeding(false);
