@@ -164,10 +164,27 @@ export default function NewSheetFromSheetsPage() {
       let groups: ShootoutGroup[] = [];
 
       if (profile.role === "admin") {
-        // Global admins can create sheets for any active group
+        // Global admins still must be a MEMBER of the group to create
+        // a sheet for it via this form. Lets a site admin who's also a
+        // ladder player see exactly the groups they actually run, and
+        // keeps the dropdown from listing every group on the platform
+        // once we have many. To create a sheet for a group they're
+        // not in, the admin can join the group first.
+        const { data: memberships } = await supabase
+          .from("group_memberships")
+          .select("group_id")
+          .eq("player_id", profile.id);
+
+        const memberGroupIds = (memberships ?? []).map((m) => m.group_id);
+        if (memberGroupIds.length === 0) {
+          router.push("/sheets");
+          return;
+        }
+
         const { data } = await supabase
           .from("shootout_groups")
           .select("*")
+          .in("id", memberGroupIds)
           .eq("is_active", true)
           .order("name", { ascending: true });
         groups = data ?? [];
@@ -284,20 +301,27 @@ export default function NewSheetFromSheetsPage() {
         return;
       }
 
-      // Verify user is admin of the selected group
-      if (profile.role !== "admin") {
-        const { data: membership } = await supabase
-          .from("group_memberships")
-          .select("group_role")
-          .eq("group_id", groupId)
-          .eq("player_id", profile.id)
-          .maybeSingle();
+      // Verify user belongs to the selected group. Site admins must
+      // also be members — matches the dropdown-gating rule and prevents
+      // an admin from posting against /sheets/new for a group they
+      // don't actually run. Non-site-admins additionally need the
+      // group-admin role.
+      const { data: membership } = await supabase
+        .from("group_memberships")
+        .select("group_role")
+        .eq("group_id", groupId)
+        .eq("player_id", profile.id)
+        .maybeSingle();
 
-        if (membership?.group_role !== "admin") {
-          setError("You are not an admin of the selected group.");
-          setSaving(false);
-          return;
-        }
+      if (!membership) {
+        setError("You are not a member of the selected group.");
+        setSaving(false);
+        return;
+      }
+      if (profile.role !== "admin" && membership.group_role !== "admin") {
+        setError("You are not an admin of the selected group.");
+        setSaving(false);
+        return;
       }
 
       const { data: sheet, error: insertError } = await supabase
