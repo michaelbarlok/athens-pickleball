@@ -42,6 +42,7 @@ export default function CheckInPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
 
   // Guest form state
@@ -370,10 +371,34 @@ export default function CheckInPage() {
   }
 
   async function confirmAndStartSeeding() {
-    await supabase
-      .from("shootout_sessions")
-      .update({ status: "seeding" })
-      .eq("id", sessionId);
+    // Single confirm-and-launch step. Previously this only moved the
+    // session into the "seeding" status and the admin had to tap
+    // "Advance to Round Active" on the next screen to actually fire
+    // the per-player pushes. That second tap was redundant — the
+    // roster was already locked by the time the admin saw it — so
+    // we collapse it: confirm here, then POST /sessions/[id]/start
+    // which writes status=round_active and fans out "Head to Court N"
+    // to every checked-in player in the same beat.
+    const ok = await confirm({
+      title: "Start the round now?",
+      description:
+        "Every checked-in player will be notified of their court assignment and the session goes live. Anyone arriving after this needs to be added manually as a walk-in.",
+      confirmLabel: "Confirm & Start",
+    });
+    if (!ok) return;
+
+    setStarting(true);
+    setSeedError(null);
+
+    const res = await fetch(`/api/sessions/${sessionId}/start`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSeedError(data.error ?? "Failed to start the session.");
+      setStarting(false);
+      return;
+    }
 
     router.push(`/admin/sessions/${sessionId}`);
   }
@@ -522,8 +547,12 @@ export default function CheckInPage() {
           >
             {seeding ? "Seeding..." : "Seed Players"}
           </button>
-          <button onClick={confirmAndStartSeeding} className="btn-primary">
-            Confirm &amp; Start
+          <button
+            onClick={confirmAndStartSeeding}
+            className="btn-primary"
+            disabled={starting || seeding}
+          >
+            {starting ? "Starting..." : "Confirm & Start"}
           </button>
         </div>
       </div>

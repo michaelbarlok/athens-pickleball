@@ -18,16 +18,27 @@ interface MembershipInfo {
   groupRole: string;
 }
 
+interface DuplicateGroup {
+  /** "<lower-first> <lower-last>" — the bucket key. */
+  key: string;
+  /** Two or more profiles that share the normalized name. */
+  profiles: Profile[];
+}
+
 interface MembersTableProps {
   profiles: Profile[];
   membershipMap: Record<string, MembershipInfo[]>;
   currentProfileId: string;
+  /** Profiles bucketed by lowercased first+last name where the bucket
+   *  has 2+ members. Computed server-side so the page renders the
+   *  warning banner without an extra round trip. */
+  duplicateGroups?: DuplicateGroup[];
 }
 
 type StatusFilter = "all" | "active" | "inactive";
 type RoleFilter = "all" | "admin" | "player";
 
-export function MembersTable({ profiles, membershipMap, currentProfileId }: MembersTableProps) {
+export function MembersTable({ profiles, membershipMap, currentProfileId, duplicateGroups = [] }: MembersTableProps) {
   const { supabase } = useSupabase();
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -679,6 +690,62 @@ export function MembersTable({ profiles, membershipMap, currentProfileId }: Memb
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Possible duplicate accounts — buckets of profiles that share
+           a normalized first+last name. Click "Merge" on a row to pre-
+           fill the modal with both profiles (older one as primary so
+           the more-established stats survive); the admin can still
+           flip primary/secondary inside the modal before confirming. */}
+      {duplicateGroups.length > 0 && !mergeOpen && (
+        <div className="card border border-amber-900/40 bg-amber-500/5 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="badge-yellow text-[10px]">Possible duplicates</span>
+            <p className="text-xs text-surface-muted">
+              {duplicateGroups.length} {duplicateGroups.length === 1 ? "name" : "names"} match across{" "}
+              {duplicateGroups.reduce((n, g) => n + g.profiles.length, 0)} accounts.
+            </p>
+          </div>
+          <ul className="divide-y divide-surface-border/50">
+            {duplicateGroups.slice(0, 10).map((group) => {
+              // Older account becomes the merge primary by default —
+              // its stats survive the merge per the API contract. Admin
+              // can flip the assignment inside the modal.
+              const sorted = [...group.profiles].sort(
+                (a, b) => +new Date(a.member_since) - +new Date(b.member_since)
+              );
+              const [older, newer] = sorted;
+              return (
+                <li key={group.key} className="flex items-center gap-3 py-2 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-dark-100 capitalize">{group.key}</p>
+                    <p className="text-surface-muted truncate">
+                      {sorted.map((p) => p.email).join(" · ")}
+                    </p>
+                  </div>
+                  {group.profiles.length === 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMergePrimary(older);
+                        setMergeSecondary(newer);
+                        setMergeOpen(true);
+                      }}
+                      className="btn-secondary text-xs whitespace-nowrap"
+                    >
+                      Merge…
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {duplicateGroups.length > 10 && (
+            <p className="text-xs text-surface-muted">
+              Showing 10 of {duplicateGroups.length}. Resolve these and the next batch surfaces.
+            </p>
+          )}
         </div>
       )}
 

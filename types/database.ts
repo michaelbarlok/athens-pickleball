@@ -392,6 +392,10 @@ export interface Tournament {
   start_date: string;
   end_date: string;
   start_time?: string | null;
+  /** IANA timezone for rendering start_time + start_date in emails
+   *  and notifications. Defaults to America/New_York for tournaments
+   *  created before migration 114. */
+  timezone?: string | null;
   location: string;
   player_cap?: number | null;
   max_teams_per_division?: number | null;
