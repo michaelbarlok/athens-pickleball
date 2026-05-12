@@ -225,6 +225,33 @@ export default function AdminSessionDetailPage() {
     }
   }
 
+  /**
+   * One-tap action that combines the old "Advance to Check-In" status
+   * flip with the "Start Check-In" navigation. Previously these were
+   * two buttons sitting side by side which produced confusion: one
+   * changed the database (players' "I'm here" became available), the
+   * other just navigated the admin to the management screen. Now a
+   * single button flips status → checking_in AND opens the check-in
+   * page in the same tap.
+   */
+  async function openCheckIn() {
+    if (!session) return;
+    setUpdating(true);
+    setAdvanceError(null);
+
+    const { error } = await supabase
+      .from("shootout_sessions")
+      .update({ status: "checking_in" })
+      .eq("id", id);
+    if (error) {
+      setAdvanceError(error.message);
+      setUpdating(false);
+      return;
+    }
+
+    router.push(`/admin/sessions/${id}/checkin`);
+  }
+
   async function advanceStatus() {
     if (!session) return;
     const currentIdx = LIFECYCLE_ORDER.indexOf(session.status as typeof LIFECYCLE_ORDER[number]);
@@ -781,9 +808,13 @@ export default function AdminSessionDetailPage() {
         <h2 className="text-sm font-semibold text-dark-200 mb-4">Actions</h2>
         <div className="flex flex-wrap gap-3">
           {session.status === "created" && (
-            <Link href={`/admin/sessions/${id}/checkin`} className="btn-primary">
-              Start Check-In
-            </Link>
+            <button
+              onClick={openCheckIn}
+              className="btn-primary"
+              disabled={updating}
+            >
+              {updating ? "Opening..." : "Open Check-In"}
+            </button>
           )}
           {session.status === "checking_in" && (
             <Link href={`/admin/sessions/${id}/checkin`} className="btn-primary">
@@ -794,13 +825,13 @@ export default function AdminSessionDetailPage() {
             <span className="text-sm text-surface-muted">
               See next-session preview below ↓
             </span>
-          ) : session.status !== "session_complete" ? (
+          ) : session.status !== "session_complete" && session.status !== "created" ? (
             <button onClick={advanceStatus} className="btn-secondary" disabled={updating}>
               {updating ? "Updating..." : `Advance to ${STATUS_LABELS[LIFECYCLE_ORDER[currentIdx + 1]] ?? "—"}`}
             </button>
-          ) : (
+          ) : session.status === "session_complete" ? (
             <span className="badge-green text-sm">Session Complete</span>
-          )}
+          ) : null}
           <FormError message={advanceError} />
           <button
             onClick={deleteSession}

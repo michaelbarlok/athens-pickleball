@@ -122,6 +122,11 @@ export default function PlayerSessionPage() {
   const [myCourt, setMyCourt] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  // "I'm here" self-check-in state. checkingIn debounces the button
+  // press; checkInError surfaces any backend rejection (e.g. status
+  // changed mid-tap, not on the roster).
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
 
   // Inline score editing (admins only)
   const [editingScoreId, setEditingScoreId] = useState<string | null>(null);
@@ -928,9 +933,75 @@ export default function PlayerSessionPage() {
       {session.status === "created" && (
         <EmptyState title="Session hasn't started yet" description="Check-in will open soon." />
       )}
-      {session.status === "checking_in" && !myCourt && (
-        <EmptyState title="Check-in is open" description="Please check in with the session organizer." />
-      )}
+      {session.status === "checking_in" && !myCourt && (() => {
+        // Three states for the checking_in screen:
+        //   1. Viewer is on the roster + already checked in → confirmation card.
+        //   2. Viewer is on the roster + not yet checked in → "I'm here" button.
+        //   3. Viewer is NOT on the roster → original "see the organizer"
+        //      empty state (covers walk-ins, observers, etc.).
+        const me = participants.find((p) => p.player_id === myPlayerId);
+        if (!me) {
+          return (
+            <EmptyState
+              title="Check-in is open"
+              description="You aren't on the roster for this session. Please check in with the session organizer."
+            />
+          );
+        }
+        if (me.checked_in) {
+          return (
+            <div className="card border border-teal-500/40 bg-teal-500/5 space-y-1">
+              <p className="text-sm font-semibold text-teal-300">You&apos;re checked in ✓</p>
+              <p className="text-xs text-surface-muted">
+                The organizer will assign courts shortly. Your court will appear here.
+              </p>
+            </div>
+          );
+        }
+        async function checkInSelf() {
+          setCheckingIn(true);
+          setCheckInError(null);
+          const res = await fetch(`/api/sessions/${sessionId}/self-check-in`, {
+            method: "POST",
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            setCheckInError(data.error ?? "Check-in failed. Try again.");
+            setCheckingIn(false);
+            return;
+          }
+          // Optimistically flip the local row so the UI updates
+          // before the realtime push catches up; reconciles on
+          // the next refresh either way.
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.player_id === myPlayerId ? { ...p, checked_in: true } : p
+            )
+          );
+          setCheckingIn(false);
+        }
+        return (
+          <div className="card space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-dark-100">Check in for this session</p>
+              <p className="text-xs text-surface-muted mt-0.5">
+                Tap below when you&apos;re at the courts. Your name shows up green on the organizer&apos;s check-in list.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={checkInSelf}
+              disabled={checkingIn}
+              className="btn-primary w-full sm:w-auto"
+            >
+              {checkingIn ? "Checking you in…" : "I'm here"}
+            </button>
+            {checkInError && (
+              <p className="text-sm text-red-400">{checkInError}</p>
+            )}
+          </div>
+        );
+      })()}
       {session.status === "seeding" && (
         <EmptyState title="Courts are being assigned" description="Your court number will appear here shortly." />
       )}
