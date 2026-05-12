@@ -127,6 +127,14 @@ export default function PlayerSessionPage() {
   // changed mid-tap, not on the roster).
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
+  // My own session_participants row, regardless of checked_in. The
+  // main `participants` array is filtered to checked_in=true (so the
+  // live-session UI only shows people actually playing), so we need
+  // a separate fetch to know whether the VIEWER is on the roster
+  // before they've tapped "I'm here" themselves.
+  const [myParticipant, setMyParticipant] = useState<
+    { checked_in: boolean } | null | undefined
+  >(undefined);
 
   // Inline score editing (admins only)
   const [editingScoreId, setEditingScoreId] = useState<string | null>(null);
@@ -169,7 +177,23 @@ export default function PlayerSessionPage() {
       .eq("user_id", user.id)
       .single();
 
-    if (profile) setMyPlayerId(profile.id);
+    if (profile) {
+      setMyPlayerId(profile.id);
+      // Look up the viewer's own row independent of checked_in. The
+      // main participants query below is filtered to checked_in=true
+      // for live-session rendering, so it would miss the viewer until
+      // after they tap "I'm here." Three possible outcomes:
+      //   - row exists with checked_in=false → show I'm here button
+      //   - row exists with checked_in=true  → show confirmation
+      //   - row missing                       → not on the roster
+      const { data: myRow } = await supabase
+        .from("session_participants")
+        .select("checked_in")
+        .eq("session_id", sessionId)
+        .eq("player_id", profile.id)
+        .maybeSingle();
+      setMyParticipant(myRow ?? null);
+    }
 
     const { data: sess } = await supabase
       .from("shootout_sessions")
@@ -939,8 +963,13 @@ export default function PlayerSessionPage() {
         //   2. Viewer is on the roster + not yet checked in → "I'm here" button.
         //   3. Viewer is NOT on the roster → original "see the organizer"
         //      empty state (covers walk-ins, observers, etc.).
-        const me = participants.find((p) => p.player_id === myPlayerId);
-        if (!me) {
+        //
+        // Reads myParticipant — a dedicated single-row fetch — instead
+        // of `participants` because `participants` is filtered to
+        // checked_in=true for the live-session UI. Pre-check-in rosterees
+        // (the very audience this card is for) wouldn't be in there.
+        if (myParticipant === undefined) return null; // still loading
+        if (myParticipant === null) {
           return (
             <EmptyState
               title="Check-in is open"
@@ -948,7 +977,7 @@ export default function PlayerSessionPage() {
             />
           );
         }
-        if (me.checked_in) {
+        if (myParticipant.checked_in) {
           return (
             <div className="card border border-teal-500/40 bg-teal-500/5 space-y-1">
               <p className="text-sm font-semibold text-teal-300">You&apos;re checked in ✓</p>
@@ -970,9 +999,12 @@ export default function PlayerSessionPage() {
             setCheckingIn(false);
             return;
           }
-          // Optimistically flip the local row so the UI updates
-          // before the realtime push catches up; reconciles on
-          // the next refresh either way.
+          // Optimistically flip both states so the UI updates before
+          // the realtime push catches up; reconciles on the next
+          // refresh either way. myParticipant drives the card we're
+          // looking at; the participants array flip is for the rare
+          // case the viewer is somehow already in it.
+          setMyParticipant({ checked_in: true });
           setParticipants((prev) =>
             prev.map((p) =>
               p.player_id === myPlayerId ? { ...p, checked_in: true } : p
