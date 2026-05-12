@@ -26,20 +26,38 @@ export default async function ActiveSessionPage() {
 
   // 1. Active shootout session takes priority — it's usually the
   //    shorter-running event and the tab was originally built for it.
+  //    Two routing cases:
+  //      a) Viewer is already checked_in AND the session is mid-flight
+  //         (any non-complete, non-created status). Land on the live
+  //         session page so they see their court and scores.
+  //      b) Viewer is on the roster AND the session is in checking_in.
+  //         Land on the same page — the "I'm here" card lives there
+  //         and is what they need right now. Without this branch the
+  //         Play tab would fall through to "Nothing to play right now"
+  //         until an admin manually flipped them.
   const { data: participants } = await supabase
     .from("session_participants")
-    .select("session_id, session:shootout_sessions(id, status)")
+    .select("session_id, checked_in, session:shootout_sessions(id, status)")
     .eq("player_id", profile.id)
-    .eq("checked_in", true)
     .limit(10);
 
-  const active = participants?.find((p: any) => {
+  const liveActive = participants?.find((p: any) => {
     const status = p.session?.status;
-    return status && !["session_complete", "created"].includes(status);
+    return (
+      p.checked_in &&
+      status &&
+      !["session_complete", "created"].includes(status)
+    );
   });
+  if (liveActive) {
+    redirect(`/sessions/${liveActive.session_id}`);
+  }
 
-  if (active) {
-    redirect(`/sessions/${active.session_id}`);
+  const checkInOpen = participants?.find(
+    (p: any) => p.session?.status === "checking_in"
+  );
+  if (checkInOpen) {
+    redirect(`/sessions/${checkInOpen.session_id}`);
   }
 
   // 2. Active free-play session the viewer is checked into. The
