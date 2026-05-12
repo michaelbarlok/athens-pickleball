@@ -182,12 +182,7 @@ export default function CheckInPage() {
       return;
     }
 
-    // Confirm before seeding. Two flavors:
-    //   - With no-shows: name them and warn they'll be removed
-    //     (danger variant — destructive, can't be undone).
-    //   - Without no-shows: lighter sanity check; reminds the admin
-    //     that anyone who checks in after this point has to be added
-    //     as a walk-in.
+    // Confirm before removing no-show players
     if (unchecked.length > 0) {
       const names = unchecked.map((p) => p.display_name).join(", ");
       const ok = await confirm({
@@ -195,17 +190,6 @@ export default function CheckInPage() {
         description: `${names} ${unchecked.length > 1 ? "are" : "is"} not checked in and will be removed from this session. This cannot be undone.`,
         confirmLabel: "Remove & Seed",
         variant: "danger",
-      });
-      if (!ok) {
-        setSeeding(false);
-        return;
-      }
-    } else {
-      const ok = await confirm({
-        title: "Seed courts now?",
-        description:
-          "Seeding locks in who's playing. Anyone who hasn't checked in will need to be added manually as a walk-in.",
-        confirmLabel: "Seed Courts",
       });
       if (!ok) {
         setSeeding(false);
@@ -386,6 +370,18 @@ export default function CheckInPage() {
   }
 
   async function confirmAndStartSeeding() {
+    // Final gate before leaving the check-in screen. The admin is
+    // about to lock the roster and move the session into seeding,
+    // which is the point of no return for check-in edits — anyone
+    // arriving after this is a walk-in.
+    const ok = await confirm({
+      title: "Confirm roster and start the session?",
+      description:
+        "This locks in everyone who's currently checked in and moves the session to seeding. Players who arrive after this will need to be added manually as walk-ins.",
+      confirmLabel: "Confirm & Start",
+    });
+    if (!ok) return;
+
     await supabase
       .from("shootout_sessions")
       .update({ status: "seeding" })
