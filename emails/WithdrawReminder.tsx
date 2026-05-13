@@ -1,7 +1,7 @@
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
-import { formatDateInZone, formatDateTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatDateTimeInZone } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -13,7 +13,7 @@ interface Props {
 
 export default function WithdrawReminder({ groupName, eventDate, closesAt, timezone, sheetId }: Props) {
   const appUrl = EMAIL_PUBLIC_URL;
-  const tz = timezone ?? "America/New_York";
+  const tz = timezone ?? DEFAULT_TZ;
 
   return (
     <BaseEmail preview="Withdrawal window closing" heading="Withdrawal Window Closing">

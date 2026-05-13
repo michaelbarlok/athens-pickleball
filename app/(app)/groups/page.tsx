@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { GroupList, type GroupCardData } from "./group-list";
 import { WeatherBadge } from "@/components/weather-badge";
+import { DEFAULT_TZ } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 
 export default async function GroupsPage() {
@@ -68,7 +69,7 @@ export default async function GroupsPage() {
       playTimes: active.map((s) => ({
         day_of_week: s.day_of_week,
         event_time: s.event_time,
-        timezone: s.timezone ?? "America/New_York",
+        timezone: s.timezone ?? DEFAULT_TZ,
         location: s.location,
       })),
     };

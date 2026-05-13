@@ -7,6 +7,8 @@ import { useSupabase } from "@/components/providers/supabase-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ShootoutGroup, GroupRecurringSchedule } from "@/types/database";
+import { wallClockInZoneToUtc } from "@/lib/timezone";
+import { DEFAULT_TZ } from "@/lib/utils";
 
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -38,6 +40,10 @@ export default function NewSheetPage() {
   // Play times for the selected group
   const [groupSchedules, setGroupSchedules] = useState<GroupRecurringSchedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
+  // Group's IANA timezone (from its recurring schedule, falls back to ET).
+  // Drives the wall-clock-to-UTC conversion so the admin's browser zone
+  // doesn't leak into stored event_time / signup_closes_at.
+  const [groupTimezone, setGroupTimezone] = useState(DEFAULT_TZ);
 
   // Form state
   const [groupId, setGroupId] = useState("");
@@ -72,12 +78,10 @@ export default function NewSheetPage() {
   function computeCloseTime(hoursStr: string): string | null {
     if (!hoursStr || !eventDate || !eventTime) return null;
     const hours = parseInt(hoursStr, 10);
-    // Parse time components directly to avoid timezone conversion
     const [hStr, mStr] = eventTime.split(":");
     let h = parseInt(hStr, 10) - hours;
-    let m = parseInt(mStr, 10);
+    const m = parseInt(mStr, 10);
     let date = eventDate;
-    // Handle day rollback if hours go negative
     while (h < 0) {
       h += 24;
       const d = new Date(date + "T00:00:00Z");
@@ -86,8 +90,7 @@ export default function NewSheetPage() {
     }
     const hh = h.toString().padStart(2, "0");
     const mm = m.toString().padStart(2, "0");
-    // Parse as local time, then convert to UTC ISO string so Supabase stores the correct value
-    return new Date(`${date}T${hh}:${mm}:00`).toISOString();
+    return wallClockInZoneToUtc(`${date}T${hh}:${mm}:00`, groupTimezone).toISOString();
   }
 
   // Fetch play times whenever the selected group changes.
@@ -95,6 +98,7 @@ export default function NewSheetPage() {
     if (!groupId) {
       setGroupSchedules([]);
       setSelectedScheduleId("");
+      setGroupTimezone(DEFAULT_TZ);
       return;
     }
     let cancelled = false;
@@ -103,8 +107,13 @@ export default function NewSheetPage() {
         const res = await fetch(`/api/groups/${groupId}/schedule`, { cache: "no-store" });
         const json = await res.json();
         if (cancelled) return;
-        setGroupSchedules((json.schedules as GroupRecurringSchedule[]) ?? []);
+        const list = (json.schedules as GroupRecurringSchedule[]) ?? [];
+        setGroupSchedules(list);
         setSelectedScheduleId("");
+        // Default the timezone from the first play time so sign-up/withdraw
+        // cutoff math uses the group's zone even before picking a play time.
+        if (list[0]?.timezone) setGroupTimezone(list[0].timezone);
+        else setGroupTimezone(DEFAULT_TZ);
       } catch {
         if (!cancelled) setGroupSchedules([]);
       }
@@ -129,6 +138,7 @@ export default function NewSheetPage() {
     );
     setAllowMemberGuests(sched.allow_member_guests);
     setNotes(sched.notes ?? "");
+    if (sched.timezone) setGroupTimezone(sched.timezone);
   }
 
   useEffect(() => {
@@ -236,8 +246,8 @@ export default function NewSheetPage() {
         .insert({
           group_id: groupId,
           event_date: eventDate,
-          event_time: new Date(`${eventDate}T${eventTime}:00`).toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          event_time: wallClockInZoneToUtc(`${eventDate}T${eventTime}:00`, groupTimezone).toISOString(),
+          timezone: groupTimezone,
           location: location.trim(),
           player_limit: playerLimit,
           signup_closes_at: signupClosesAt,

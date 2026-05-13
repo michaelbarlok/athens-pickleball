@@ -13,7 +13,13 @@ import type {
 } from "@/types/database";
 import { fifteenMinuteSlots } from "@/lib/datetime-local";
 import { DateTimeFifteenMin } from "@/components/date-time-15";
-import { PRIORITY_ORDER } from "@/lib/utils";
+import { DEFAULT_TZ, PRIORITY_ORDER } from "@/lib/utils";
+import {
+  isoToDateInZone,
+  isoToTimeInZone,
+  isoToWallClockInZone,
+  wallClockInZoneToUtc,
+} from "@/lib/timezone";
 
 const TIME_SLOTS = fifteenMinuteSlots();
 
@@ -77,8 +83,14 @@ export default function AdminSheetDetailPage() {
       }
 
       setSheet(sheetData);
-      setEventDate(sheetData.event_date);
-      setEventTime(sheetData.event_time);
+      const sheetTz = sheetData.timezone ?? DEFAULT_TZ;
+      // Project the stored timestamptz onto wall-clock date + HH:MM in
+      // the sheet's zone, so the select can match a slot regardless of
+      // where the admin's browser is. The raw `event_date` column is
+      // a separate DATE that can drift from event_time's actual day in
+      // the sheet's zone — trust the timestamp.
+      setEventDate(isoToDateInZone(sheetData.event_time, sheetTz) || sheetData.event_date);
+      setEventTime(isoToTimeInZone(sheetData.event_time, sheetTz));
       setPlayerLimit(sheetData.player_limit);
       setLocation(sheetData.location);
 
@@ -107,16 +119,11 @@ export default function AdminSheetDetailPage() {
           .map(([name, cityState]) => ({ name, cityState }))
       );
 
-      setSignupClosesAt(
-        sheetData.signup_closes_at
-          ? sheetData.signup_closes_at.slice(0, 16)
-          : ""
-      );
-      setWithdrawClosesAt(
-        sheetData.withdraw_closes_at
-          ? sheetData.withdraw_closes_at.slice(0, 16)
-          : ""
-      );
+      // Load close timestamps as wall-clock in the sheet's zone so the
+      // <input type="datetime-local"> shows the admin the values they
+      // intended, not the UTC slice-of-ISO (off by their browser offset).
+      setSignupClosesAt(isoToWallClockInZone(sheetData.signup_closes_at, sheetTz));
+      setWithdrawClosesAt(isoToWallClockInZone(sheetData.withdraw_closes_at, sheetTz));
 
       const { data: regData } = await supabase
         .from("registrations")
@@ -152,18 +159,28 @@ export default function AdminSheetDetailPage() {
 
     setSaving(true);
     try {
+      const sheetTz = sheet.timezone ?? DEFAULT_TZ;
+      // Recombine the selected calendar date with the selected HH:MM
+      // wall-clock slot in the sheet's zone, then resolve to a UTC
+      // instant for storage. Saving the bare "HH:MM" string into a
+      // timestamptz column would have failed or coerced into junk.
+      const eventTimeUtc = eventTime
+        ? wallClockInZoneToUtc(`${eventDate}T${eventTime}:00`, sheetTz).toISOString()
+        : sheet.event_time;
       const { error: updateErr } = await supabase
         .from("signup_sheets")
         .update({
           event_date: eventDate,
-          event_time: eventTime,
+          event_time: eventTimeUtc,
           player_limit: playerLimit,
           location,
+          // The DateTimeFifteenMin component yields "YYYY-MM-DDTHH:MM" with
+          // no zone — treat it as wall-clock in the sheet's zone.
           signup_closes_at: signupClosesAt
-            ? new Date(signupClosesAt).toISOString()
+            ? wallClockInZoneToUtc(`${signupClosesAt}:00`, sheetTz).toISOString()
             : sheet.signup_closes_at,
           withdraw_closes_at: withdrawClosesAt
-            ? new Date(withdrawClosesAt).toISOString()
+            ? wallClockInZoneToUtc(`${withdrawClosesAt}:00`, sheetTz).toISOString()
             : null,
         })
         .eq("id", sheetId);

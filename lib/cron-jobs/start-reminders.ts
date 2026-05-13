@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyMany } from "@/lib/notify";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import { reminderWhenWord } from "@/lib/reminder-when";
 
 /**
@@ -41,7 +41,7 @@ export async function runStartReminders(): Promise<{ reminded: number }> {
       if (playerIds.length > 0) {
         const gName = (sheet.group as { name?: string } | null)?.name ?? "the event";
         const eventTimeStr = sheet.event_time ?? "";
-        const tz = (sheet.timezone as string) ?? "America/New_York";
+        const tz = (sheet.timezone as string) ?? DEFAULT_TZ;
         const dateDisplay = eventTimeStr ? formatDateInZone(eventTimeStr, tz) : "";
         const timeDisplay = eventTimeStr ? formatTimeInZone(eventTimeStr, tz) : "";
         const whenWord = eventTimeStr ? reminderWhenWord(eventTimeStr, tz) : "tomorrow";

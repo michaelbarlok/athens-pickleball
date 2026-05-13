@@ -1,7 +1,7 @@
 import { getTournament, getTournamentRegistrations, getTournamentMatches } from "@/lib/queries/tournament";
 import { DivisionBrackets } from "../division-brackets";
 import type { PartnerMap } from "@/components/tournament-bracket";
-import { formatDate, formatTime } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -63,8 +63,8 @@ export default async function PublicBracketPage({
         </Link>
         <h1 className="text-2xl font-bold text-dark-100">{tournament.title}</h1>
         <p className="text-sm text-surface-muted mt-1">
-          {formatDate(tournament.start_date + "T00:00:00")}
-          {tournament.start_time && <> &middot; {formatTime(tournament.start_time)}</>}
+          {formatDateInZone(tournament.start_date, tournament.timezone ?? DEFAULT_TZ)}
+          {tournament.start_time && <> &middot; {formatTimeInZone(tournament.start_time, tournament.timezone ?? DEFAULT_TZ)}</>}
           {tournament.location && <> &middot; {tournament.location}</>}
         </p>
         <p className="text-xs text-surface-muted mt-1">

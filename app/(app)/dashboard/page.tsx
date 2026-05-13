@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getBadgeStats } from "@/lib/queries/badges";
 import { groupGradient } from "@/lib/group-gradient";
 import { sheetIsExpired } from "@/lib/sheet-lifecycle";
-import { displaySessionsForGroup, isTestUser } from "@/lib/utils";
+import { DEFAULT_TZ, displaySessionsForGroup, isTestUser } from "@/lib/utils";
+import { wallClockInZoneToIso } from "@/lib/timezone";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatTime } from "@/lib/utils";
@@ -46,9 +47,9 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase.from("group_memberships").select("*, group:shootout_groups(*, group_preferences(pct_window_sessions))").eq("player_id", profile.id),
     supabase.from("signup_sheets").select("*, group:shootout_groups(name, slug, is_active, city, state)").eq("status", "open").order("event_date", { ascending: true }).limit(5),
-    supabase.from("tournament_registrations").select("tournament_id, division, status, tournament:tournaments(id, title, start_date, start_time, location, status)").eq("player_id", profile.id).neq("status", "withdrawn"),
+    supabase.from("tournament_registrations").select("tournament_id, division, status, tournament:tournaments(id, title, start_date, start_time, location, status, timezone)").eq("player_id", profile.id).neq("status", "withdrawn"),
     supabase.from("tournaments").select("id, title, start_date, start_time, location, status").eq("created_by", profile.id).not("status", "in", '("completed","cancelled")'),
-    supabase.from("tournament_organizers").select("tournament:tournaments(id, title, start_date, start_time, location, status)").eq("profile_id", profile.id),
+    supabase.from("tournament_organizers").select("tournament:tournaments(id, title, start_date, start_time, location, status, timezone)").eq("profile_id", profile.id),
     supabase.from("session_participants").select("session_id, court_number, session:shootout_sessions(id, status, num_courts, group:shootout_groups(name), sheet:signup_sheets(event_date, location))").eq("player_id", profile.id).eq("checked_in", true).limit(10),
     getBadgeStats(profile.id),
   ]);
@@ -247,12 +248,15 @@ export default async function DashboardPage() {
         r.status === "organizer" ? "organizer" :
         r.status === "confirmed" ? "upcoming" :
         "waitlist",
-      // Tournaments store start_date and start_time separately. Combine
-      // into a single ISO timestamp so the weather lookup can find the
-      // right hour. start_time is a "HH:MM:SS" string; concatenating
-      // with the date gives a date-string Postgres knows how to parse.
+      // Tournaments store start_date and start_time separately and a
+      // bare `start_time` is wall-clock in the tournament's `timezone`.
+      // Resolve to a real UTC instant for the weather lookup; otherwise
+      // a server in UTC would pick the wrong NWS hour bucket.
       eventTime: r.tournament.start_time && r.tournament.start_date
-        ? `${r.tournament.start_date}T${r.tournament.start_time}`
+        ? wallClockInZoneToIso(
+            `${r.tournament.start_date}T${r.tournament.start_time}`,
+            r.tournament.timezone ?? DEFAULT_TZ
+          )
         : null,
       location: r.tournament.location ?? null,
       // Tournaments store a single freeform `location` that organizers

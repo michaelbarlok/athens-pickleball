@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { TournamentWithCounts } from "@/lib/queries/tournament";
-import { formatDate, formatTime } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
 import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
 import { formatDistanceMi } from "@/components/find-near-me-button";
@@ -91,8 +91,8 @@ export function TournamentCard({
 
         <div className="space-y-1 text-sm text-surface-muted">
           <p>
-            {formatDate(t.start_date + "T00:00:00")}
-            {t.start_time && ` at ${formatTime(t.start_time)}`}
+            {formatDateInZone(t.start_date, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}
+            {t.start_time && ` at ${formatTimeInZone(t.start_time, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}`}
           </p>
           <p>
             {t.location}
@@ -159,6 +159,7 @@ export function TournamentCard({
             title: t.title,
             start_date: t.start_date,
             start_time: (t as any).start_time ?? null,
+            timezone: (t as { timezone?: string | null }).timezone ?? null,
             location: t.location,
             format: t.format,
             type: (t as any).type ?? "doubles",

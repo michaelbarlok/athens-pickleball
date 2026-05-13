@@ -5,7 +5,7 @@ import { HideTournamentToggle } from "./hide-toggle";
 import { DataTable, type Column } from "@/components/data-table";
 import { EmptyIllustrationTrophy } from "@/components/empty-state";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone } from "@/lib/utils";
 import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status-colors";
 
 export type TournamentRow = {
@@ -36,7 +36,10 @@ export function TournamentsTable({ tournaments }: { tournaments: TournamentRow[]
     {
       key: "date",
       header: "Date",
-      cell: (t) => (t.start_date ? formatDate(t.start_date + "T00:00:00") : "—"),
+      cell: (t) =>
+        t.start_date
+          ? formatDateInZone(t.start_date, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)
+          : "—",
       sortValue: (t) => t.start_date ?? "",
       sortable: true,
       priority: "primary",

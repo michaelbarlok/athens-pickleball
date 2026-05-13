@@ -1,7 +1,7 @@
 import { requireAuth, isGroupAdmin } from "@/lib/auth";
 import { notifyMany } from "@/lib/notify";
 import { NextResponse } from "next/server";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import type { CancellationReason } from "@/types/database";
 
 const REASON_LABELS: Record<CancellationReason, string> = {
@@ -81,7 +81,7 @@ export async function POST(
 
   if (playerIds.length > 0) {
     const groupName = sheet.group?.name ?? "Event";
-    const tz = (sheet.timezone as string | undefined) ?? "America/New_York";
+    const tz = (sheet.timezone as string | undefined) ?? DEFAULT_TZ;
     const eventDateDisplay = sheet.event_time ? formatDateInZone(sheet.event_time, tz) : "";
     const eventTimeDisplay = sheet.event_time ? formatTimeInZone(sheet.event_time, tz) : null;
 

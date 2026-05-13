@@ -23,6 +23,11 @@ interface TournamentMeta {
   title: string;
   start_date: string | null;
   start_time?: string | null;
+  /** IANA zone the tournament is scheduled in. Drives the preview's
+   *  wall-clock formatting so the organizer sees the same strings
+   *  recipients will get, regardless of where the organizer's browser
+   *  is. */
+  timezone?: string | null;
   location: string;
   format: string;
   type: string;
@@ -34,6 +39,8 @@ interface TournamentMeta {
   logo_url?: string | null;
 }
 
+const FALLBACK_TZ = "America/New_York";
+
 interface Props {
   tournament: TournamentMeta;
   className?: string;
@@ -44,11 +51,25 @@ interface Props {
 
 const MAX_CUSTOM = 1000;
 
-function formatDateLabel(iso: string | null | undefined): string | null {
+function formatDateLabel(iso: string | null | undefined, tz: string): string | null {
   if (!iso) return null;
-  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso);
+  // Bare YYYY-MM-DD: render the calendar date directly so the preview
+  // matches what a DATE column means (no zone shift).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d, 12));
+    return dt.toLocaleDateString("en-US", {
+      timeZone: "UTC",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
   return d.toLocaleDateString("en-US", {
+    timeZone: tz,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -56,11 +77,12 @@ function formatDateLabel(iso: string | null | undefined): string | null {
   });
 }
 
-function formatDateTimeLabel(iso: string | null | undefined): string | null {
+function formatDateTimeLabel(iso: string | null | undefined, tz: string): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
   return d.toLocaleString("en-US", {
+    timeZone: tz,
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -71,6 +93,9 @@ function formatDateTimeLabel(iso: string | null | undefined): string | null {
 
 function formatTimeLabel(time: string | null | undefined): string | null {
   if (!time) return null;
+  // start_time is a bare wall-clock HH:MM[:SS] in the tournament's zone,
+  // so we render it as-is. No zone conversion needed — there's no
+  // instant to project from.
   const [h, m] = time.split(":");
   const hour = parseInt(h, 10);
   if (isNaN(hour)) return null;
@@ -106,27 +131,30 @@ export function TournamentNotifyMembersButton({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const tz = tournament.timezone ?? FALLBACK_TZ;
   const baseEmailProps = useMemo(
     () => ({
       tournamentTitle: tournament.title,
       tournamentId: tournament.id,
       tournamentLogoUrl: tournament.logo_url ?? null,
-      startDateLabel: formatDateLabel(tournament.start_date),
+      startDateLabel: formatDateLabel(tournament.start_date, tz),
       startTimeLabel: formatTimeLabel(tournament.start_time),
       location: tournament.location,
       formatLabel: FORMAT_LABELS[tournament.format] ?? tournament.format,
       typeLabel: TYPE_LABELS[tournament.type] ?? tournament.type,
       divisionLabels: (tournament.divisions ?? []).map((c) => getDivisionLabel(c)),
       registrationOpensLabel: formatDateTimeLabel(
-        tournament.registration_opens_at
+        tournament.registration_opens_at,
+        tz
       ),
       registrationClosesLabel: formatDateTimeLabel(
-        tournament.registration_closes_at
+        tournament.registration_closes_at,
+        tz
       ),
       entryFee: tournament.entry_fee ?? null,
       paymentOptions: tournament.payment_options ?? [],
     }),
-    [tournament]
+    [tournament, tz]
   );
 
   // When the modal opens, grab the recipient count + cooldown state.

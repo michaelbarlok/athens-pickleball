@@ -6,7 +6,13 @@ import { useSupabase } from "@/components/providers/supabase-provider";
 import { DivisionCheckboxes } from "@/components/division-checkboxes";
 import { DivisionStartTimes } from "@/components/division-start-times";
 import { TournamentLogoUpload } from "@/components/tournament-logo-upload";
-import { fifteenMinuteSlots, isoToLocalDateTimeInput, localDateTimeToIso } from "@/lib/datetime-local";
+import { fifteenMinuteSlots } from "@/lib/datetime-local";
+import {
+  isoToWallClockInZone,
+  wallClockInZoneToIso,
+  wallClockInZoneToUtc,
+} from "@/lib/timezone";
+import { DEFAULT_TZ } from "@/lib/utils";
 import { DateTimeFifteenMin } from "@/components/date-time-15";
 import { getDivisionGender } from "@/lib/divisions";
 import { US_STATES } from "@/lib/us-states";
@@ -14,6 +20,16 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const TIME_SLOTS = fifteenMinuteSlots();
+
+const TIMEZONE_OPTIONS = [
+  { value: "America/New_York", label: "Eastern (ET)" },
+  { value: "America/Chicago", label: "Central (CT)" },
+  { value: "America/Denver", label: "Mountain (MT)" },
+  { value: "America/Phoenix", label: "Arizona (no DST)" },
+  { value: "America/Los_Angeles", label: "Pacific (PT)" },
+  { value: "America/Anchorage", label: "Alaska (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (HT)" },
+];
 
 export default function EditTournamentPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +57,7 @@ export default function EditTournamentPage() {
   const [paymentDirections, setPaymentDirections] = useState("");
   const [registrationOpensAt, setRegistrationOpensAt] = useState("");
   const [registrationClosesAt, setRegistrationClosesAt] = useState("");
+  const [timezone, setTimezone] = useState(DEFAULT_TZ);
   const [scoreToWinPool, setScoreToWinPool] = useState("11");
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
   const [finalsBestOf3, setFinalsBestOf3] = useState(false);
@@ -94,8 +111,10 @@ export default function EditTournamentPage() {
         }
         setPaymentLink((data as any).payment_link ?? "");
         setPaymentDirections((data as any).payment_directions ?? "");
-        setRegistrationOpensAt(isoToLocalDateTimeInput(data.registration_opens_at));
-        setRegistrationClosesAt(isoToLocalDateTimeInput(data.registration_closes_at));
+        const tz = (data as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
+        setTimezone(tz);
+        setRegistrationOpensAt(isoToWallClockInZone(data.registration_opens_at, tz));
+        setRegistrationClosesAt(isoToWallClockInZone(data.registration_closes_at, tz));
         setScoreToWinPool(data.score_to_win_pool?.toString() ?? "11");
         setScoreToWinPlayoff(data.score_to_win_playoff?.toString() ?? "11");
         setFinalsBestOf3(data.finals_best_of_3 ?? false);
@@ -148,17 +167,26 @@ export default function EditTournamentPage() {
     }
 
     // Cross-field date sanity — same rules as the create form.
-    const opensIso = localDateTimeToIso(registrationOpensAt);
-    const closesIso = localDateTimeToIso(registrationClosesAt);
+    // Wall-clock inputs resolve against the tournament's `timezone`
+    // so the constraint checks match what the cron will compare against.
+    const opensIso = registrationOpensAt
+      ? wallClockInZoneToIso(`${registrationOpensAt}:00`, timezone)
+      : null;
+    const closesIso = registrationClosesAt
+      ? wallClockInZoneToIso(`${registrationClosesAt}:00`, timezone)
+      : null;
     if (opensIso && closesIso && new Date(opensIso) >= new Date(closesIso)) {
       setError("Registration closes before it opens — check the dates.");
       setSubmitting(false);
       return;
     }
-    if (startDate && closesIso && new Date(closesIso) > new Date(`${startDate}T23:59`)) {
-      setError("Registration must close on or before the tournament start date.");
-      setSubmitting(false);
-      return;
+    if (startDate && closesIso) {
+      const startDayEnd = wallClockInZoneToUtc(`${startDate}T23:59:00`, timezone);
+      if (new Date(closesIso) > startDayEnd) {
+        setError("Registration must close on or before the tournament start date.");
+        setSubmitting(false);
+        return;
+      }
     }
 
     // Mixed must run at a different time than gendered divisions —
@@ -221,6 +249,7 @@ export default function EditTournamentPage() {
         payment_directions: paymentDirections.trim() || null,
         registration_opens_at: opensIso,
         registration_closes_at: closesIso,
+        timezone,
         score_to_win_pool: format === "round_robin" ? parseInt(scoreToWinPool) || 11 : null,
         score_to_win_playoff: format === "round_robin" ? parseInt(scoreToWinPlayoff) || 11 : null,
         finals_best_of_3: format === "round_robin" ? finalsBestOf3 : false,
@@ -400,6 +429,17 @@ export default function EditTournamentPage() {
                 <option key={slot.value} value={slot.value}>{slot.label}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-200 mb-1">Timezone</label>
+            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="input">
+              {TIMEZONE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-surface-muted">
+              All times entered on this form are interpreted in this zone.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-dark-200 mb-1">Location *</label>
