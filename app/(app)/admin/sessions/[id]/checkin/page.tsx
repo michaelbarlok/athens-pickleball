@@ -49,6 +49,7 @@ export default function CheckInPage() {
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestStep, setGuestStep] = useState("1");
   const [addingGuest, setAddingGuest] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
 
@@ -456,10 +457,17 @@ export default function CheckInPage() {
     setGuestError(null);
     setAddingGuest(true);
 
+    const parsedStep = Number.parseInt(guestStep, 10);
+    const stepNum = Number.isFinite(parsedStep) && parsedStep >= 1 ? parsedStep : 1;
+
     const res = await fetch(`/api/sessions/${sessionId}/add-guest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ display_name: guestName, email: guestEmail || undefined }),
+      body: JSON.stringify({
+        display_name: guestName,
+        email: guestEmail || undefined,
+        step: stepNum,
+      }),
     });
 
     const data = await res.json();
@@ -472,6 +480,7 @@ export default function CheckInPage() {
     await fetchData();
     setGuestName("");
     setGuestEmail("");
+    setGuestStep("1");
     setShowGuestForm(false);
     setAddingGuest(false);
   }
@@ -763,6 +772,20 @@ export default function CheckInPage() {
                 className="input w-full"
                 placeholder="guest@example.com"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-dark-200 mb-1">Step</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={guestStep}
+                onChange={(e) => setGuestStep(e.target.value)}
+                className="input w-full"
+              />
+              <p className="mt-1 text-[11px] text-surface-muted">
+                Where they slot in for seeding. Doesn&apos;t save to the group.
+              </p>
             </div>
           </div>
           {guestError && <p className="text-sm text-red-400">{guestError}</p>}
