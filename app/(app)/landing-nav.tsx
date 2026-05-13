@@ -46,36 +46,47 @@ export function LandingNav() {
             </Link>
           </div>
 
-          {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="btn-secondary px-4 py-2 text-sm">
+          {/* Auth CTAs — visible on every breakpoint so a returning
+              user doesn't have to crack open the hamburger to log
+              back in. On mobile the buttons get smaller padding so
+              they fit alongside the logo and the hamburger; the
+              hamburger menu below intentionally no longer duplicates
+              these links. */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <Link
+              href="/login"
+              className="btn-secondary px-3 py-1.5 text-sm md:px-4 md:py-2"
+            >
               Log In
             </Link>
-            <Link href="/register" className="btn-primary px-4 py-2 text-sm">
+            <Link
+              href="/register"
+              className="hidden sm:inline-flex btn-primary px-3 py-1.5 text-sm md:px-4 md:py-2"
+            >
               Get Started
             </Link>
-          </div>
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden flex items-center justify-center h-10 w-10 rounded-lg text-dark-200 hover:text-dark-100 hover:bg-surface-raised transition-colors"
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-            )}
-          </button>
+            {/* Mobile hamburger — Features + Contact only now. */}
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden flex items-center justify-center h-9 w-9 rounded-lg text-dark-200 hover:text-dark-100 hover:bg-surface-raised transition-colors"
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — links only; auth CTAs live in the top bar. */}
       {menuOpen && (
         <>
           {/* Backdrop */}
@@ -100,21 +111,16 @@ export function LandingNav() {
               >
                 Contact
               </Link>
-            </div>
-            <div className="border-t border-surface-border px-4 py-4 flex flex-col gap-2">
-              <Link
-                href="/login"
-                onClick={() => setMenuOpen(false)}
-                className="btn-secondary px-4 py-2.5 text-sm text-center"
-              >
-                Log In
-              </Link>
+              {/* Get Started lives here on the smallest phones (sm:hidden
+                  hides it in the top bar) so it isn't lost on a 360px
+                  screen where Logo + Log In + Get Started + hamburger
+                  would overflow. */}
               <Link
                 href="/register"
                 onClick={() => setMenuOpen(false)}
-                className="btn-primary px-4 py-2.5 text-sm text-center"
+                className="sm:hidden block rounded-lg px-3 py-2.5 text-sm font-medium text-brand-vivid hover:text-dark-100 hover:bg-surface-raised transition-colors"
               >
-                Get Started
+                Get Started →
               </Link>
             </div>
           </div>
