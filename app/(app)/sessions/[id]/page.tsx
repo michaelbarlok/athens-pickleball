@@ -505,14 +505,24 @@ export default function PlayerSessionPage() {
         />
       )}
 
-      {/* Your Court hero (only if assigned). Colors sit on top of the
-           shared surface tokens so the hero reads on both themes
-           instead of vanishing against a white background.
+      {/* Your Court hero (only if assigned AND the session is live).
+           Colors sit on top of the shared surface tokens so the hero
+           reads on both themes instead of vanishing against a white
+           background.
+
+           Court assignments are written during the admin's Seed
+           Players tap, which happens while status is still
+           "checking_in." Showing this hero in that window leaked
+           the seeding before the round had actually started — the
+           player saw their court number before being told the
+           session was live. Gating on isActive (round_active or
+           later) keeps "You're checked in ✓" as the visible state
+           until the admin taps Confirm & Start.
 
            When the session is complete, the results (finish, W-L,
            step change, next court) render INSIDE this same card at
            the top — one card is easier to read than two stacked. */}
-      {myCourt != null && (() => {
+      {myCourt != null && isActive && (() => {
         // Compute results-only pieces lazily; they're only used when
         // isComplete is true, and null-safely skip their own rows when
         // the underlying datum isn't available.
@@ -978,7 +988,7 @@ export default function PlayerSessionPage() {
       {session.status === "created" && (
         <EmptyState title="Session hasn't started yet" description="Check-in will open soon." />
       )}
-      {session.status === "checking_in" && !myCourt && (() => {
+      {session.status === "checking_in" && (() => {
         // Three states for the checking_in screen:
         //   1. Viewer is on the roster + already checked in → confirmation card.
         //   2. Viewer is on the roster + not yet checked in → "I'm here" button.
