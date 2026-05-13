@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAuth, isGroupAdmin } from "@/lib/auth";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { recomputeSessionStats } from "@/lib/session-recompute";
 import { NextRequest, NextResponse } from "next/server";
@@ -13,12 +13,19 @@ import { NextRequest, NextResponse } from "next/server";
  *    - updates win_pct (point %) in group_memberships (rolling window)
  *    - calls update_steps_on_round_complete RPC (step_after, target_court_next)
  * 3. Advances session status to round_complete
+ *
+ * Auth: this handler used to require site admin (requireAdmin). That
+ * blocked legitimate group admins from advancing their own group's
+ * rounds — they got 403 on "Advance to Round Complete" while every
+ * sibling endpoint (/start, /end) accepted them via isGroupAdmin.
+ * Now matches the sibling pattern: any authenticated user who is
+ * either site admin or admin of the session's group can call this.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const { id: sessionId } = await params;
@@ -28,13 +35,26 @@ export async function POST(
   // only need 1 (pool_number) for the coverage check below.
   const { data: session } = await auth.supabase
     .from("shootout_sessions")
-    .select("status, current_round")
+    .select("status, current_round, group_id")
     .eq("id", sessionId)
     .single();
 
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
+
+  // Group-scoped authorization. isGroupAdmin short-circuits to true
+  // for site admins, so this single check covers both roles.
+  const canManage = await isGroupAdmin(
+    auth.supabase,
+    auth.profile.id,
+    session.group_id,
+    auth.profile.role
+  );
+  if (!canManage) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   if (session.status !== "round_active") {
     return NextResponse.json(
       { error: "Session is not in round_active status" },
