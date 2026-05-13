@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/data-table";
 import { EmptyIllustrationCalendar } from "@/components/empty-state";
 import { DeleteSheetButton } from "./delete-sheet-button";
-import { sheetSignupClosed } from "@/lib/sheet-lifecycle";
+import { sheetEffectiveStatus } from "@/lib/sheet-lifecycle";
 import { formatDate } from "@/lib/utils";
 
 const statusClass: Record<string, string> = {
@@ -30,19 +30,6 @@ export type SheetRow = {
   confirmed: number;
   waitlisted: number;
 };
-
-/**
- * Raw `status` stays "open" forever unless an admin explicitly closes
- * or cancels — nothing flips it at event time. For display we compute
- * an effective status: once the event has started (via the shared
- * sheetSignupClosed helper), render "Closed" even when the column
- * still says "open". Cancelled stays cancelled.
- */
-function effectiveStatus(s: SheetRow): string {
-  if (s.status !== "open") return s.status;
-  if (sheetSignupClosed(s)) return "closed";
-  return "open";
-}
 
 type SortKey = "date" | "group";
 type SortDir = "asc" | "desc";
@@ -103,7 +90,7 @@ export function SheetsTable({
       key: "status",
       header: "Status",
       cell: (s) => {
-        const es = effectiveStatus(s);
+        const es = sheetEffectiveStatus(s);
         return (
           <span className={statusClass[es] ?? "status-closed"}>
             {statusLabel[es] ?? es}
@@ -220,7 +207,7 @@ export function SheetsTable({
 
         <ul className="divide-y divide-surface-border rounded-xl ring-1 ring-surface-border bg-surface-raised overflow-hidden">
           {sortedForMobile.map((s) => {
-            const es = effectiveStatus(s);
+            const es = sheetEffectiveStatus(s);
             return (
               <li
                 key={s.id}

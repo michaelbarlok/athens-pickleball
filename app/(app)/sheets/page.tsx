@@ -3,6 +3,7 @@ import { FormError } from "@/components/form-error";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import {
+  sheetEffectiveStatus,
   sheetIsExpired,
   sheetSignupClosed,
   sheetWithdrawClosed,
@@ -209,7 +210,7 @@ export default async function SheetsPage() {
         key={sheet.id}
         sheetId={sheet.id}
         groupName={sheet.group?.name ?? "Event"}
-        status={sheet.status}
+        status={sheetEffectiveStatus(sheet)}
         eventDate={formatDate(sheet.event_date)}
         location={sheet.location}
         playerLimit={sheet.player_limit}

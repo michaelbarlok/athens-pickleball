@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { formatDateInZone, formatTimeInZone, PRIORITY_ORDER } from "@/lib/utils";
 import {
+  sheetEffectiveStatus,
   sheetIsExpired,
   sheetSignupClosed,
   sheetWithdrawClosed,
@@ -282,9 +283,10 @@ export default async function SheetDetailPage({
   })();
 
   const dateChip = formatDateChip(sheet.event_time, tz);
+  const effectiveStatus = sheetEffectiveStatus(sheet, now);
   const statusPill =
-    sheet.status === "cancelled" ? { label: "Cancelled", cls: "status-cancelled" }
-    : sheet.status === "closed" ? { label: "Closed", cls: "status-closed" }
+    effectiveStatus === "cancelled" ? { label: "Cancelled", cls: "status-cancelled" }
+    : effectiveStatus === "closed" ? { label: "Closed", cls: "status-closed" }
     : isFull ? { label: "Waitlist only", cls: "status-upcoming" }
     : { label: "Open", cls: "status-open" };
 

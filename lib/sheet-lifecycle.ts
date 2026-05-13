@@ -29,6 +29,10 @@ type SheetLifecycleShape = {
   withdraw_closes_at?: string | null;
 };
 
+type SheetStatusShape = SheetLifecycleShape & {
+  status?: string | null;
+};
+
 /** Best-effort event-start Date for a sheet. Prefers the precise `event_time`
  *  timestamp; falls back to midnight of `event_date` when the former isn't
  *  set (older rows). Returns null if neither is available. */
@@ -80,4 +84,19 @@ export function sheetIsVisibleToPlayer(
   now: Date = new Date()
 ): boolean {
   return !sheetIsExpired(sheet, now);
+}
+
+/** Display status for a sheet — the value every UI surface should render.
+ *  The raw `signup_sheets.status` column only changes when an admin clicks
+ *  Close or Cancel; nothing in the system flips it at event time. So an
+ *  "open" sheet whose signup window has passed still says "open" in the
+ *  DB. This helper downgrades that to "closed" so badges and pills
+ *  reflect reality. Cancelled is always cancelled. */
+export function sheetEffectiveStatus(
+  sheet: SheetStatusShape,
+  now: Date = new Date()
+): string {
+  const raw = sheet.status ?? "open";
+  if (raw !== "open") return raw;
+  return sheetSignupClosed(sheet, now) ? "closed" : "open";
 }
