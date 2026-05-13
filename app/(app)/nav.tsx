@@ -19,8 +19,11 @@ const playerNav = [
   { name: "Badges", href: "/badges" },
 ];
 
-const adminNav = [
-  { name: "Members", href: "/admin/members" },
+// siteAdminOnly entries are filtered out for group admins — Members
+// is the platform-wide directory and isn't appropriate at the
+// group-admin level.
+const adminNav: { name: string; href: string; siteAdminOnly?: boolean }[] = [
+  { name: "Members", href: "/admin/members", siteAdminOnly: true },
   { name: "Sheets", href: "/admin/sheets" },
   { name: "Groups", href: "/admin/groups" },
   { name: "Sessions", href: "/admin/sessions" },
@@ -113,7 +116,9 @@ export function AppNav({ profile, isGroupAdmin = false }: { profile: Profile; is
                   </button>
                   {adminOpen && (
                     <div className="absolute right-0 top-full mt-1 w-48 rounded-lg bg-surface-raised shadow-xl ring-1 ring-surface-border py-1 z-50">
-                      {adminNav.map((item) => (
+                      {adminNav
+                        .filter((item) => !item.siteAdminOnly || isAdmin)
+                        .map((item) => (
                         <Link
                           key={item.href}
                           href={item.href}

@@ -29,6 +29,7 @@ import { ContactOrganizersButton } from "@/components/contact-organizers-button"
 import { Breadcrumb } from "@/components/breadcrumb";
 import { formatDate, formatTime, formatDateTime } from "@/lib/utils";
 import { PaidToggle } from "@/components/paid-toggle";
+import { RegistrationAdminActions } from "@/components/registration-admin-actions";
 import { BulkPaidButton } from "@/components/bulk-paid-button";
 import { PaymentReminderButton } from "@/components/payment-reminder-button";
 import { ShareTournamentButton } from "@/components/share-tournament-button";
@@ -1107,6 +1108,9 @@ export default async function TournamentDetailPage({
                   {canManage && tournament.entry_fee && (
                     <th className="px-2 sm:px-4 py-2 text-center text-xs font-medium uppercase tracking-wider text-surface-muted">Paid</th>
                   )}
+                  {canManage && (
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-surface-muted">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-border bg-surface-raised">
@@ -1194,6 +1198,20 @@ export default async function TournamentDetailPage({
                         <PaidToggle
                           registrationId={reg.id}
                           isPaid={(reg as any).paid ?? false}
+                        />
+                      </td>
+                    )}
+                    {canManage && (
+                      <td className="px-2 sm:px-4 py-2 align-top">
+                        <RegistrationAdminActions
+                          tournamentId={id}
+                          registrationId={reg.id}
+                          playerName={(reg as any).player?.display_name ?? "Unknown"}
+                          partnerName={(reg as any).partner?.display_name ?? null}
+                          partnerId={(reg as any).partner_id ?? null}
+                          currentDivision={(reg as any).division ?? ""}
+                          availableDivisions={(tournament.divisions ?? []) as string[]}
+                          isDoubles={tournament.type === "doubles"}
                         />
                       </td>
                     )}
@@ -1423,6 +1441,9 @@ export default async function TournamentDetailPage({
                   {canManage && tournament.entry_fee && (
                     <th className="px-2 sm:px-4 py-2 text-center text-xs font-medium uppercase tracking-wider text-surface-muted">Paid</th>
                   )}
+                  {canManage && (
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-surface-muted">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-border bg-surface-raised">
@@ -1510,6 +1531,20 @@ export default async function TournamentDetailPage({
                         <PaidToggle
                           registrationId={reg.id}
                           isPaid={(reg as any).paid ?? false}
+                        />
+                      </td>
+                    )}
+                    {canManage && (
+                      <td className="px-2 sm:px-4 py-2 align-top">
+                        <RegistrationAdminActions
+                          tournamentId={id}
+                          registrationId={reg.id}
+                          playerName={(reg as any).player?.display_name ?? "Unknown"}
+                          partnerName={(reg as any).partner?.display_name ?? null}
+                          partnerId={(reg as any).partner_id ?? null}
+                          currentDivision={(reg as any).division ?? ""}
+                          availableDivisions={(tournament.divisions ?? []) as string[]}
+                          isDoubles={tournament.type === "doubles"}
                         />
                       </td>
                     )}
