@@ -40,10 +40,20 @@ interface SessionLike {
 export function SessionAdminControls({
   session,
   participants,
+  allScored,
   onChange,
 }: {
   session: SessionLike;
   participants: ParticipantRow[];
+  /**
+   * True when every checked-in court has its expected game count
+   * scored for the current round. Used to gate the "Advance to
+   * Round Complete" button — pressing it while play is still in
+   * progress is the most common admin mis-click on this page.
+   * Optional so other call sites that don't compute this can still
+   * render the controls (button stays enabled by default).
+   */
+  allScored?: boolean;
   onChange: () => void;
 }) {
   const { supabase } = useSupabase();
@@ -298,16 +308,31 @@ export function SessionAdminControls({
               {updating ? "Ending..." : "End Session"}
             </button>
           </>
-        ) : !isTerminal ? (
-          <button
-            type="button"
-            onClick={advanceStatus}
-            disabled={updating}
-            className="btn-secondary"
-          >
-            {updating ? "Updating..." : `Advance to ${nextLabel ?? "—"}`}
-          </button>
-        ) : (
+        ) : !isTerminal ? (() => {
+          // Specifically for round_active → round_complete: gray out
+          // the button until all expected games have scores. The
+          // complete-round API rejects partial-coverage requests
+          // anyway, but disabling client-side keeps the admin from
+          // tapping and waiting for an error.
+          const nextStatus = SESSION_LIFECYCLE_ORDER[currentIdx + 1];
+          const blockedByScores =
+            nextStatus === "round_complete" && allScored === false;
+          return (
+            <button
+              type="button"
+              onClick={advanceStatus}
+              disabled={updating || blockedByScores}
+              className="btn-secondary"
+              title={
+                blockedByScores
+                  ? "Waiting on at least one score for the current round."
+                  : undefined
+              }
+            >
+              {updating ? "Updating..." : `Advance to ${nextLabel ?? "—"}`}
+            </button>
+          );
+        })() : (
           <span className="badge-green text-sm">Session Complete</span>
         )}
 

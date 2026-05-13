@@ -511,6 +511,26 @@ export default function AdminSessionDetailPage() {
     return Array.from(courts).sort((a, b) => a - b);
   }, [participants]);
 
+  /**
+   * True when every checked-in court has its expected game count
+   * scored for the current round. Drives the disabled state on the
+   * "Advance to Round Complete" button — the complete-round API
+   * rejects partial coverage anyway, but disabling client-side stops
+   * the admin from tapping and waiting for an error.
+   */
+  const allScoredThisRound = useMemo(() => {
+    if (!session) return false;
+    const currentRound = session.current_round || 1;
+    let expected = 0;
+    for (const court of courtNumbers) {
+      const count = participants.filter((p) => p.court_number === court).length;
+      expected += expectedGamesPerCourt(count);
+    }
+    if (expected === 0) return true;
+    const completed = scores.filter((s) => s.round_number === currentRound).length;
+    return completed >= expected;
+  }, [session, courtNumbers, participants, scores]);
+
   const courtPlayers = useMemo(
     () => participants.filter((p) => p.court_number === selectedCourt),
     [participants, selectedCourt]
@@ -825,11 +845,29 @@ export default function AdminSessionDetailPage() {
             <span className="text-sm text-surface-muted">
               See next-session preview below ↓
             </span>
-          ) : session.status !== "session_complete" && session.status !== "created" ? (
-            <button onClick={advanceStatus} className="btn-secondary" disabled={updating}>
-              {updating ? "Updating..." : `Advance to ${STATUS_LABELS[LIFECYCLE_ORDER[currentIdx + 1]] ?? "—"}`}
-            </button>
-          ) : session.status === "session_complete" ? (
+          ) : session.status !== "session_complete" && session.status !== "created" ? (() => {
+            // Gate the round_active → round_complete transition on
+            // having every expected score in. complete-round API
+            // rejects partial coverage anyway; client-side disable
+            // makes the wait visible and stops the misclick.
+            const nextStatus = LIFECYCLE_ORDER[currentIdx + 1];
+            const blockedByScores =
+              nextStatus === "round_complete" && !allScoredThisRound;
+            return (
+              <button
+                onClick={advanceStatus}
+                className="btn-secondary"
+                disabled={updating || blockedByScores}
+                title={
+                  blockedByScores
+                    ? "Waiting on at least one score for the current round."
+                    : undefined
+                }
+              >
+                {updating ? "Updating..." : `Advance to ${STATUS_LABELS[LIFECYCLE_ORDER[currentIdx + 1]] ?? "—"}`}
+              </button>
+            );
+          })() : session.status === "session_complete" ? (
             <span className="badge-green text-sm">Session Complete</span>
           ) : null}
           <FormError message={advanceError} />
