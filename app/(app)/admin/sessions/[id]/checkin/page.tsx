@@ -4,6 +4,7 @@ import { useConfirm } from "@/components/confirm-modal";
 import { CenteredSpinner } from "@/components/centered-spinner";
 import { PlayerAvatar } from "@/components/player-avatar";
 import { useSupabase } from "@/components/providers/supabase-provider";
+import { cn } from "@/lib/utils";
 import { distributeCourts, seedSession1, seedSameDaySession } from "@/lib/shootout-engine";
 import type { RankedPlayer, SeedablePlayer } from "@/lib/shootout-engine";
 import { useParams, useRouter } from "next/navigation";
@@ -43,6 +44,12 @@ export default function CheckInPage() {
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [starting, setStarting] = useState(false);
+  // Pulses the Seed Players button when the admin has changed the
+  // court count since the last seed. Reminds them to re-seed so the
+  // new num_courts actually takes effect. Cleared the moment a seed
+  // succeeds; set by the +/- stepper and the suggestion-banner
+  // "Use N courts" buttons in the Court Distribution card.
+  const [courtsDirty, setCourtsDirty] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
 
   // Guest form state
@@ -406,6 +413,10 @@ export default function CheckInPage() {
 
       await Promise.all(updates);
 
+      // Re-seed succeeded — clear the "you changed courts, click
+      // Seed" pulse on the button.
+      setCourtsDirty(false);
+
       // Update local state and sort by court number, then step ASC, then win% DESC
       const posMap = new Map(positions.map((p) => [p.playerId, p.courtNumber]));
       setParticipants((prev) => {
@@ -609,7 +620,14 @@ export default function CheckInPage() {
           </button>
           <button
             onClick={seedPlayers}
-            className="btn-primary"
+            className={cn(
+              "btn-primary",
+              // Pulse when courts have been changed but not yet re-
+              // seeded. Tailwind's animate-pulse fades opacity, which
+              // is subtle enough not to be a flashing distraction but
+              // visible enough to catch the admin's eye.
+              courtsDirty && !seeding && "animate-pulse"
+            )}
             disabled={seeding || checkedInCount === 0}
           >
             {seeding ? "Seeding..." : "Seed Players"}
@@ -836,6 +854,7 @@ export default function CheckInPage() {
         async function setCourts(n: number) {
           if (n === session.num_courts) return;
           setSession({ ...session, num_courts: n });
+          setCourtsDirty(true);
           await supabase
             .from("shootout_sessions")
             .update({ num_courts: n })
