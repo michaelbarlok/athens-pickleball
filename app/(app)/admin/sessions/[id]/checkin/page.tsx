@@ -143,6 +143,16 @@ export default function CheckInPage() {
 
       const rows: ParticipantRow[] = parts.map((p: any) => {
         const membership = memberMap.get(p.player_id);
+        // Guests have no group_membership (intentional — they don't
+        // pollute the ladder), so membership?.current_step is null
+        // and the old fallback to 99 dumped every guest onto the
+        // last court. The admin sets a step at add-time which gets
+        // stamped onto session_participants.step_before, so use that
+        // as the secondary source. Final fallback stays 99 so a row
+        // with neither (data corruption / legacy) still sorts to the
+        // end rather than crashing the seeding sort.
+        const effectiveStep =
+          membership?.current_step ?? p.step_before ?? 99;
         return {
           id: p.id,
           player_id: p.player_id,
@@ -150,7 +160,7 @@ export default function CheckInPage() {
           avatar_url: p.player?.avatar_url ?? null,
           checked_in: p.checked_in,
           court_number: p.court_number,
-          current_step: membership?.current_step ?? 99,
+          current_step: effectiveStep,
           win_pct: membership?.win_pct ?? 0,
           last_played_at: membership?.last_played_at ?? null,
           total_sessions: membership?.total_sessions ?? 0,
