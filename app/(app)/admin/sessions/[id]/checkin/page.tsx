@@ -370,7 +370,30 @@ export default function CheckInPage() {
         }
       }
 
-      if (isSessionContinuation && !isDynamicRanking) {
+      // Detect a court-count change vs the previous session. If the
+      // admin added or dropped courts between sessions, the previous
+      // session's target_court_next values point at a layout that
+      // no longer exists — anchoring to them puts every newcomer on
+      // whatever court ends up empty (typically the new last court),
+      // and produces the mixed-step rosters the admin sees. Falling
+      // back to a fresh ranking-sheet seed in this case gives a
+      // clean step-ordered distribution across the new court layout.
+      //
+      // Detected by reading the max target_court_next across the
+      // anchored roster — if it's < the new num_courts, the
+      // previous session had fewer courts. Doesn't need to know
+      // about a shrink; the existing clamp inside seedSameDaySession
+      // (Math.max(1, Math.min(numCourts, target))) handles those
+      // correctly because the anchored players just bunch up on the
+      // top courts, which is the right behavior when courts go away.
+      const targets = seedableSource
+        .map((p) => p.target_court_next)
+        .filter((c): c is number => c != null);
+      const courtsGrew =
+        targets.length > 0 &&
+        Math.max(...targets) < (session.num_courts as number);
+
+      if (isSessionContinuation && !isDynamicRanking && !courtsGrew) {
         // Court Promotion: players who finished the previous round are anchored to
         // their target_court_next. Players added fresh (no target court — e.g. a
         // waitlist member subbing in) are sorted by ranking and slotted into space.
@@ -385,9 +408,11 @@ export default function CheckInPage() {
         }));
         positions = seedSameDaySession(seedablePlayers, session.num_courts);
       } else {
-        // Dynamic Ranking continuation OR session 1: ignore any target_court_next and
-        // re-seed all players from scratch using their current (freshly updated) step
-        // and win %. This reflects post-round step changes in the new court order.
+        // Dynamic Ranking continuation, court-count change, or session 1:
+        // ignore any target_court_next and re-seed all players from
+        // scratch using their current step and win %. This reflects
+        // post-round step changes (Dynamic Ranking) or fits the new
+        // court layout cleanly (Court Promotion with courts added).
         const rankedPlayers: RankedPlayer[] = checkedIn.map((p) => ({
           id: p.player_id,
           currentStep: p.current_step,
