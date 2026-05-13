@@ -1,17 +1,28 @@
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { SignupSheet } from "@/types/database";
 import { SheetsTable, type SheetRow } from "./sheets-table";
+import { getAdminScope } from "@/lib/admin-scope";
 
 export default async function AdminSheetsPage() {
   const supabase = await createClient();
 
-  const { data: sheets, error } = await supabase
+  // Group admins see sheets for the groups they admin only. Site
+  // admins see everything.
+  const scope = await getAdminScope(supabase);
+  if (!scope) redirect("/dashboard");
+
+  let sheetsQuery = supabase
     .from("signup_sheets")
     .select("*, group:shootout_groups(id, name)")
     .order("event_date", { ascending: false });
+  if (!scope.siteAdmin) {
+    sheetsQuery = sheetsQuery.in("group_id", scope.groupIds);
+  }
+  const { data: sheets, error } = await sheetsQuery;
 
   if (error) {
     return <div className="card text-center text-adaptive-red">Failed to load sheets.</div>;

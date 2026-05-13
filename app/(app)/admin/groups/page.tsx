@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { US_STATES } from "@/lib/us-states";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageHeader } from "@/components/page-header";
 import { GroupsTable, type GroupRow } from "./groups-table";
+import { getAdminScope } from "@/lib/admin-scope";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -54,17 +56,33 @@ async function resolveUniqueSlug(
 export default async function AdminGroupsPage() {
   const supabase = await createClient();
 
-  // Fetch all groups with member counts and last session info
-  const { data: groups } = await supabase
+  // Group admins should only see groups they actually administer.
+  // Site admins fall through to the unscoped query.
+  const scope = await getAdminScope(supabase);
+  if (!scope) redirect("/dashboard");
+
+  // Fetch groups (with member counts) scoped to the caller's admin
+  // reach. For a site admin, no .in() filter — they see everything.
+  let groupsQuery = supabase
     .from("shootout_groups")
     .select("*, group_memberships(count)")
     .order("name", { ascending: true });
+  if (!scope.siteAdmin) {
+    groupsQuery = groupsQuery.in("id", scope.groupIds);
+  }
+  const { data: groups } = await groupsQuery;
 
-  // Fetch last session date per group
-  const { data: sessions } = await supabase
+  // Fetch last session date per group — same scope so a group admin
+  // doesn't see "last session" tags for groups they shouldn't be
+  // looking at.
+  let sessionsQuery = supabase
     .from("shootout_sessions")
     .select("group_id, created_at")
     .order("created_at", { ascending: false });
+  if (!scope.siteAdmin) {
+    sessionsQuery = sessionsQuery.in("group_id", scope.groupIds);
+  }
+  const { data: sessions } = await sessionsQuery;
 
   const lastSessionMap = new Map<string, string>();
   if (sessions) {
