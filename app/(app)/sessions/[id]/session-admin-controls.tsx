@@ -62,6 +62,30 @@ export function SessionAdminControls({
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [startingNext, setStartingNext] = useState(false);
 
+  /**
+   * One-tap action that consolidates the old "Start Check-In" link
+   * (navigate to the check-in screen with no status change) and the
+   * generic "Advance to Check-In" button (status flip with no
+   * navigation). Mirrors the same fix on /admin/sessions/[id]: flips
+   * status to checking_in AND opens the check-in screen in the same
+   * tap. Lets Play Again land on a one-button next-session UI
+   * instead of the confusing pair.
+   */
+  async function openCheckIn() {
+    setUpdating(true);
+    setAdvanceError(null);
+    const { error } = await supabase
+      .from("shootout_sessions")
+      .update({ status: "checking_in" })
+      .eq("id", session.id);
+    if (error) {
+      setAdvanceError(error.message);
+      setUpdating(false);
+      return;
+    }
+    router.push(`/admin/sessions/${session.id}/checkin`);
+  }
+
   const currentIdx = SESSION_LIFECYCLE_ORDER.indexOf(
     session.status as (typeof SESSION_LIFECYCLE_ORDER)[number]
   );
@@ -278,14 +302,23 @@ export function SessionAdminControls({
         {/* Check-in is a dedicated page for seeding + roster. Before
              the round is live, send the admin there; after, show the
              advance / end / play-again buttons here. */}
-        {(session.status === "created" ||
-          session.status === "checking_in" ||
+        {session.status === "created" && (
+          <button
+            type="button"
+            onClick={openCheckIn}
+            disabled={updating}
+            className="btn-primary"
+          >
+            {updating ? "Opening..." : "Open Check-In"}
+          </button>
+        )}
+        {(session.status === "checking_in" ||
           session.status === "seeding") && (
           <a
             href={`/admin/sessions/${session.id}/checkin`}
             className="btn-primary"
           >
-            {session.status === "created" ? "Start Check-In" : "Manage Check-In"}
+            Manage Check-In
           </a>
         )}
 
@@ -308,7 +341,7 @@ export function SessionAdminControls({
               {updating ? "Ending..." : "End Session"}
             </button>
           </>
-        ) : !isTerminal ? (() => {
+        ) : !isTerminal && session.status !== "created" ? (() => {
           // Specifically for round_active → round_complete: gray out
           // the button until all expected games have scores. The
           // complete-round API rejects partial-coverage requests
