@@ -7,6 +7,8 @@ import { useSupabase } from "@/components/providers/supabase-provider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ShootoutGroup, GroupRecurringSchedule } from "@/types/database";
+import { wallClockInZoneToUtc } from "@/lib/timezone";
+import { DEFAULT_TZ } from "@/lib/utils";
 
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -44,7 +46,7 @@ export default function NewSheetFromSheetsPage() {
   const [notifyOnCreate, setNotifyOnCreate] = useState(true);
   const [notes, setNotes] = useState("");
   // Group timezone (from recurring schedule, falls back to ET)
-  const [groupTimezone, setGroupTimezone] = useState("America/New_York");
+  const [groupTimezone, setGroupTimezone] = useState(DEFAULT_TZ);
   // Play times for the selected group
   const [groupSchedules, setGroupSchedules] = useState<GroupRecurringSchedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
@@ -72,7 +74,7 @@ export default function NewSheetFromSheetsPage() {
     const hours = parseInt(hoursStr, 10);
     const [hStr, mStr] = eventTime.split(":");
     let h = parseInt(hStr, 10) - hours;
-    let m = parseInt(mStr, 10);
+    const m = parseInt(mStr, 10);
     let date = eventDate;
     while (h < 0) {
       h += 24;
@@ -82,18 +84,7 @@ export default function NewSheetFromSheetsPage() {
     }
     const hh = h.toString().padStart(2, "0");
     const mm = m.toString().padStart(2, "0");
-    // Convert the local event time in the group's IANA timezone to UTC, so the
-    // close time is correct regardless of the admin's browser timezone.
-    return localToUtc(`${date}T${hh}:${mm}:00`, groupTimezone).toISOString();
-  }
-
-  function localToUtc(localStr: string, tz: string): Date {
-    const candidate = new Date(localStr + "Z");
-    const utcParts = Intl.DateTimeFormat("en-US", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(candidate);
-    const tzParts  = Intl.DateTimeFormat("en-US", { timeZone: tz,    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(candidate);
-    const get = (parts: Intl.DateTimeFormatPart[], type: string) => parseInt(parts.find(p => p.type === type)?.value ?? "0", 10);
-    const toMs = (parts: Intl.DateTimeFormatPart[]) => Date.UTC(get(parts,"year"), get(parts,"month")-1, get(parts,"day"), get(parts,"hour"), get(parts,"minute"), get(parts,"second"));
-    return new Date(candidate.getTime() - (toMs(tzParts) - toMs(utcParts)));
+    return wallClockInZoneToUtc(`${date}T${hh}:${mm}:00`, groupTimezone).toISOString();
   }
 
   // Fetch play times whenever the selected group changes.
@@ -329,8 +320,8 @@ export default function NewSheetFromSheetsPage() {
         .insert({
           group_id: groupId,
           event_date: eventDate,
-          event_time: new Date(`${eventDate}T${eventTime}:00`).toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          event_time: wallClockInZoneToUtc(`${eventDate}T${eventTime}:00`, groupTimezone).toISOString(),
+          timezone: groupTimezone,
           location: location.trim(),
           player_limit: playerLimit,
           signup_closes_at: signupClosesAt,

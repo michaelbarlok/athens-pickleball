@@ -1,7 +1,7 @@
 import { requireAuth, isGroupAdmin } from "@/lib/auth";
 import { notifyMany } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   if (playerIds.length > 0) {
     const groupName = sheet.group?.name ?? "Event";
-    const tz = (sheet.timezone as string | undefined) ?? "America/New_York";
+    const tz = (sheet.timezone as string | undefined) ?? DEFAULT_TZ;
     const eventDate = sheet.event_time ? formatDateInZone(sheet.event_time, tz) : "";
     const eventTime = sheet.event_time ? formatTimeInZone(sheet.event_time, tz) : null;
 

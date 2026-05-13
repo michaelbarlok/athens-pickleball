@@ -9,10 +9,18 @@
  * offset. These helpers normalize the handoff so the organizer's
  * "8am my time" actually ends up stored as that moment in UTC, and
  * reads back into the form as "8am" again.
+ *
+ * For event records that carry an explicit IANA timezone (sheets,
+ * tournaments), prefer the `*InZone` variants below — they pin the
+ * wall-clock to the event's zone instead of the user's browser zone.
  */
 
 /**
  * datetime-local wall-clock → UTC ISO. Empty input stays null.
+ *
+ * @deprecated for event-zoned inputs — use `wallClockInZoneToIso`.
+ * Still correct for "schedule this in MY zone" inputs where the
+ * organizer's browser zone is the intended interpretation.
  */
 export function localDateTimeToIso(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -22,9 +30,10 @@ export function localDateTimeToIso(value: string | null | undefined): string | n
 }
 
 /**
- * UTC ISO from the DB → datetime-local wall-clock string.
- * Minute precision, no seconds / no TZ suffix — what the <input>
- * expects. Returns "" for null/undefined.
+ * UTC ISO from the DB → datetime-local wall-clock string in the
+ * BROWSER's zone. Minute precision, no seconds / no TZ suffix.
+ *
+ * @deprecated for event-zoned inputs — use `isoToWallClockInZone`.
  */
 export function isoToLocalDateTimeInput(iso: string | null | undefined): string {
   if (!iso) return "";

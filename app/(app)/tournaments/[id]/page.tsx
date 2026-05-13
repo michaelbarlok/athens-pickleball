@@ -27,7 +27,7 @@ import { ForfeitCard } from "./forfeit-card";
 import { CloseRegistrationButton } from "./close-registration-button";
 import { ContactOrganizersButton } from "@/components/contact-organizers-button";
 import { Breadcrumb } from "@/components/breadcrumb";
-import { formatDate, formatTime, formatDateTime } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import { PaidToggle } from "@/components/paid-toggle";
 import { RegistrationAdminActions } from "@/components/registration-admin-actions";
 import { BulkPaidButton } from "@/components/bulk-paid-button";
@@ -68,17 +68,21 @@ const STATUS_LABELS: Record<string, string> = {
 
 /**
  * Split an ISO/date into month/day chip pieces for the hero.
+ * Treats `start_date`/`end_date` as bare wall-clock dates (DATE columns)
+ * and reads month/day directly from the string — independent of server
+ * or browser zone.
  */
 function tournamentDateChip(startIso: string, endIso: string | null) {
-  const d = new Date((startIso.length === 10 ? startIso : startIso.slice(0, 10)) + "T12:00:00");
-  const month = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const day = String(d.getDate());
-  // If the tournament spans multiple days, include the trailing day in a
-  // subtle second line.
+  const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const startStr = startIso.length >= 10 ? startIso.slice(0, 10) : startIso;
+  const [, sm, sd] = startStr.split("-").map(Number);
+  const month = MONTHS[(sm ?? 1) - 1] ?? "";
+  const day = String(sd ?? "");
   let endDay: string | null = null;
   if (endIso && endIso !== startIso) {
-    const e = new Date((endIso.length === 10 ? endIso : endIso.slice(0, 10)) + "T12:00:00");
-    endDay = `–${e.getDate()}`;
+    const endStr = endIso.length >= 10 ? endIso.slice(0, 10) : endIso;
+    const [, , ed] = endStr.split("-").map(Number);
+    endDay = `–${ed ?? ""}`;
   }
   return { month, day, endDay };
 }
@@ -544,7 +548,7 @@ export default async function TournamentDetailPage({
                     <svg className="h-4 w-4 text-dark-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
                     </svg>
-                    {formatTime(tournament.start_time)}
+                    {formatTimeInZone(tournament.start_time, tournament.timezone ?? DEFAULT_TZ)}
                   </span>
                 )}
               </div>
@@ -579,7 +583,7 @@ export default async function TournamentDetailPage({
               <ShareTournamentButton
                 tournamentId={id}
                 title={tournament.title}
-                summary={`${tournament.title} — ${formatDate(tournament.start_date + "T00:00:00")} at ${tournament.location}`}
+                summary={`${tournament.title} — ${formatDateInZone(tournament.start_date, tournament.timezone ?? DEFAULT_TZ)} at ${tournament.location}`}
               />
             )}
             {canManage && (
@@ -600,6 +604,7 @@ export default async function TournamentDetailPage({
                   title: tournament.title,
                   start_date: tournament.start_date,
                   start_time: (tournament as any).start_time ?? null,
+                  timezone: (tournament as { timezone?: string | null }).timezone ?? null,
                   location: tournament.location,
                   format: tournament.format,
                   type: (tournament as any).type ?? "doubles",
@@ -693,9 +698,9 @@ export default async function TournamentDetailPage({
           </DetailRow>
           <DetailRow label="Date">
             <span className="text-sm text-dark-100">
-              {formatDate(tournament.start_date + "T00:00:00")}
+              {formatDateInZone(tournament.start_date, tournament.timezone ?? DEFAULT_TZ)}
               {tournament.end_date !== tournament.start_date && (
-                <> — {formatDate(tournament.end_date + "T00:00:00")}</>
+                <> — {formatDateInZone(tournament.end_date, tournament.timezone ?? DEFAULT_TZ)}</>
               )}
             </span>
           </DetailRow>
@@ -832,9 +837,9 @@ export default async function TournamentDetailPage({
                         </span>
                         <span className="text-dark-200">
                           {t
-                            ? formatTime(t)
+                            ? formatTimeInZone(t, tournament.timezone ?? DEFAULT_TZ)
                             : tournament.start_time
-                              ? `${formatTime(tournament.start_time)} (default)`
+                              ? `${formatTimeInZone(tournament.start_time, tournament.timezone ?? DEFAULT_TZ)} (default)`
                               : ""}
                         </span>
                       </li>

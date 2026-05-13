@@ -1,7 +1,7 @@
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
-import { formatDateInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -12,7 +12,7 @@ interface Props {
 
 export default function WaitlistPromoted({ groupName, eventDate, timezone, sheetId }: Props) {
   const appUrl = EMAIL_PUBLIC_URL;
-  const tz = timezone ?? "America/New_York";
+  const tz = timezone ?? DEFAULT_TZ;
 
   return (
     <BaseEmail preview="You're in!" heading="You've been promoted from the waitlist!">

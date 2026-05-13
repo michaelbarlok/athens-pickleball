@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notifyMany } from "@/lib/notify";
-import { formatDateInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone } from "@/lib/utils";
 
 /**
  * Fire "withdraw closes in ~1 hour" reminders.
@@ -39,10 +39,11 @@ export async function runWithdrawReminders(): Promise<{ reminded: number }> {
 
       let reminded = 0;
       if (playerIds.length > 0) {
+        const tz = sheet.timezone ?? DEFAULT_TZ;
         await notifyMany(playerIds, {
           type: "withdraw_closing",
           title: "Withdrawal window closing",
-          body: `The withdrawal window for ${sheet.group?.name ?? "the event"} on ${formatDateInZone(sheet.event_time, sheet.timezone)} closes in less than 1 hour.`,
+          body: `The withdrawal window for ${sheet.group?.name ?? "the event"} on ${formatDateInZone(sheet.event_time, tz)} closes in less than 1 hour.`,
           link: `/sheets/${sheet.id}`,
           groupId: sheet.group_id,
           emailTemplate: "WithdrawReminder",
@@ -51,7 +52,7 @@ export async function runWithdrawReminders(): Promise<{ reminded: number }> {
             groupName: sheet.group?.name,
             eventDate: sheet.event_time,
             closesAt: sheet.withdraw_closes_at,
-            timezone: sheet.timezone,
+            timezone: tz,
           },
         });
         reminded = playerIds.length;

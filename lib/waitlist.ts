@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notify";
-import { formatDateInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone } from "@/lib/utils";
 
 /**
  * After a confirmed player is removed from a sheet, promote the
@@ -41,7 +41,7 @@ export async function promoteNextWaitlistPlayer(sheetId: string): Promise<string
 
   const groupName = (sheet as { group?: { name?: string } })?.group?.name ?? "the event";
   const eventTime = (sheet?.event_time as string | undefined) ?? "";
-  const tz = (sheet?.timezone as string | undefined) ?? "America/New_York";
+  const tz = (sheet?.timezone as string | undefined) ?? DEFAULT_TZ;
 
   notify({
     profileId: player_id,

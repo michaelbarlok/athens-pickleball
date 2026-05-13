@@ -4,6 +4,8 @@ import { TournamentsList } from "./tournaments-list";
 import { createClient } from "@/lib/supabase/server";
 import { WeatherBadge } from "@/components/weather-badge";
 import { PageHeader } from "@/components/page-header";
+import { wallClockInZoneToIso } from "@/lib/timezone";
+import { DEFAULT_TZ } from "@/lib/utils";
 import Link from "next/link";
 
 export default async function TournamentsPage({
@@ -55,12 +57,18 @@ export default async function TournamentsPage({
   // tournament here without conditionally guarding.
   const weatherByTournamentId: Record<string, React.ReactNode> = {};
   for (const t of active) {
-    if (t.start_date && (t as { start_time?: string | null }).start_time) {
+    const startTime = (t as { start_time?: string | null }).start_time;
+    if (t.start_date && startTime) {
+      // Resolve the bare wall-clock (`start_date` + `start_time`) into
+      // a UTC instant in the tournament's zone so the weather lookup
+      // picks the right NWS hour bucket on a UTC-deployed server.
+      const tz = (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
+      const eventTimeUtc = wallClockInZoneToIso(`${t.start_date}T${startTime}`, tz);
       weatherByTournamentId[t.id] = (
         <WeatherBadge
           location={t.location}
           cityState={[(t as { city?: string | null }).city, (t as { state?: string | null }).state].filter(Boolean).join(", ") || null}
-          eventTime={`${t.start_date}T${(t as { start_time?: string | null }).start_time}`}
+          eventTime={eventTimeUtc ?? `${t.start_date}T${startTime}`}
         />
       );
     }

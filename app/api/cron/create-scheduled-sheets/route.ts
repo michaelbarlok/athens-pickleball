@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { notifyMany } from "@/lib/notify";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { wallClockInZoneToUtc } from "@/lib/timezone";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   let created = 0;
 
   for (const sched of due) {
-    const tz = (sched.timezone as string) || "America/New_York";
+    const tz = (sched.timezone as string) || DEFAULT_TZ;
     const playDow = sched.day_of_week as number;
 
     // Next occurrence of the play day of week in the schedule's local zone
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Event instant in UTC (tz-correct)
     const localEventStr = `${eventDateStr}T${eventTimeStr.padStart(5, "0")}:00`;
-    const eventTimeUtc = localToUtc(localEventStr, tz);
+    const eventTimeUtc = wallClockInZoneToUtc(localEventStr, tz);
     const eventTimeIso = eventTimeUtc.toISOString();
 
     const signupCloseDt = new Date(eventTimeUtc.getTime());
@@ -164,37 +165,4 @@ function getDowInZone(d: Date, tz: string): number {
   const weekday = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(d);
   const SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   return SHORT.findIndex((x) => weekday.startsWith(x));
-}
-
-/**
- * Convert a local datetime string (YYYY-MM-DDTHH:MM:SS) in the given IANA
- * timezone to a UTC Date object.
- */
-function localToUtc(localStr: string, tz: string): Date {
-  const candidate = new Date(localStr + "Z"); // initial guess treating as UTC
-  const offsetMs = getUtcOffsetMs(candidate, tz);
-  return new Date(candidate.getTime() - offsetMs);
-}
-
-function getUtcOffsetMs(utcDate: Date, tz: string): number {
-  const utcParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false,
-  }).formatToParts(utcDate);
-
-  const localParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false,
-  }).formatToParts(utcDate);
-
-  const toMs = (parts: Intl.DateTimeFormatPart[]) => {
-    const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "0", 10);
-    return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  };
-
-  return toMs(localParts) - toMs(utcParts);
 }

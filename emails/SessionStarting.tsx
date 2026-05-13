@@ -1,7 +1,7 @@
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Button, Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 
 interface Props {
   groupName?: string;
@@ -23,7 +23,7 @@ export default function SessionStarting({
   whenWord,
 }: Props) {
   const appUrl = EMAIL_PUBLIC_URL;
-  const tz = timezone ?? "America/New_York";
+  const tz = timezone ?? DEFAULT_TZ;
   const when = whenWord ?? "tomorrow";
   // Capitalize for the heading: "Today" / "Tomorrow" / "Starting Soon"
   const whenHeading = when

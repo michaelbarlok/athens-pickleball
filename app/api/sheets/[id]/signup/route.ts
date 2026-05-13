@@ -4,7 +4,7 @@ import { notify } from "@/lib/notify";
 import { sheetSignupClosed } from "@/lib/sheet-lifecycle";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { formatDateInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone } from "@/lib/utils";
 
 export async function POST(
   request: NextRequest,
@@ -176,7 +176,7 @@ export async function POST(
 
       const gName = (sheetGroup as { group?: { name?: string } })?.group?.name ?? "the event";
       const evTime = (sheetGroup?.event_time as string | undefined) ?? "";
-      const tz = (sheetGroup?.timezone as string | undefined) ?? "America/New_York";
+      const tz = (sheetGroup?.timezone as string | undefined) ?? DEFAULT_TZ;
 
       notify({
         profileId: result.bumped_player_id,

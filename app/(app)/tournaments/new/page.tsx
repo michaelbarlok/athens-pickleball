@@ -4,12 +4,24 @@ import { FormError } from "@/components/form-error";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { DivisionCheckboxes } from "@/components/division-checkboxes";
 import { DivisionStartTimes } from "@/components/division-start-times";
-import { fifteenMinuteSlots, localDateTimeToIso } from "@/lib/datetime-local";
+import { fifteenMinuteSlots } from "@/lib/datetime-local";
+import { wallClockInZoneToIso, wallClockInZoneToUtc } from "@/lib/timezone";
+import { DEFAULT_TZ } from "@/lib/utils";
 import { DateTimeFifteenMin } from "@/components/date-time-15";
 import { getDivisionGender } from "@/lib/divisions";
 import { US_STATES } from "@/lib/us-states";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+
+const TIMEZONE_OPTIONS = [
+  { value: "America/New_York", label: "Eastern (ET)" },
+  { value: "America/Chicago", label: "Central (CT)" },
+  { value: "America/Denver", label: "Mountain (MT)" },
+  { value: "America/Phoenix", label: "Arizona (no DST)" },
+  { value: "America/Los_Angeles", label: "Pacific (PT)" },
+  { value: "America/Anchorage", label: "Alaska (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (HT)" },
+];
 
 // Pre-built once — all date/time entry fields are 15-min only across
 // the entire app, so a single shared list of slots keeps the rendered
@@ -50,6 +62,11 @@ export default function CreateTournamentPage() {
   const [paymentDirections, setPaymentDirections] = useState("");
   const [registrationOpensAt, setRegistrationOpensAt] = useState("");
   const [registrationClosesAt, setRegistrationClosesAt] = useState("");
+  // IANA zone the organizer is scheduling in. Every wall-clock the
+  // form collects (start_date, start_time, registration_opens_at,
+  // registration_closes_at, division start times) is interpreted in
+  // this zone, regardless of where the organizer's browser is.
+  const [timezone, setTimezone] = useState(DEFAULT_TZ);
   const [scoreToWinPool, setScoreToWinPool] = useState("11");
   const [numCourts, setNumCourts] = useState("");
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
@@ -142,25 +159,45 @@ export default function CreateTournamentPage() {
 
     // Cross-field date sanity. Bail loudly on nonsense ordering so
     // the cron doesn't end up opening registration after the
-    // tournament has already started etc.
-    const opensIso = localDateTimeToIso(registrationOpensAt);
-    const closesIso = localDateTimeToIso(registrationClosesAt);
+    // tournament has already started etc. All wall-clock inputs are
+    // resolved against the tournament's `timezone`, not the
+    // organizer's browser — a TN tournament created from a Pacific
+    // hotel laptop must store the TN instant.
+    const opensIso = registrationOpensAt
+      ? wallClockInZoneToIso(`${registrationOpensAt}:00`, timezone)
+      : null;
+    const closesIso = registrationClosesAt
+      ? wallClockInZoneToIso(`${registrationClosesAt}:00`, timezone)
+      : null;
     if (opensIso && closesIso && new Date(opensIso) >= new Date(closesIso)) {
       setError("Registration closes before it opens — check the dates.");
       setSubmitting(false);
       return;
     }
-    if (startDate && closesIso && new Date(closesIso) > new Date(`${startDate}T23:59`)) {
-      setError("Registration must close on or before the tournament start date.");
-      setSubmitting(false);
-      return;
+    if (startDate && closesIso) {
+      // "Close on or before the start date" means: not after 23:59 on
+      // the day-of-start, evaluated in the tournament's zone.
+      const startDayEnd = wallClockInZoneToUtc(`${startDate}T23:59:00`, timezone);
+      if (new Date(closesIso) > startDayEnd) {
+        setError("Registration must close on or before the tournament start date.");
+        setSubmitting(false);
+        return;
+      }
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (startDate && new Date(`${startDate}T00:00`) < today) {
-      setError("Tournament start date is in the past.");
-      setSubmitting(false);
-      return;
+    if (startDate) {
+      // "Today" evaluated in the tournament's zone, not the organizer's.
+      const todayMidnight = wallClockInZoneToUtc(
+        `${startDate}T00:00:00`,
+        timezone
+      );
+      const nowMs = Date.now();
+      // 24h slack: if the start date in the tournament's zone has not
+      // yet passed in real time, allow it.
+      if (todayMidnight.getTime() + 24 * 60 * 60 * 1000 <= nowMs) {
+        setError("Tournament start date is in the past.");
+        setSubmitting(false);
+        return;
+      }
     }
 
     // Mixed must run at a different time than gendered divisions
@@ -219,6 +256,7 @@ export default function CreateTournamentPage() {
         payment_directions: paymentDirections.trim() || null,
         registration_opens_at: opensIso,
         registration_closes_at: closesIso,
+        timezone,
         score_to_win_pool: format === "round_robin" ? parseInt(scoreToWinPool) || 11 : null,
         score_to_win_playoff: format === "round_robin" ? parseInt(scoreToWinPlayoff) || 11 : null,
         finals_best_of_3: format === "round_robin" ? finalsBestOf3 : false,
@@ -453,6 +491,23 @@ export default function CreateTournamentPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1">
+                Timezone
+              </label>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="input"
+              >
+                {TIMEZONE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-surface-muted">
+                All times entered above (start, registration window, division starts) are interpreted in this zone.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-dark-200 mb-1">

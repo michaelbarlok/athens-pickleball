@@ -1,7 +1,7 @@
 import { EMAIL_PUBLIC_URL } from "@/lib/email-urls";
 import { Link, Text } from "@react-email/components";
 import BaseEmail from "./BaseEmail";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 
 const REASON_LABELS: Record<string, string> = {
   lack_of_interest: "Lack of Player Interest",
@@ -28,7 +28,7 @@ export default function SheetCancelled({
   cancellationReason,
   cancellationMessage,
 }: Props) {
-  const tz = timezone ?? "America/New_York";
+  const tz = timezone ?? DEFAULT_TZ;
   const formattedTime = eventTime ? formatTimeInZone(eventTime, tz) : null;
   const appUrl = EMAIL_PUBLIC_URL;
   const reasonLabel = cancellationReason ? REASON_LABELS[cancellationReason] : null;
