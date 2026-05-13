@@ -18,6 +18,10 @@ interface NavEntry {
   href: string;
   icon: React.ReactNode;
   match: (pathname: string) => boolean;
+  /** Hide this entry from group admins — only site admins see it.
+   *  Members is the directory of every account on the platform, so
+   *  a group admin has no need (or right) to browse it. */
+  siteAdminOnly?: boolean;
 }
 
 const playerNav: NavEntry[] = [
@@ -113,6 +117,7 @@ const adminNav: NavEntry[] = [
       </svg>
     ),
     match: (p) => p.startsWith("/admin/members"),
+    siteAdminOnly: true,
   },
   {
     name: "Sheets",
@@ -258,17 +263,19 @@ export function Sidebar({ profile, isGroupAdmin = false }: SidebarProps) {
               </p>
             )}
             <ul className="space-y-0.5 px-2">
-              {adminNav.map((item) => (
-                <li key={item.href}>
-                  <NavItem
-                    href={item.href}
-                    label={item.name}
-                    icon={item.icon}
-                    active={item.match(pathname)}
-                    collapsed={collapsed}
-                  />
-                </li>
-              ))}
+              {adminNav
+                .filter((item) => !item.siteAdminOnly || profile.role === "admin")
+                .map((item) => (
+                  <li key={item.href}>
+                    <NavItem
+                      href={item.href}
+                      label={item.name}
+                      icon={item.icon}
+                      active={item.match(pathname)}
+                      collapsed={collapsed}
+                    />
+                  </li>
+                ))}
             </ul>
           </div>
         )}
