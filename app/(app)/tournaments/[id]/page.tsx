@@ -204,6 +204,16 @@ export default async function TournamentDetailPage({
   const confirmedRegistrations = registrations.filter((r) => r.status === "confirmed");
   const waitlistRegistrations = registrations.filter((r) => r.status === "waitlist");
 
+  // Player count = sum of player + partner per row. Doubles row with
+  // partner_id null is a Need-Partner registrant (counts 1); paired
+  // doubles row counts 2; singles always counts 1. Reused below to
+  // label the Registered list with players rather than teams.
+  const confirmedPlayerCount = confirmedRegistrations.reduce(
+    (sum, r: any) =>
+      sum + (tournament.type === "doubles" && r.partner_id ? 2 : 1),
+    0
+  );
+
   // Compute per-division player counts for the review panel
   const divisionCounts = (tournament.divisions ?? []).map((code: string) => {
     const divRegs = confirmedRegistrations.filter((r: any) => r.division === code);
@@ -1117,7 +1127,7 @@ export default async function TournamentDetailPage({
           tournament.status === "in_progress" || tournament.status === "completed";
         const paidCount = confirmedRegistrations.filter((r: any) => r.paid).length;
         const unpaidCount = confirmedRegistrations.length - paidCount;
-        const registeredCountLabel = `Registered (${confirmedRegistrations.length}${tournament.player_cap ? `/${tournament.player_cap}` : ""})`;
+        const registeredCountLabel = `Registered (${confirmedPlayerCount})`;
         const paidSubtitle = canManage && tournament.entry_fee && confirmedRegistrations.length > 0
           ? `${paidCount} of ${confirmedRegistrations.length} paid`
           : undefined;
@@ -1450,7 +1460,7 @@ export default async function TournamentDetailPage({
           tournament.status === "in_progress" || tournament.status === "completed";
         const paidCount = confirmedRegistrations.filter((r: any) => r.paid).length;
         const unpaidCount = confirmedRegistrations.length - paidCount;
-        const registeredCountLabel = `Registered (${confirmedRegistrations.length}${tournament.player_cap ? `/${tournament.player_cap}` : ""})`;
+        const registeredCountLabel = `Registered (${confirmedPlayerCount})`;
         const paidSubtitle = canManage && tournament.entry_fee && confirmedRegistrations.length > 0
           ? `${paidCount} of ${confirmedRegistrations.length} paid`
           : undefined;
