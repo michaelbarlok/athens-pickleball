@@ -95,6 +95,76 @@ export async function POST(
     );
   }
 
+  // Strict gender-eligibility enforcement for gendered divisions.
+  // Men's = both players male; Women's = both female; Mixed (doubles
+  // only) = one male + one female. Singles Mixed has no constraint
+  // since there's no partner to balance against. Profiles whose
+  // gender is null can't enter any gendered division — the admin
+  // must fill it in (or the player updates their profile) first.
+  const divGender = division ? getDivisionGender(division) : null;
+  if (divGender) {
+    const idsForGender = [auth.profile.id, ...(partner_id ? [partner_id] : [])];
+    const { data: profs } = await auth.supabase
+      .from("profiles")
+      .select("id, gender, display_name")
+      .in("id", idsForGender);
+    const me = (profs ?? []).find((p) => p.id === auth.profile.id) as
+      | { id: string; gender: string | null; display_name: string }
+      | undefined;
+    const partner = partner_id
+      ? ((profs ?? []).find((p) => p.id === partner_id) as
+          | { id: string; gender: string | null; display_name: string }
+          | undefined)
+      : null;
+
+    const missing = !me?.gender || (partner_id && !partner?.gender);
+    if (missing) {
+      return NextResponse.json(
+        {
+          error:
+            "Set your gender on your profile before registering for a gendered division (and your partner must too).",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (divGender === "mens") {
+      if (me!.gender !== "male") {
+        return NextResponse.json(
+          { error: "Men's divisions are restricted to male players." },
+          { status: 400 }
+        );
+      }
+      if (partner && partner.gender !== "male") {
+        return NextResponse.json(
+          { error: "Men's divisions require a male partner." },
+          { status: 400 }
+        );
+      }
+    } else if (divGender === "womens") {
+      if (me!.gender !== "female") {
+        return NextResponse.json(
+          { error: "Women's divisions are restricted to female players." },
+          { status: 400 }
+        );
+      }
+      if (partner && partner.gender !== "female") {
+        return NextResponse.json(
+          { error: "Women's divisions require a female partner." },
+          { status: 400 }
+        );
+      }
+    } else if (divGender === "mixed" && partner) {
+      // Doubles Mixed must pair one male with one female.
+      if (me!.gender === partner.gender) {
+        return NextResponse.json(
+          { error: "Mixed divisions require one male and one female player." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   // Pull every existing non-withdrawn registration involving the
   // player or the partner. Multi-division registration is allowed
   // ("Men's + Mixed" / "Women's + Mixed"), so we can't just bail

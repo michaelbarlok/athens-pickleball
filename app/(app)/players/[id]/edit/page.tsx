@@ -25,6 +25,7 @@ export default function EditProfilePage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState<"" | "male" | "female">("");
   const [bio, setBio] = useState("");
   const [homeCourt, setHomeCourt] = useState("");
   const [skillLevel, setSkillLevel] = useState("");
@@ -91,6 +92,11 @@ export default function EditProfilePage() {
       setFirstName(profile.first_name ?? "");
       setLastName(profile.last_name ?? "");
       setPhone(profile.phone ?? "");
+      setGender(
+        profile.gender === "male" || profile.gender === "female"
+          ? profile.gender
+          : ""
+      );
       setBio(profile.bio ?? "");
       setHomeCourt(profile.home_court ?? "");
       setSkillLevel(profile.skill_level?.toString() ?? "");
@@ -238,6 +244,7 @@ export default function EditProfilePage() {
       first_name: trimmedFirst || null,
       last_name: trimmedLast || null,
       phone: phone.trim() || null,
+      gender: gender === "" ? null : gender,
       bio: bio.trim() || null,
       home_court: homeCourt.trim() || null,
       skill_level: skillLevel ? parseFloat(skillLevel) : null,
@@ -388,6 +395,25 @@ export default function EditProfilePage() {
               className="input"
               placeholder="(optional)"
             />
+          </div>
+
+          <div>
+            <label htmlFor="gender" className="block text-sm font-medium text-dark-200 mb-1">
+              Gender
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(e) => setGender(e.target.value as "" | "male" | "female")}
+              className="input"
+            >
+              <option value="">Not set</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+            <p className="mt-1 text-xs text-surface-muted">
+              Determines which tournament divisions (Men&apos;s / Women&apos;s / Mixed) you can register for.
+            </p>
           </div>
 
           <div>
