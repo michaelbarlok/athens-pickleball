@@ -16,8 +16,15 @@ export type TournamentRow = {
   player_cap: number | null;
   is_hidden: boolean | null;
   creator: { display_name: string | null } | null;
-  registrations: { count: number }[] | null;
+  /** Embedded list of registration rows with `status`. Counting only
+   *  non-withdrawn rows in JS — PostgREST's embedded `(count)` was
+   *  including withdrawals and made cards claim N+1 registered. */
+  registrations: { status: string }[] | null;
 };
+
+function activeRegCount(t: TournamentRow): number {
+  return (t.registrations ?? []).filter((r) => r.status !== "withdrawn").length;
+}
 
 export function TournamentsTable({ tournaments }: { tournaments: TournamentRow[] }) {
   const columns: Column<TournamentRow>[] = [
@@ -58,10 +65,10 @@ export function TournamentsTable({ tournaments }: { tournaments: TournamentRow[]
       key: "registered",
       header: "Registered",
       cell: (t) => {
-        const n = t.registrations?.[0]?.count ?? 0;
+        const n = activeRegCount(t);
         return `${n}${t.player_cap ? `/${t.player_cap}` : ""}`;
       },
-      sortValue: (t) => t.registrations?.[0]?.count ?? 0,
+      sortValue: (t) => activeRegCount(t),
       sortable: true,
       align: "right",
       priority: "secondary",

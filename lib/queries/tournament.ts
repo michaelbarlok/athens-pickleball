@@ -65,7 +65,7 @@ export async function listTournaments(filters?: {
 
   let query = supabase
     .from("tournaments")
-    .select("*, creator:profiles!created_by(id, display_name, avatar_url), registrations:tournament_registrations(count)")
+    .select("*, creator:profiles!created_by(id, display_name, avatar_url), registrations:tournament_registrations(status)")
     .order("start_date", { ascending: true });
 
   // Non-admins only see visible tournaments
@@ -90,11 +90,18 @@ export async function listTournaments(filters?: {
   const { data, error } = await query;
   if (error || !data) return [];
 
+  // Count active (non-withdrawn) registrations only. PostgREST's
+  // embedded `(count)` returns the total — including withdrawals —
+  // which made the card claim "3 registered" for a tournament with
+  // 2 active teams + 1 withdrawn row. Fetch status and count in JS
+  // so the number on the card matches the roster table below it.
   let rows = (data as unknown as (TournamentWithCounts & {
-    registrations: { count: number }[];
+    registrations: { status: string }[];
   })[]).map((t) => ({
     ...t,
-    registration_count: t.registrations?.[0]?.count ?? 0,
+    registration_count: (t.registrations ?? []).filter(
+      (r) => r.status !== "withdrawn"
+    ).length,
   }));
 
   // Gender filter — matches if ANY of the tournament's divisions
