@@ -47,9 +47,11 @@ export function TournamentCard({
   const t = tournament;
   const isOpen = t.status === "registration_open";
   const accent = STATUS_ACCENT[t.status] ?? "card-accent-gray";
-  const fillPct = t.player_cap && t.registration_count != null
-    ? Math.min((t.registration_count / t.player_cap) * 100, 100)
-    : null;
+  // `registration_count` is now total players (see lib/queries/tournament.ts
+  // for the per-tournament-type math). We deliberately don't render
+  // /player_cap on the card because the DB cap enforcement counts
+  // team rows, not players — comparing player count to a team cap
+  // would surface a misleading "X/Y full" ratio.
 
   const logoUrl = (t as any).logo_url as string | null | undefined;
 
@@ -131,23 +133,15 @@ export function TournamentCard({
           )}
         </div>
 
-        <div className="mt-3 pt-3 border-t border-surface-border space-y-1.5">
+        <div className="mt-3 pt-3 border-t border-surface-border">
           <div className="flex items-center justify-between">
             <span className="text-xs text-surface-muted">
-              {t.registration_count} registered{t.player_cap ? ` / ${t.player_cap}` : ""}
+              {t.registration_count} player{t.registration_count === 1 ? "" : "s"} registered
             </span>
             <span className="text-xs text-surface-muted">
               by {t.creator?.display_name ?? "Unknown"}
             </span>
           </div>
-          {fillPct !== null && (
-            <div className="h-1.5 w-full rounded-full bg-surface-overlay overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${fillPct >= 100 ? "bg-accent-400" : "bg-teal-400"}`}
-                style={{ width: `${fillPct}%` }}
-              />
-            </div>
-          )}
         </div>
       </Link>
 

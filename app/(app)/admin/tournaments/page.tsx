@@ -37,7 +37,7 @@ export default async function AdminTournamentsPage() {
   let query = supabase
     .from("tournaments")
     .select(
-      "*, creator:profiles!created_by(display_name), registrations:tournament_registrations(status)"
+      "*, creator:profiles!created_by(display_name), registrations:tournament_registrations(status, partner_id)"
     )
     .order("created_at", { ascending: false });
   if (allowedIds !== null) {

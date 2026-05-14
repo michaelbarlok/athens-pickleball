@@ -65,7 +65,7 @@ export async function listTournaments(filters?: {
 
   let query = supabase
     .from("tournaments")
-    .select("*, creator:profiles!created_by(id, display_name, avatar_url), host_group:shootout_groups!host_group_id(id, name, slug), registrations:tournament_registrations(status)")
+    .select("*, creator:profiles!created_by(id, display_name, avatar_url), host_group:shootout_groups!host_group_id(id, name, slug), registrations:tournament_registrations(status, partner_id)")
     .order("start_date", { ascending: true });
 
   // Non-admins only see visible tournaments
@@ -90,18 +90,24 @@ export async function listTournaments(filters?: {
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // Count active (non-withdrawn) registrations only. PostgREST's
-  // embedded `(count)` returns the total — including withdrawals —
-  // which made the card claim "3 registered" for a tournament with
-  // 2 active teams + 1 withdrawn row. Fetch status and count in JS
-  // so the number on the card matches the roster table below it.
+  // Compute player count from registrations, not team-row count.
+  // A doubles row contributes 1 player when partner_id is null
+  // (Need-Partner) and 2 when both slots are filled. Singles is
+  // always 1 per row. Withdrawn rows excluded — the embedded
+  // PostgREST `(count)` returns total rows including withdrawals,
+  // which was making cards over-count.
   let rows = (data as unknown as (TournamentWithCounts & {
-    registrations: { status: string }[];
+    type: string;
+    registrations: { status: string; partner_id: string | null }[];
   })[]).map((t) => ({
     ...t,
-    registration_count: (t.registrations ?? []).filter(
-      (r) => r.status !== "withdrawn"
-    ).length,
+    registration_count: (t.registrations ?? [])
+      .filter((r) => r.status !== "withdrawn")
+      .reduce(
+        (sum, r) =>
+          sum + (t.type === "doubles" && r.partner_id ? 2 : 1),
+        0
+      ),
   }));
 
   // Gender filter — matches if ANY of the tournament's divisions
