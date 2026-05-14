@@ -322,6 +322,9 @@ export default async function SheetDetailPage({
                 <h1 className="text-2xl sm:text-3xl font-bold text-dark-100 break-words">
                   {sheet.group?.name ?? "Event"}
                 </h1>
+                {sheet.label && (
+                  <p className="mt-0.5 text-sm sm:text-base text-dark-200">{sheet.label}</p>
+                )}
                 {sheet.play_type === "skills" && (
                   <span className="badge-blue text-xs mt-1 inline-block">Skills Session</span>
                 )}

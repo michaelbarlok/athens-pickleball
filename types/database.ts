@@ -133,6 +133,10 @@ export interface SignupSheet {
   /** Ladder or skills. Copied from the recurring schedule at auto-post
    *  time so a schedule edit doesn't retroactively flip posted sheets. */
   play_type: PlayType;
+  /** Short label inherited from the recurring schedule (e.g. "Tuesday
+   *  morning drills"). Lets players tell visually similar sheets apart
+   *  on the list. Frozen at creation, same as play_type. */
+  label?: string | null;
   signup_opens_at?: string | null;
   signup_closes_at: string;
   withdraw_closes_at?: string | null;

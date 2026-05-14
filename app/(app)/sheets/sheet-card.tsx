@@ -53,6 +53,9 @@ interface SheetCardProps {
   status: string;
   /** "ladder" | "skills". Drives the Skills badge in the card header. */
   playType?: string;
+  /** Optional human label (e.g. "Tuesday morning drills"). Rendered as
+   *  a subtitle so visually similar sheets are distinguishable. */
+  label?: string | null;
   eventDate: string;
   location: string;
   playerLimit: number;
@@ -156,6 +159,7 @@ export function SheetCard({
   groupName,
   status,
   playType,
+  label,
   eventDate,
   location,
   playerLimit,
@@ -231,6 +235,9 @@ export function SheetCard({
               <span className="badge-blue text-xs">Skills</span>
             )}
           </div>
+          {label && (
+            <p className="mt-0.5 text-sm text-dark-200">{label}</p>
+          )}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-surface-muted">
             <span>{eventDate}</span>
             <span>{location}</span>

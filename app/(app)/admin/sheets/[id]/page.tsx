@@ -47,6 +47,7 @@ export default function AdminSheetDetailPage() {
   const [eventTime, setEventTime] = useState("");
   const [playerLimit, setPlayerLimit] = useState(0);
   const [location, setLocation] = useState("");
+  const [label, setLabel] = useState("");
   const [savedLocations, setSavedLocations] = useState<{ name: string; cityState: string }[]>([]);
   const [signupClosesAt, setSignupClosesAt] = useState("");
   const [withdrawClosesAt, setWithdrawClosesAt] = useState("");
@@ -93,6 +94,7 @@ export default function AdminSheetDetailPage() {
       setEventTime(isoToTimeInZone(sheetData.event_time, sheetTz));
       setPlayerLimit(sheetData.player_limit);
       setLocation(sheetData.location);
+      setLabel(sheetData.label ?? "");
 
       // Load saved locations for dropdown
       const [sheetsLocRes, tournamentsLocRes] = await Promise.all([
@@ -174,6 +176,7 @@ export default function AdminSheetDetailPage() {
           event_time: eventTimeUtc,
           player_limit: playerLimit,
           location,
+          label: label.trim() || null,
           // The DateTimeFifteenMin component yields "YYYY-MM-DDTHH:MM" with
           // no zone — treat it as wall-clock in the sheet's zone.
           signup_closes_at: signupClosesAt
@@ -548,6 +551,22 @@ export default function AdminSheetDetailPage() {
                 <option key={slot.value} value={slot.value}>{slot.label}</option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-dark-200 mb-1">
+              Label
+            </label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="input"
+              placeholder="e.g. Tuesday morning drills"
+              maxLength={80}
+            />
+            <p className="mt-1 text-xs text-surface-muted">
+              Shown under the group name on the sheet card so similar sheets are distinguishable.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-dark-200 mb-1">

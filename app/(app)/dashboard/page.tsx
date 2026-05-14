@@ -200,7 +200,7 @@ export default async function DashboardPage() {
   type TimelineItem =
     | { kind: "live-session"; id: string; href: string; title: string; subtitle: string; status: "live" }
     | { kind: "live-tournament"; id: string; href: string; title: string; subtitle: string; status: "live" }
-    | { kind: "sheet"; id: string; href: string; title: string; subtitle: string; date: string; status: "open"; eventTime: string | null; location: string | null; cityState: string | null; playType: string }
+    | { kind: "sheet"; id: string; href: string; title: string; subtitle: string; date: string; status: "open"; eventTime: string | null; location: string | null; cityState: string | null; playType: string; label: string | null }
     | { kind: "tournament"; id: string; href: string; title: string; subtitle: string; date: string; status: "upcoming" | "waitlist" | "organizer"; eventTime: string | null; location: string | null; cityState: string | null };
 
   const timeline: TimelineItem[] = [
@@ -227,7 +227,10 @@ export default async function DashboardPage() {
       id: s.id,
       href: `/sheets/${s.id}`,
       title: s.group?.name ?? "Event",
-      subtitle: s.location,
+      // Subtitle on the timeline row already shows location; prefer
+      // the label when present so similar sheets in the same group
+      // are visually distinct, falling back to location otherwise.
+      subtitle: s.label || s.location,
       date: s.event_date,
       status: "open",
       eventTime: s.event_time ?? null,
@@ -235,6 +238,7 @@ export default async function DashboardPage() {
       cityState:
         [s.group?.city, s.group?.state].filter(Boolean).join(", ") || null,
       playType: s.play_type ?? "ladder",
+      label: s.label ?? null,
     })),
     ...upcomingTournaments.map((r: any): TimelineItem => ({
       kind: "tournament",
