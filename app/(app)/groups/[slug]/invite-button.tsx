@@ -12,11 +12,16 @@ export function InviteButton({
   groupSlug,
   groupName,
   groupVisibility,
+  /** Optional custom trigger. Receives an `open` callback that the
+   *  trigger should invoke when the user wants to launch the modal.
+   *  Defaults to a `<button class="btn-secondary">Invite Player</button>`. */
+  renderTrigger,
 }: {
   groupId: string;
   groupSlug: string;
   groupName: string;
   groupVisibility: string;
+  renderTrigger?: (open: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("email");
@@ -142,9 +147,13 @@ export function InviteButton({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-secondary">
-        Invite Player
-      </button>
+      {renderTrigger ? (
+        renderTrigger(() => setOpen(true))
+      ) : (
+        <button onClick={() => setOpen(true)} className="btn-secondary">
+          Invite Player
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

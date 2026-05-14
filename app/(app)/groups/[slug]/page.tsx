@@ -5,13 +5,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import { FreePlayLeaderboard } from "./leaderboard";
-import { InviteButton } from "./invite-button";
 import { ResetStatsButton } from "./reset-stats-button";
 import { RollingSessionsSetting } from "./rolling-sessions-setting";
 import { GroupTabs, type TabSpec } from "./group-tabs";
 import { MembersGrid } from "./members-grid";
 import { SendAnnouncement } from "./send-announcement";
-import { LeaveGroupButton } from "./leave-group-button";
+import { GroupActionsRow } from "./group-actions-row";
 import { WeatherBadge } from "@/components/weather-badge";
 import { groupGradient } from "@/lib/group-gradient";
 import type { GroupWithPreferences } from "@/lib/queries/group";
@@ -643,16 +642,19 @@ export default async function GroupPage({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            {isMember ? (
-              <InviteButton
-                groupId={group.id}
-                groupSlug={slug}
-                groupName={group.name}
-                groupVisibility={group.visibility}
-              />
-            ) : canJoin ? (
-              user && profile ? (
+          {isMember ? (
+            <GroupActionsRow
+              groupId={group.id}
+              slug={slug}
+              groupName={group.name}
+              groupVisibility={group.visibility}
+              isGroupAdmin={isGroupAdmin}
+              isLadderLeague={group.group_type === "ladder_league"}
+              contactAdminsHref={contactAdminsHref}
+            />
+          ) : canJoin ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {user && profile ? (
                 <JoinButton
                   groupId={group.id}
                   playerId={profile.id}
@@ -666,28 +668,9 @@ export default async function GroupPage({
                 >
                   Join Group
                 </Link>
-              )
-            ) : null}
-
-            {isGroupAdmin && group.group_type === "ladder_league" && (
-              <Link href={`/admin/sheets/new?groupId=${group.id}`} className="btn-primary">
-                + Create Sheet
-              </Link>
-            )}
-            {isGroupAdmin && (
-              <Link href={`/admin/groups/${group.id}?tab=preferences`} className="btn-secondary">
-                Group Settings
-              </Link>
-            )}
-            {isMember && contactAdminsHref && (
-              <a href={contactAdminsHref} className="btn-secondary text-xs">
-                Contact Admins
-              </a>
-            )}
-            {isMember && (
-              <LeaveGroupButton groupId={group.id} groupName={group.name} />
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 
