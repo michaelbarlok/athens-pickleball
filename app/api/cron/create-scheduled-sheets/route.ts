@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         event_date: eventDateStr,
         event_time: eventTimeIso,
         timezone: tz,
+        play_type: sched.play_type === "skills" ? "skills" : "ladder",
         location: sched.location,
         player_limit: sched.player_limit,
         signup_closes_at: signupClosesAt,
@@ -100,9 +101,12 @@ export async function GET(request: NextRequest) {
 
     // A duplicate-key error means another run already created this sheet;
     // treat as success and advance the queue so we don't keep retrying.
+    // Index name has changed historically (group_event_date → datetime →
+    // dt_playtype); match the SQLSTATE plus a generic substring instead
+    // of pinning to a specific name.
     const isDuplicate =
       insertErr?.code === "23505" ||
-      /duplicate key|signup_sheets_group_event_date_unique/i.test(insertErr?.message ?? "");
+      /duplicate key|signup_sheets_group_event/i.test(insertErr?.message ?? "");
 
     if (insertErr && !isDuplicate) {
       console.error(`[cron] insert failed for schedule ${sched.id}:`, insertErr.message);

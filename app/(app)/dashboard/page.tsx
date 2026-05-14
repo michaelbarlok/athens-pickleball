@@ -200,7 +200,7 @@ export default async function DashboardPage() {
   type TimelineItem =
     | { kind: "live-session"; id: string; href: string; title: string; subtitle: string; status: "live" }
     | { kind: "live-tournament"; id: string; href: string; title: string; subtitle: string; status: "live" }
-    | { kind: "sheet"; id: string; href: string; title: string; subtitle: string; date: string; status: "open"; eventTime: string | null; location: string | null; cityState: string | null }
+    | { kind: "sheet"; id: string; href: string; title: string; subtitle: string; date: string; status: "open"; eventTime: string | null; location: string | null; cityState: string | null; playType: string }
     | { kind: "tournament"; id: string; href: string; title: string; subtitle: string; date: string; status: "upcoming" | "waitlist" | "organizer"; eventTime: string | null; location: string | null; cityState: string | null };
 
   const timeline: TimelineItem[] = [
@@ -234,6 +234,7 @@ export default async function DashboardPage() {
       location: s.location ?? null,
       cityState:
         [s.group?.city, s.group?.state].filter(Boolean).join(", ") || null,
+      playType: s.play_type ?? "ladder",
     })),
     ...upcomingTournaments.map((r: any): TimelineItem => ({
       kind: "tournament",
@@ -606,6 +607,9 @@ function ContextualHero({ lead }: { lead: any }) {
           <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-dark-100 break-words">
             {lead.title}
           </h1>
+          {lead.kind === "sheet" && lead.playType === "skills" && (
+            <span className="badge-blue text-xs mt-1 inline-block">Skills Session</span>
+          )}
           <p className="mt-1 text-sm sm:text-base text-surface-muted">
             {lead.subtitle}
           </p>
@@ -755,7 +759,12 @@ function TimelineRow({ item, todayIso }: { item: any; todayIso: string }) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-dark-100 truncate">{item.title}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-medium text-dark-100 truncate">{item.title}</p>
+            {item.kind === "sheet" && item.playType === "skills" && (
+              <span className="badge-blue text-[10px] shrink-0">Skills Session</span>
+            )}
+          </div>
           <p className="text-xs text-surface-muted truncate">{item.subtitle}</p>
           {/* Weather chip — renders nothing if event is past, more
               than 5 days out, missing a time, or NWS lookup failed. */}

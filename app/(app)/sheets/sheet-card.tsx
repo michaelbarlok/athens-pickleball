@@ -51,6 +51,8 @@ interface SheetCardProps {
   sheetId: string;
   groupName: string;
   status: string;
+  /** "ladder" | "skills". Drives the Skills badge in the card header. */
+  playType?: string;
   eventDate: string;
   location: string;
   playerLimit: number;
@@ -153,6 +155,7 @@ export function SheetCard({
   sheetId,
   groupName,
   status,
+  playType,
   eventDate,
   location,
   playerLimit,
@@ -224,6 +227,9 @@ export function SheetCard({
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-dark-100">{groupName}</p>
             <span className={badge.className}>{badge.icon}{badge.label}</span>
+            {playType === "skills" && (
+              <span className="badge-blue text-xs">Skills</span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-surface-muted">
             <span>{eventDate}</span>

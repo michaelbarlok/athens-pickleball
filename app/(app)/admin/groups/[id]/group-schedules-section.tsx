@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatTimeInZone } from "@/lib/utils";
-import type { GroupRecurringSchedule } from "@/types/database";
+import type { GroupRecurringSchedule, PlayType } from "@/types/database";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -47,6 +47,7 @@ function timeOptionsIncluding(current: string): string[] {
 type EditorForm = {
   id?: string;
   label: string;
+  play_type: PlayType;
   day_of_week: number;
   event_time: string;
   timezone: string;
@@ -65,6 +66,7 @@ type EditorForm = {
 function defaultForm(): EditorForm {
   return {
     label: "",
+    play_type: "ladder",
     day_of_week: 2,
     event_time: "18:00",
     timezone: "America/New_York",
@@ -86,6 +88,7 @@ function fromSchedule(s: GroupRecurringSchedule): EditorForm {
   return {
     id: s.id,
     label: (s as unknown as { label?: string | null }).label ?? "",
+    play_type: (s.play_type as PlayType | undefined) ?? "ladder",
     day_of_week: s.day_of_week,
     event_time: s.event_time.slice(0, 5),
     timezone: s.timezone ?? "America/New_York",
@@ -134,6 +137,7 @@ export function GroupSchedulesSection({ groupId }: { groupId: string }) {
     try {
       const payload = {
         label: editing.label.trim() || null,
+        play_type: editing.play_type,
         day_of_week: editing.day_of_week,
         event_time: editing.event_time + ":00",
         timezone: editing.timezone,
@@ -260,11 +264,18 @@ function ScheduleCard({
       ? `${DAY_SHORT[schedule.post_day_of_week]} ${formatTimeInZone(schedule.post_time, tz)}`
       : null;
 
+  const isSkills = schedule.play_type === "skills";
+
   return (
     <div className={`card p-3 ${schedule.is_active ? "" : "opacity-60"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {label && <p className="text-sm font-semibold text-dark-100">{label}</p>}
+          <div className="flex items-center gap-2 flex-wrap">
+            {label && <p className="text-sm font-semibold text-dark-100">{label}</p>}
+            <span className={isSkills ? "badge-blue text-xs" : "badge-green text-xs"}>
+              {isSkills ? "Skills" : "Ladder"}
+            </span>
+          </div>
           <p className="text-sm text-dark-200">{playLine}</p>
           <p className="text-xs text-surface-muted mt-0.5">
             {schedule.location} · {schedule.player_limit} players
@@ -321,6 +332,22 @@ function ScheduleEditor({
             placeholder="e.g. Tuesday morning"
             className="input mt-1 w-full"
           />
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-dark-200">Play type</span>
+          <select
+            value={form.play_type}
+            onChange={(e) => set("play_type", e.target.value as PlayType)}
+            className="input mt-1 w-full"
+          >
+            <option value="ladder">Ladder</option>
+            <option value="skills">Skills Session (drills / practice)</option>
+          </select>
+          <p className="mt-1 text-xs text-surface-muted">
+            {form.play_type === "skills"
+              ? "Sign-up sheet only — no session is started, doesn't count toward sessions played."
+              : "Plays the group's ladder format. A session is started from the sheet."}
+          </p>
         </label>
         <label className="block">
           <span className="text-sm font-medium text-dark-200">Day of week</span>

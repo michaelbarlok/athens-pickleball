@@ -26,7 +26,7 @@ export default async function GroupsPage() {
   // Fetch all active groups with member counts and recurring schedule
   const { data: groups } = await supabase
     .from("shootout_groups")
-    .select("*, group_memberships(count), group_recurring_schedules(day_of_week, event_time, timezone, location, is_active)")
+    .select("*, group_memberships(count), group_recurring_schedules(day_of_week, event_time, timezone, location, is_active, play_type)")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -47,6 +47,7 @@ export default async function GroupsPage() {
       timezone: string | null;
       location: string;
       is_active: boolean;
+      play_type?: string;
     }>) ?? [])
       .filter((s) => s.is_active)
       .sort((a, b) =>
@@ -71,6 +72,7 @@ export default async function GroupsPage() {
         event_time: s.event_time,
         timezone: s.timezone ?? DEFAULT_TZ,
         location: s.location,
+        play_type: s.play_type ?? "ladder",
       })),
     };
   });

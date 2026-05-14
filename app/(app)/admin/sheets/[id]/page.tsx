@@ -445,6 +445,9 @@ export default function AdminSheetDetailPage() {
           <h1 className="mt-2 text-2xl font-bold text-dark-100">
             Edit Sheet: {sheet.group?.name ?? "Event"}
           </h1>
+          {sheet.play_type === "skills" && (
+            <span className="badge-blue text-xs mt-1 inline-block">Skills Session</span>
+          )}
         </div>
         <div className="flex gap-2">
           {sheet.status !== "cancelled" && (
@@ -452,7 +455,7 @@ export default function AdminSheetDetailPage() {
               Cancel Event
             </button>
           )}
-          {confirmed.length >= 4 && (
+          {sheet.play_type !== "skills" && confirmed.length >= 4 && (
             <div className="flex items-center gap-2">
               <label className="text-sm text-dark-200">Courts:</label>
               <select
@@ -477,20 +480,22 @@ export default function AdminSheetDetailPage() {
               </select>
             </div>
           )}
-          <button
-            onClick={handleStartShootout}
-            className="btn-primary"
-            disabled={confirmed.length < 4 || !numCourts}
-            title={
-              confirmed.length < 4
-                ? "Need at least 4 confirmed players"
-                : !numCourts
-                ? "Select number of courts"
-                : undefined
-            }
-          >
-            Start Session
-          </button>
+          {sheet.play_type !== "skills" && (
+            <button
+              onClick={handleStartShootout}
+              className="btn-primary"
+              disabled={confirmed.length < 4 || !numCourts}
+              title={
+                confirmed.length < 4
+                  ? "Need at least 4 confirmed players"
+                  : !numCourts
+                  ? "Select number of courts"
+                  : undefined
+              }
+            >
+              Start Session
+            </button>
+          )}
         </div>
       </div>
 

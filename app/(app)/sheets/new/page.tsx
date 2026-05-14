@@ -6,7 +6,7 @@ import { FormError } from "@/components/form-error";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { ShootoutGroup, GroupRecurringSchedule } from "@/types/database";
+import type { ShootoutGroup, GroupRecurringSchedule, PlayType } from "@/types/database";
 import { wallClockInZoneToUtc } from "@/lib/timezone";
 import { DEFAULT_TZ } from "@/lib/utils";
 
@@ -47,6 +47,10 @@ export default function NewSheetFromSheetsPage() {
   const [notes, setNotes] = useState("");
   // Group timezone (from recurring schedule, falls back to ET)
   const [groupTimezone, setGroupTimezone] = useState(DEFAULT_TZ);
+  // Ladder (default) vs Skills Session. Inherits from the selected play
+  // time on apply; otherwise admin picks manually. Frozen on the sheet
+  // — a schedule edit later won't retroactively re-type this row.
+  const [playType, setPlayType] = useState<PlayType>("ladder");
   // Play times for the selected group
   const [groupSchedules, setGroupSchedules] = useState<GroupRecurringSchedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
@@ -131,6 +135,7 @@ export default function NewSheetFromSheetsPage() {
     setAllowMemberGuests(sched.allow_member_guests);
     setNotes(sched.notes ?? "");
     if (sched.timezone) setGroupTimezone(sched.timezone);
+    setPlayType((sched.play_type as PlayType | undefined) ?? "ladder");
   }
 
   useEffect(() => {
@@ -322,6 +327,7 @@ export default function NewSheetFromSheetsPage() {
           event_date: eventDate,
           event_time: wallClockInZoneToUtc(`${eventDate}T${eventTime}:00`, groupTimezone).toISOString(),
           timezone: groupTimezone,
+          play_type: playType,
           location: location.trim(),
           player_limit: playerLimit,
           signup_closes_at: signupClosesAt,
@@ -446,6 +452,26 @@ export default function NewSheetFromSheetsPage() {
             </p>
           </div>
         )}
+
+        <div>
+          <label htmlFor="playType" className="block text-sm font-medium text-dark-200 mb-1">
+            Play Type
+          </label>
+          <select
+            id="playType"
+            value={playType}
+            onChange={(e) => setPlayType(e.target.value as PlayType)}
+            className="input w-full"
+          >
+            <option value="ladder">Ladder</option>
+            <option value="skills">Skills Session (drills / practice)</option>
+          </select>
+          <p className="mt-1 text-xs text-surface-muted">
+            {playType === "skills"
+              ? "Sign-up only — no session, no ladder impact."
+              : "Plays the group's ladder format. A session is started from the sheet."}
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

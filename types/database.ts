@@ -72,6 +72,13 @@ export type GroupType = "ladder_league" | "free_play";
 export type GroupVisibility = "public" | "private";
 export type LadderType = "court_promotion" | "dynamic_ranking";
 
+/** What kind of play a recurring schedule / sign-up sheet represents.
+ *  - `ladder`: plays the group's ladder format (step movement, scoring,
+ *    recap). The session machinery on top of the sheet applies.
+ *  - `skills`: drills/practice — sign-up sheet only, no session is ever
+ *    started from this sheet, no rankings impact. */
+export type PlayType = "ladder" | "skills";
+
 // ============================================================
 // Core Tables
 // ============================================================
@@ -113,6 +120,9 @@ export interface SignupSheet {
   timezone: string;
   location: string;
   player_limit: number;
+  /** Ladder or skills. Copied from the recurring schedule at auto-post
+   *  time so a schedule edit doesn't retroactively flip posted sheets. */
+  play_type: PlayType;
   signup_opens_at?: string | null;
   signup_closes_at: string;
   withdraw_closes_at?: string | null;
@@ -208,6 +218,8 @@ export interface GroupRecurringSchedule {
   timezone: string; // IANA timezone, e.g. "America/New_York"
   location: string;
   player_limit: number;
+  /** Default play type for sheets auto-posted from this schedule. */
+  play_type: PlayType;
   signup_opens_days_before: number | null; // legacy — superseded by post_day_of_week
   signup_closes_hours_before: number;
   withdraw_closes_hours_before: number | null;

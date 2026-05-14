@@ -20,9 +20,16 @@ import { DEFAULT_TZ } from "@/lib/utils";
  *     old rosters there indefinitely.
  */
 
-/** Window in milliseconds after event start during which a sheet remains
- *  visible to players. After this, the list / detail / dashboard drop it. */
+/** Window in milliseconds after event start during which a Ladder
+ *  sheet remains visible to players. After this, the list / detail /
+ *  dashboard drop it. Ladder needs a longer tail so admins can score
+ *  + close the session before the sheet vanishes from players. */
 export const SHEET_VISIBLE_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+/** Skills sessions have no follow-up session to score — once the event
+ *  start has passed by 30 minutes, the sheet's purpose is done and it
+ *  hides (and signup/withdraw close) at the same instant. */
+export const SKILLS_SHEET_VISIBLE_WINDOW_MS = 30 * 60 * 1000;
 
 type SheetLifecycleShape = {
   event_time?: string | null;
@@ -30,7 +37,15 @@ type SheetLifecycleShape = {
   signup_closes_at?: string | null;
   withdraw_closes_at?: string | null;
   timezone?: string | null;
+  play_type?: string | null;
 };
+
+/** Ms past event start at which the sheet's signup/withdraw window
+ *  closes and player surfaces drop it. Ladder: at start. Skills:
+ *  start + 30 minutes. */
+function lifecycleCutoffMs(sheet: SheetLifecycleShape): number {
+  return sheet.play_type === "skills" ? SKILLS_SHEET_VISIBLE_WINDOW_MS : 0;
+}
 
 type SheetStatusShape = SheetLifecycleShape & {
   status?: string | null;
@@ -83,39 +98,43 @@ function wallClockInZoneToUtcLocal(localWallClock: string, timeZone: string): Da
 }
 
 /** Has signup closed for this sheet? True when either the admin's
- *  `signup_closes_at` has passed or the event itself has started —
- *  whichever comes first. */
+ *  `signup_closes_at` has passed or the sheet's lifecycle cutoff
+ *  (event start for ladder, event start + 30min for skills) has
+ *  passed — whichever comes first. */
 export function sheetSignupClosed(
   sheet: SheetLifecycleShape,
   now: Date = new Date()
 ): boolean {
   if (sheet.signup_closes_at && new Date(sheet.signup_closes_at) <= now) return true;
   const start = sheetEventStart(sheet);
-  if (start && start <= now) return true;
+  if (start && start.getTime() + lifecycleCutoffMs(sheet) <= now.getTime()) return true;
   return false;
 }
 
-/** Has the withdraw window closed for this sheet? Same shape as signup —
- *  capped at `event_time` regardless of what the admin set. */
+/** Has the withdraw window closed for this sheet? Same shape as signup. */
 export function sheetWithdrawClosed(
   sheet: SheetLifecycleShape,
   now: Date = new Date()
 ): boolean {
   if (sheet.withdraw_closes_at && new Date(sheet.withdraw_closes_at) <= now) return true;
   const start = sheetEventStart(sheet);
-  if (start && start <= now) return true;
+  if (start && start.getTime() + lifecycleCutoffMs(sheet) <= now.getTime()) return true;
   return false;
 }
 
-/** True once we've passed the 3-hour visibility window after event start.
- *  Surfaces that render to regular players should treat this as "gone". */
+/** True once we've passed the visibility window after event start.
+ *  3 hours for ladder, 30 minutes for skills. Surfaces that render
+ *  to regular players should treat this as "gone". */
 export function sheetIsExpired(
   sheet: SheetLifecycleShape,
   now: Date = new Date()
 ): boolean {
   const start = sheetEventStart(sheet);
   if (!start) return false;
-  return now.getTime() > start.getTime() + SHEET_VISIBLE_WINDOW_MS;
+  const window = sheet.play_type === "skills"
+    ? SKILLS_SHEET_VISIBLE_WINDOW_MS
+    : SHEET_VISIBLE_WINDOW_MS;
+  return now.getTime() > start.getTime() + window;
 }
 
 /** Whether a regular (non-admin) player should see this sheet at all. */
