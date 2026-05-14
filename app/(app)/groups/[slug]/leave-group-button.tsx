@@ -7,9 +7,14 @@ import { useState } from "react";
 export function LeaveGroupButton({
   groupId,
   groupName,
+  /** Optional custom trigger. Receives an async `leave` callback that
+   *  the trigger should invoke (it handles the confirm dialog +
+   *  request internally). Defaults to a red "Leave Group" pill button. */
+  renderTrigger,
 }: {
   groupId: string;
   groupName: string;
+  renderTrigger?: (leave: () => void, leaving: boolean) => React.ReactNode;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -43,6 +48,10 @@ export function LeaveGroupButton({
       alert("Failed to leave group.");
       setLeaving(false);
     }
+  }
+
+  if (renderTrigger) {
+    return <>{renderTrigger(handleLeave, leaving)}</>;
   }
 
   return (

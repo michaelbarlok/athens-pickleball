@@ -11,19 +11,28 @@ import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status
 export type TournamentRow = {
   id: string;
   title: string;
+  type: string;
   start_date: string | null;
   status: string;
   player_cap: number | null;
   is_hidden: boolean | null;
   creator: { display_name: string | null } | null;
-  /** Embedded list of registration rows with `status`. Counting only
-   *  non-withdrawn rows in JS — PostgREST's embedded `(count)` was
-   *  including withdrawals and made cards claim N+1 registered. */
-  registrations: { status: string }[] | null;
+  /** Embedded list of registration rows. Player count = sum of player
+   *  + partner per active (non-withdrawn) row; a doubles row with no
+   *  partner_id contributes 1, with a partner contributes 2, singles
+   *  is always 1. PostgREST's embedded `(count)` was including
+   *  withdrawals + counting team rows, which over-counted on both
+   *  axes. */
+  registrations: { status: string; partner_id: string | null }[] | null;
 };
 
-function activeRegCount(t: TournamentRow): number {
-  return (t.registrations ?? []).filter((r) => r.status !== "withdrawn").length;
+function activePlayerCount(t: TournamentRow): number {
+  return (t.registrations ?? [])
+    .filter((r) => r.status !== "withdrawn")
+    .reduce(
+      (sum, r) => sum + (t.type === "doubles" && r.partner_id ? 2 : 1),
+      0
+    );
 }
 
 export function TournamentsTable({ tournaments }: { tournaments: TournamentRow[] }) {
@@ -63,12 +72,12 @@ export function TournamentsTable({ tournaments }: { tournaments: TournamentRow[]
     },
     {
       key: "registered",
-      header: "Registered",
+      header: "Players",
       cell: (t) => {
-        const n = activeRegCount(t);
-        return `${n}${t.player_cap ? `/${t.player_cap}` : ""}`;
+        const n = activePlayerCount(t);
+        return n === 1 ? "1 player" : `${n} players`;
       },
-      sortValue: (t) => activeRegCount(t),
+      sortValue: (t) => activePlayerCount(t),
       sortable: true,
       align: "right",
       priority: "secondary",

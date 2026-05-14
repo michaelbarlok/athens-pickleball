@@ -22,7 +22,7 @@ export async function POST(
   const { data: tournament } = await auth.supabase
     .from("tournaments")
     .select(
-      "status, is_hidden, type, title, created_by, registration_opens_at, registration_closes_at"
+      "status, is_hidden, type, title, created_by, registration_opens_at, registration_closes_at, host_group_id, host_group:shootout_groups!host_group_id(id, name, slug)"
     )
     .eq("id", tournamentId)
     .single();
@@ -73,6 +73,44 @@ export async function POST(
       { error: "Registration has closed" },
       { status: 400 }
     );
+  }
+
+  // Group-hosted tournaments are members-only. Both the registering
+  // player and (for doubles) the partner must hold an active
+  // group_memberships row for host_group_id. Site admins still have
+  // to be members — the rule is about who can compete, not who can
+  // moderate. Organizers / host-group admins also have to be members
+  // to register (typical: they ARE members, since they run the group).
+  if (tournament.host_group_id) {
+    const idsToCheck = [auth.profile.id, ...(partner_id ? [partner_id] : [])];
+    const { data: memberships } = await auth.supabase
+      .from("group_memberships")
+      .select("player_id")
+      .eq("group_id", tournament.host_group_id)
+      .in("player_id", idsToCheck);
+    const memberSet = new Set((memberships ?? []).map((m) => m.player_id as string));
+    const hostGroupName =
+      (tournament as { host_group?: { name?: string } | null }).host_group?.name ?? "this group";
+    const hostGroupSlug =
+      (tournament as { host_group?: { slug?: string } | null }).host_group?.slug ?? null;
+    if (!memberSet.has(auth.profile.id)) {
+      return NextResponse.json(
+        {
+          error: `This tournament is hosted by ${hostGroupName} and only open to its members. Join the group to register.`,
+          ...(hostGroupSlug ? { joinHref: `/groups/${hostGroupSlug}` } : {}),
+        },
+        { status: 403 }
+      );
+    }
+    if (partner_id && !memberSet.has(partner_id)) {
+      return NextResponse.json(
+        {
+          error: `Your partner isn't a member of ${hostGroupName} yet. They'll need to join the group before you can register together.`,
+          ...(hostGroupSlug ? { joinHref: `/groups/${hostGroupSlug}` } : {}),
+        },
+        { status: 403 }
+      );
+    }
   }
 
   // Singles tournaments shouldn't accept a partner on the payload.

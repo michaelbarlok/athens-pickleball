@@ -454,11 +454,16 @@ export interface Tournament {
     score_to_win_playoff?: number;
   }> | null;
   logo_url?: string | null;
+  /** When set, only active members of this group can register. Group
+   *  admins also inherit organizer rights. Null = individual-hosted
+   *  (the default; existing tournaments stay this way). */
+  host_group_id?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
   // Relations
   creator?: Profile;
+  host_group?: { id: string; name: string; slug: string } | null;
   registrations?: TournamentRegistration[];
   organizers?: TournamentOrganizer[];
 }

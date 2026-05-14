@@ -67,6 +67,11 @@ export default function CreateTournamentPage() {
   // registration_closes_at, division start times) is interpreted in
   // this zone, regardless of where the organizer's browser is.
   const [timezone, setTimezone] = useState(DEFAULT_TZ);
+  // Optional host group. When set, the tournament is members-only and
+  // every admin of that group inherits organizer rights. Loaded below
+  // from the groups the creator is an admin of (site admins see all).
+  const [hostGroupId, setHostGroupId] = useState("");
+  const [hostGroupOptions, setHostGroupOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [scoreToWinPool, setScoreToWinPool] = useState("11");
   const [numCourts, setNumCourts] = useState("");
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
@@ -111,6 +116,49 @@ export default function CreateTournamentPage() {
       if (sorted.length > 0) setLocation(sorted[0].name);
     }
     loadLocations();
+  }, [supabase]);
+
+  // Load the groups the current user can host a tournament for. Site
+  // admins see every active group; group admins see only the ones
+  // they admin. Empty list = the field is hidden entirely.
+  useEffect(() => {
+    async function loadHostGroups() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: me } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", user.id)
+        .single();
+      if (!me) return;
+      let groups: Array<{ id: string; name: string }> = [];
+      if (me.role === "admin") {
+        const { data } = await supabase
+          .from("shootout_groups")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        groups = (data ?? []) as Array<{ id: string; name: string }>;
+      } else {
+        const { data } = await supabase
+          .from("group_memberships")
+          .select("group:shootout_groups!inner(id, name, is_active)")
+          .eq("player_id", me.id)
+          .eq("group_role", "admin");
+        // supabase-js infers embedded resources as arrays; cast through
+        // unknown to flatten to the single-object shape PostgREST actually
+        // returns for a many-to-one FK.
+        groups = ((data ?? []) as unknown as Array<{
+          group: { id: string; name: string; is_active: boolean } | null;
+        }>)
+          .map((r) => r.group)
+          .filter((g): g is { id: string; name: string; is_active: boolean } => !!g && g.is_active)
+          .map((g) => ({ id: g.id, name: g.name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+      setHostGroupOptions(groups);
+    }
+    loadHostGroups();
   }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -257,6 +305,7 @@ export default function CreateTournamentPage() {
         registration_opens_at: opensIso,
         registration_closes_at: closesIso,
         timezone,
+        host_group_id: hostGroupId || null,
         score_to_win_pool: format === "round_robin" ? parseInt(scoreToWinPool) || 11 : null,
         score_to_win_playoff: format === "round_robin" ? parseInt(scoreToWinPlayoff) || 11 : null,
         finals_best_of_3: format === "round_robin" ? finalsBestOf3 : false,
@@ -334,6 +383,33 @@ export default function CreateTournamentPage() {
               placeholder="Tournament details, rules, prizes..."
             />
           </div>
+
+          {/* Host group (optional). When set, only members of the
+              chosen group can register and every group admin inherits
+              organizer rights. Hidden when the user isn't an admin of
+              any group. */}
+          {hostGroupOptions.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1">
+                Host Group
+              </label>
+              <select
+                value={hostGroupId}
+                onChange={(e) => setHostGroupId(e.target.value)}
+                className="input"
+              >
+                <option value="">No host group (individual tournament)</option>
+                {hostGroupOptions.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-surface-muted">
+                {hostGroupId
+                  ? "Only members of this group can register. Every group admin inherits organizer rights."
+                  : "Anyone can register. You're the sole organizer."}
+              </p>
+            </div>
+          )}
 
           {/* Type (format is currently always Round Robin). */}
           <div>

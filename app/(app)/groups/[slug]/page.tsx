@@ -3,15 +3,14 @@ import { getGroupMembers, getGroupSheets, isGroupMember } from "@/lib/queries/gr
 import { getRecentMatches, getPlayerStats, getRecentSessions } from "@/lib/queries/free-play";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import { FreePlayLeaderboard } from "./leaderboard";
-import { InviteButton } from "./invite-button";
 import { ResetStatsButton } from "./reset-stats-button";
 import { RollingSessionsSetting } from "./rolling-sessions-setting";
 import { GroupTabs, type TabSpec } from "./group-tabs";
 import { MembersGrid } from "./members-grid";
 import { SendAnnouncement } from "./send-announcement";
-import { LeaveGroupButton } from "./leave-group-button";
+import { GroupActionsRow } from "./group-actions-row";
 import { WeatherBadge } from "@/components/weather-badge";
 import { groupGradient } from "@/lib/group-gradient";
 import type { GroupWithPreferences } from "@/lib/queries/group";
@@ -219,6 +218,29 @@ export default async function GroupPage({
   const sheets = await getGroupSheets(group.id);
   const isFreePlay = group.group_type === "free_play";
 
+  // Tournaments hosted by this group. Surfaces upcoming + in-progress
+  // ones on the overview so non-members visiting the group page can
+  // see what they'd gain by joining.
+  const { data: hostedTournamentsRaw } = await supabase
+    .from("tournaments")
+    .select("id, title, start_date, end_date, location, status, timezone, divisions, type")
+    .eq("host_group_id", group.id)
+    .eq("is_hidden", false)
+    .in("status", ["draft", "registration_open", "registration_closed", "in_progress"])
+    .order("start_date", { ascending: true })
+    .limit(10);
+  const hostedTournaments = (hostedTournamentsRaw ?? []) as Array<{
+    id: string;
+    title: string;
+    start_date: string | null;
+    end_date: string | null;
+    location: string | null;
+    status: string;
+    timezone: string | null;
+    divisions: string[] | null;
+    type: string;
+  }>;
+
   // Build mailto: link for all group admins
   const adminEmails = members
     .filter((m) => (m as any).group_role === "admin" && (m as any).player?.email)
@@ -319,6 +341,47 @@ export default async function GroupPage({
 
   const overviewPanel = (
     <div className="space-y-8 pt-6">
+      {/* Hosted tournaments — pulled to the top of the overview so a
+          non-member landing on the group page sees them right away.
+          Members-only badge is the implicit incentive: join the group
+          to register. */}
+      {hostedTournaments.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-dark-100">Tournaments</h2>
+            {!isMember && (
+              <span className="badge-blue text-[10px]">Members only</span>
+            )}
+          </div>
+          <ul className="space-y-2">
+            {hostedTournaments.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/tournaments/${t.id}`}
+                  className="card block hover:ring-2 hover:ring-brand-500/30 transition-shadow"
+                >
+                  <p className="text-sm font-semibold text-dark-100 line-clamp-1">
+                    {t.title}
+                  </p>
+                  <p className="mt-1 text-xs text-surface-muted">
+                    {t.start_date
+                      ? formatDateInZone(t.start_date, t.timezone ?? DEFAULT_TZ)
+                      : "TBD"}
+                    {t.location ? ` · ${t.location}` : ""}
+                    {t.status === "registration_open" && (
+                      <span className="ml-2 badge-green text-[10px]">Registration Open</span>
+                    )}
+                    {t.status === "in_progress" && (
+                      <span className="ml-2 badge-yellow text-[10px]">Live</span>
+                    )}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Announcements — admins can send from here (replaces the form
           that used to live in Manage Groups), members see the recent
           feed with deep-links to the detail page. */}
@@ -643,16 +706,19 @@ export default async function GroupPage({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            {isMember ? (
-              <InviteButton
-                groupId={group.id}
-                groupSlug={slug}
-                groupName={group.name}
-                groupVisibility={group.visibility}
-              />
-            ) : canJoin ? (
-              user && profile ? (
+          {isMember ? (
+            <GroupActionsRow
+              groupId={group.id}
+              slug={slug}
+              groupName={group.name}
+              groupVisibility={group.visibility}
+              isGroupAdmin={isGroupAdmin}
+              isLadderLeague={group.group_type === "ladder_league"}
+              contactAdminsHref={contactAdminsHref}
+            />
+          ) : canJoin ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {user && profile ? (
                 <JoinButton
                   groupId={group.id}
                   playerId={profile.id}
@@ -666,28 +732,9 @@ export default async function GroupPage({
                 >
                   Join Group
                 </Link>
-              )
-            ) : null}
-
-            {isGroupAdmin && group.group_type === "ladder_league" && (
-              <Link href={`/admin/sheets/new?groupId=${group.id}`} className="btn-primary">
-                + Create Sheet
-              </Link>
-            )}
-            {isGroupAdmin && (
-              <Link href={`/admin/groups/${group.id}?tab=preferences`} className="btn-secondary">
-                Group Settings
-              </Link>
-            )}
-            {isMember && contactAdminsHref && (
-              <a href={contactAdminsHref} className="btn-secondary text-xs">
-                Contact Admins
-              </a>
-            )}
-            {isMember && (
-              <LeaveGroupButton groupId={group.id} groupName={group.name} />
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 

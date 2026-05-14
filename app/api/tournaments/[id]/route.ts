@@ -64,6 +64,7 @@ const EDITABLE_FIELDS = new Set([
   "registration_opens_at",
   "registration_closes_at",
   "timezone",
+  "host_group_id",
   "score_to_win_pool",
   "score_to_win_playoff",
   "finals_best_of_3",

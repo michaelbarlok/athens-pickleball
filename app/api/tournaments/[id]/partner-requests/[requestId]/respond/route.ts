@@ -47,7 +47,7 @@ export async function POST(
 
   const { data: tournament } = await service
     .from("tournaments")
-    .select("id, title, type")
+    .select("id, title, type, host_group_id, host_group:shootout_groups!host_group_id(name, slug)")
     .eq("id", tournamentId)
     .single();
   if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
@@ -138,6 +138,28 @@ export async function POST(
     );
   }
   const division = targetReg.division;
+
+  // Group-host membership gate — same rule the register API enforces.
+  // The target is already registered, so they're known to be a member
+  // (or pre-date the gate). We just need to verify the requester is.
+  if (tournament.host_group_id) {
+    const { data: requesterMembership } = await service
+      .from("group_memberships")
+      .select("player_id")
+      .eq("group_id", tournament.host_group_id)
+      .eq("player_id", req.requester_id)
+      .maybeSingle();
+    if (!requesterMembership) {
+      const hostName =
+        (tournament as { host_group?: { name?: string } | null }).host_group?.name ?? "the host group";
+      return NextResponse.json(
+        {
+          error: `${requesterName} isn't a member of ${hostName} and can't partner on this tournament. Ask them to join the group first.`,
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   // Strict gender eligibility — same rules the register API enforces,
   // applied here so a partner accept can't sneak two same-gender
