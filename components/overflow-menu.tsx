@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Tiny popover-style overflow menu (the three-dot "kebab" pattern).
@@ -9,6 +10,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * pops a list of items down-and-to-the-left. Click-outside and Escape
  * both close it.
  *
+ * The popover renders in a React portal anchored to document.body
+ * because the menu often lives inside cards with `overflow: hidden`
+ * (e.g. the group page header clips its gradient strip), which would
+ * otherwise crop the dropdown. The portal escapes every ancestor
+ * overflow boundary; position is computed from the trigger button's
+ * bounding rect so the popover stays glued to it.
+ *
  * Items can be:
  *   - A plain `{ label, onClick, danger? }` entry — handles its own
  *     close-on-click.
@@ -16,8 +24,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  *     popover (Invite, Leave) where the menu just needs to be a
  *     trigger surface. The component is responsible for handling
  *     its own click and closing the menu before opening its modal.
- *
- * Items render as `<button>` by default (or whatever `render` returns).
  */
 
 export type OverflowMenuItem =
@@ -42,12 +48,46 @@ export function OverflowMenu({
   ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Portal needs document.body, which isn't available during SSR. The
+  // mounted gate prevents the server from rendering the popover at all.
+  useEffect(() => setMounted(true), []);
+
+  // Position the portal'd popover under the trigger. useLayoutEffect
+  // so the menu appears in its final spot on the same frame the user
+  // sees `open=true`, without a one-frame jump from (0,0).
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const updatePosition = () => {
+      const rect = triggerRef.current!.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 4,
+        // right-anchored: distance from viewport's right edge to the
+        // trigger's right edge. The popover then uses `right: <px>`
+        // so it grows leftward, matching the previous in-flow look.
+        right: window.innerWidth - rect.right,
+      });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -61,8 +101,9 @@ export function OverflowMenu({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative inline-block">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="menu"
@@ -83,10 +124,12 @@ export function OverflowMenu({
         </svg>
       </button>
 
-      {open && (
+      {mounted && open && position && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
-          className="absolute right-0 z-30 mt-1 min-w-[12rem] overflow-hidden rounded-lg bg-surface-raised shadow-lg ring-1 ring-surface-border"
+          style={{ top: position.top, right: position.right }}
+          className="fixed z-[60] min-w-[12rem] overflow-hidden rounded-lg bg-surface-raised shadow-lg ring-1 ring-surface-border"
         >
           {items.map((item, i) => {
             if ("render" in item) {
@@ -115,8 +158,9 @@ export function OverflowMenu({
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
