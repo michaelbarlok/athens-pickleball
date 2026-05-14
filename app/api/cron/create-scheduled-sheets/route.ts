@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
         event_time: eventTimeIso,
         timezone: tz,
         play_type: sched.play_type === "skills" ? "skills" : "ladder",
+        label: (sched as { label?: string | null }).label ?? null,
         location: sched.location,
         player_limit: sched.player_limit,
         signup_closes_at: signupClosesAt,

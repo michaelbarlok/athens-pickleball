@@ -212,6 +212,7 @@ export default async function SheetsPage() {
         groupName={sheet.group?.name ?? "Event"}
         status={sheetEffectiveStatus(sheet)}
         playType={(sheet as { play_type?: string }).play_type}
+        label={(sheet as { label?: string | null }).label ?? null}
         eventDate={formatDate(sheet.event_date)}
         location={sheet.location}
         playerLimit={sheet.player_limit}
