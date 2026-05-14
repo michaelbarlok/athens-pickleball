@@ -337,7 +337,7 @@ export function MembersTable({ profiles, membershipMap, currentProfileId, duplic
       `All play history from "${mergeSecondary.display_name}" transfers over.`,
       `Final login email: ${finalEmail}.`,
       keepSecondaryAvatar ? "Profile photo: taken from the secondary." : null,
-      "The secondary account is deactivated. This cannot be undone.",
+      "The secondary account is deleted. This cannot be undone.",
     ]
       .filter(Boolean)
       .join(" ");
