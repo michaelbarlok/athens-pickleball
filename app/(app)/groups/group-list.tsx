@@ -23,6 +23,7 @@ type PlayTime = {
   event_time: string;
   timezone: string;
   location: string;
+  play_type?: string;
 };
 
 function formatPlayTime(pt: PlayTime): string {
@@ -319,6 +320,17 @@ function GroupCard({
   const playTimeStr = firstPlayTime ? formatPlayTime(firstPlayTime) : null;
   const extraPlayTimes = group.playTimes.length > 1 ? group.playTimes.length - 1 : 0;
 
+  // Pills reflect what this group actually offers. A ladder_league with
+  // both ladder and skills play times gets both pills; a group with no
+  // play times yet defaults to its group_type for display so a brand-new
+  // group still shows something useful.
+  const hasLadderPlay = group.playTimes.some((p) => p.play_type !== "skills");
+  const hasSkillsPlay = group.playTimes.some((p) => p.play_type === "skills");
+  const showLadderPill =
+    group.group_type !== "free_play" && (group.playTimes.length === 0 || hasLadderPlay);
+  const showSkillsPill = hasSkillsPlay;
+  const showFreePlayPill = group.group_type === "free_play";
+
   return (
     <div
       className={cn(
@@ -339,9 +351,9 @@ function GroupCard({
                 {formatDistanceMi(distanceMi)}
               </span>
             )}
-            <span className={group.group_type === "free_play" ? "badge-yellow" : "badge-blue"}>
-              {group.group_type === "free_play" ? "Free Play" : "Ladder"}
-            </span>
+            {showFreePlayPill && <span className="badge-yellow">Free Play</span>}
+            {showLadderPill && <span className="badge-blue">Ladder</span>}
+            {showSkillsPill && <span className="badge-blue">Skills</span>}
             {showVisibility && group.visibility === "private" && (
               <span className="badge-gray">Private</span>
             )}

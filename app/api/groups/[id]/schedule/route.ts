@@ -48,6 +48,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       group_id: groupId,
       created_by: auth.profile.id,
       label: body.label ?? null,
+      play_type: body.play_type === "skills" ? "skills" : "ladder",
       day_of_week: body.day_of_week,
       event_time: body.event_time,
       timezone: body.timezone ?? "America/New_York",
@@ -91,6 +92,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   if (body.label !== undefined) updates.label = body.label;
+  if (body.play_type !== undefined) {
+    updates.play_type = body.play_type === "skills" ? "skills" : "ladder";
+  }
   if (body.day_of_week !== undefined) updates.day_of_week = body.day_of_week;
   if (body.event_time !== undefined) updates.event_time = body.event_time;
   if (body.timezone !== undefined) updates.timezone = body.timezone;

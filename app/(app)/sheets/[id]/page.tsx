@@ -318,9 +318,14 @@ export default async function SheetDetailPage({
           {/* Title + details */}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-bold text-dark-100 break-words">
-                {sheet.group?.name ?? "Event"}
-              </h1>
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-dark-100 break-words">
+                  {sheet.group?.name ?? "Event"}
+                </h1>
+                {sheet.play_type === "skills" && (
+                  <span className="badge-blue text-xs mt-1 inline-block">Skills Session</span>
+                )}
+              </div>
               <span className={`${statusPill.cls} shrink-0`}>{statusPill.label}</span>
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 text-sm">
@@ -439,7 +444,8 @@ export default async function SheetDetailPage({
           </h3>
           <div className="flex flex-wrap gap-2">
             {(sheet.status === "open" || sheet.status === "closed") &&
-              (sheet as any).group?.group_type !== "free_play" && (
+              (sheet as any).group?.group_type !== "free_play" &&
+              sheet.play_type !== "skills" && (
                 <StartShootout
                   sheetId={sheet.id}
                   groupId={sheet.group_id}
