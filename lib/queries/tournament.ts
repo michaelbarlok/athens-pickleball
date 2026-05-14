@@ -65,7 +65,7 @@ export async function listTournaments(filters?: {
 
   let query = supabase
     .from("tournaments")
-    .select("*, creator:profiles!created_by(id, display_name, avatar_url), registrations:tournament_registrations(status)")
+    .select("*, creator:profiles!created_by(id, display_name, avatar_url), host_group:shootout_groups!host_group_id(id, name, slug), registrations:tournament_registrations(status)")
     .order("start_date", { ascending: true });
 
   // Non-admins only see visible tournaments
@@ -128,7 +128,7 @@ export async function getTournament(id: string): Promise<(Tournament & {
 
   const { data, error } = await supabase
     .from("tournaments")
-    .select("*, creator:profiles!created_by(id, display_name, avatar_url)")
+    .select("*, creator:profiles!created_by(id, display_name, avatar_url), host_group:shootout_groups!host_group_id(id, name, slug)")
     .eq("id", id)
     .single();
 

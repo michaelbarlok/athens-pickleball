@@ -58,6 +58,8 @@ export default function EditTournamentPage() {
   const [registrationOpensAt, setRegistrationOpensAt] = useState("");
   const [registrationClosesAt, setRegistrationClosesAt] = useState("");
   const [timezone, setTimezone] = useState(DEFAULT_TZ);
+  const [hostGroupId, setHostGroupId] = useState("");
+  const [hostGroupOptions, setHostGroupOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [scoreToWinPool, setScoreToWinPool] = useState("11");
   const [scoreToWinPlayoff, setScoreToWinPlayoff] = useState("11");
   const [finalsBestOf3, setFinalsBestOf3] = useState(false);
@@ -113,6 +115,7 @@ export default function EditTournamentPage() {
         setPaymentDirections((data as any).payment_directions ?? "");
         const tz = (data as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
         setTimezone(tz);
+        setHostGroupId((data as { host_group_id?: string | null }).host_group_id ?? "");
         setRegistrationOpensAt(isoToWallClockInZone(data.registration_opens_at, tz));
         setRegistrationClosesAt(isoToWallClockInZone(data.registration_closes_at, tz));
         setScoreToWinPool(data.score_to_win_pool?.toString() ?? "11");
@@ -147,6 +150,43 @@ export default function EditTournamentPage() {
     }
     load();
   }, [id, supabase]);
+
+  // Load groups the current user can host a tournament for, mirroring
+  // the create form. Empty = field hidden.
+  useEffect(() => {
+    async function loadHostGroups() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: me } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", user.id)
+        .single();
+      if (!me) return;
+      let groups: Array<{ id: string; name: string }> = [];
+      if (me.role === "admin") {
+        const { data } = await supabase
+          .from("shootout_groups")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        groups = (data ?? []) as Array<{ id: string; name: string }>;
+      } else {
+        const { data } = await supabase
+          .from("group_memberships")
+          .select("group:shootout_groups!inner(id, name, is_active)")
+          .eq("player_id", me.id)
+          .eq("group_role", "admin");
+        groups = (data ?? [])
+          .map((r) => (r as { group: { id: string; name: string; is_active: boolean } | null }).group)
+          .filter((g): g is { id: string; name: string; is_active: boolean } => !!g && g.is_active)
+          .map((g) => ({ id: g.id, name: g.name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+      setHostGroupOptions(groups);
+    }
+    loadHostGroups();
+  }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -250,6 +290,7 @@ export default function EditTournamentPage() {
         registration_opens_at: opensIso,
         registration_closes_at: closesIso,
         timezone,
+        host_group_id: hostGroupId || null,
         score_to_win_pool: format === "round_robin" ? parseInt(scoreToWinPool) || 11 : null,
         score_to_win_playoff: format === "round_robin" ? parseInt(scoreToWinPlayoff) || 11 : null,
         finals_best_of_3: format === "round_robin" ? finalsBestOf3 : false,
@@ -292,6 +333,27 @@ export default function EditTournamentPage() {
           <label className="block text-sm font-medium text-dark-200 mb-1">Description</label>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input min-h-[80px]" maxLength={5000} />
         </div>
+
+        {hostGroupOptions.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-dark-200 mb-1">Host Group</label>
+            <select
+              value={hostGroupId}
+              onChange={(e) => setHostGroupId(e.target.value)}
+              className="input"
+            >
+              <option value="">No host group (individual tournament)</option>
+              {hostGroupOptions.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-surface-muted">
+              {hostGroupId
+                ? "Only members of this group can register. Every group admin inherits organizer rights."
+                : "Anyone can register. You're the sole organizer."}
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

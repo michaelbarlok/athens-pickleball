@@ -172,7 +172,28 @@ export default async function TournamentDetailPage({
   }));
   const pendingPartnerRequests = (pendingPartnerRequestsResult.data ?? []) as any[];
   const isCoOrganizer = profile ? coOrganizers.some((o: any) => o.profile_id === profile.id) : false;
-  const canManage = isCreator || isAdmin || isCoOrganizer;
+
+  // For group-hosted tournaments, lookup whether the viewer is an
+  // active member. Drives the "Members only" banner + the gate the
+  // register API enforces. Group admins also count toward canManage
+  // (derived rule — matches getTournamentManager). Skipped when
+  // host_group_id is null.
+  const hostGroupId = (tournament as { host_group_id?: string | null }).host_group_id ?? null;
+  let viewerIsHostGroupMember = false;
+  let viewerIsHostGroupAdmin = false;
+  if (hostGroupId && profile) {
+    const { data: hostMembership } = await supabase
+      .from("group_memberships")
+      .select("group_role")
+      .eq("group_id", hostGroupId)
+      .eq("player_id", profile.id)
+      .maybeSingle();
+    if (hostMembership) {
+      viewerIsHostGroupMember = true;
+      viewerIsHostGroupAdmin = hostMembership.group_role === "admin";
+    }
+  }
+  const canManage = isCreator || isAdmin || isCoOrganizer || viewerIsHostGroupAdmin;
 
   // Hidden tournaments are invisible to non-managers
   if ((tournament as any).is_hidden && !canManage) notFound();
@@ -562,6 +583,14 @@ export default async function TournamentDetailPage({
                 <span className="badge-gray text-xs">
                   {tournament.divisions?.length ?? 0} division{(tournament.divisions?.length ?? 0) !== 1 ? "s" : ""}
                 </span>
+                {(tournament as { host_group?: { slug: string; name: string } | null }).host_group && (
+                  <Link
+                    href={`/groups/${(tournament as { host_group: { slug: string } }).host_group.slug}`}
+                    className="badge-blue text-xs hover:opacity-80"
+                  >
+                    Hosted by {(tournament as { host_group: { name: string } }).host_group.name}
+                  </Link>
+                )}
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -876,7 +905,32 @@ export default async function TournamentDetailPage({
 
       {/* Registration Action */}
       <div id="register" />
-      {profile && tournament.status === "registration_open" && (
+      {/* Members-only gate: when the tournament is hosted by a group
+          and the viewer isn't an active member, surface a friendly
+          banner pointing them at the group page instead of the
+          register button. Group admins (canManage) and site admins
+          can always see what's below. */}
+      {hostGroupId && (tournament as { host_group?: { slug: string; name: string } | null }).host_group && !viewerIsHostGroupMember && !isAdmin && tournament.status === "registration_open" && (
+        <div className="rounded-xl bg-brand-500/10 ring-1 ring-brand-500/30 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-brand-200">Members only</p>
+            <p className="mt-1 text-sm text-dark-200">
+              This tournament is hosted by{" "}
+              <span className="font-medium text-dark-100">
+                {(tournament as { host_group: { name: string } }).host_group.name}
+              </span>
+              . Join the group to register.
+            </p>
+          </div>
+          <Link
+            href={`/groups/${(tournament as { host_group: { slug: string } }).host_group.slug}`}
+            className="btn-primary shrink-0 self-start sm:self-auto"
+          >
+            Visit Group
+          </Link>
+        </div>
+      )}
+      {profile && tournament.status === "registration_open" && (!hostGroupId || viewerIsHostGroupMember || isAdmin) && (
         <TournamentRegistrationButton
           tournamentId={id}
           tournamentType={tournament.type}

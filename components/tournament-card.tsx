@@ -90,6 +90,14 @@ export function TournamentCard({
         </div>
 
         <div className="space-y-1 text-sm text-surface-muted">
+          {(t as { host_group?: { name: string } | null }).host_group && (
+            <p className="text-xs font-medium text-brand-300">
+              Hosted by {(t as { host_group: { name: string } }).host_group.name}
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-brand-500/15 px-1.5 py-0.5 text-[10px] text-brand-200">
+                Members only
+              </span>
+            </p>
+          )}
           <p>
             {formatDateInZone(t.start_date, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}
             {t.start_time && ` at ${formatTimeInZone(t.start_time, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}`}
