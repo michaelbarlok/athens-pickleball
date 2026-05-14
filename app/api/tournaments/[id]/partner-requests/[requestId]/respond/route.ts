@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notify, notifyMany } from "@/lib/notify";
+import { getDivisionGender } from "@/lib/divisions";
 
 /**
  * POST /api/tournaments/[id]/partner-requests/[requestId]/respond
@@ -137,6 +138,47 @@ export async function POST(
     );
   }
   const division = targetReg.division;
+
+  // Strict gender eligibility — same rules the register API enforces,
+  // applied here so a partner accept can't sneak two same-gender
+  // players into a Men's/Women's-specific or Mixed division when the
+  // requester wasn't on the registration originally.
+  const divGender = division ? getDivisionGender(division) : null;
+  if (divGender) {
+    const { data: profs } = await service
+      .from("profiles")
+      .select("id, gender")
+      .in("id", [auth.profile.id, req.requester_id]);
+    const me = (profs ?? []).find((p) => p.id === auth.profile.id);
+    const reqProfile = (profs ?? []).find((p) => p.id === req.requester_id);
+    if (!me?.gender || !reqProfile?.gender) {
+      return NextResponse.json(
+        {
+          error:
+            "Both players must have a gender set on their profile before partnering in a gendered division.",
+        },
+        { status: 400 }
+      );
+    }
+    if (divGender === "mens" && (me.gender !== "male" || reqProfile.gender !== "male")) {
+      return NextResponse.json(
+        { error: "Men's divisions require both players to be male." },
+        { status: 400 }
+      );
+    }
+    if (divGender === "womens" && (me.gender !== "female" || reqProfile.gender !== "female")) {
+      return NextResponse.json(
+        { error: "Women's divisions require both players to be female." },
+        { status: 400 }
+      );
+    }
+    if (divGender === "mixed" && me.gender === reqProfile.gender) {
+      return NextResponse.json(
+        { error: "Mixed divisions require one male and one female player." },
+        { status: 400 }
+      );
+    }
+  }
 
   // A team is ONE row in tournament_registrations — the partner is
   // tracked as partner_id on that row, not as a second row. Keep the

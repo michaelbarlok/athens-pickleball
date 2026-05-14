@@ -52,6 +52,16 @@ export async function ensureProfile(
   const metaFamily = meta.family_name as string | undefined;
   const metaAvatar =
     (meta.avatar_url as string | undefined) || (meta.picture as string | undefined);
+  // Gender is required for new sign-ups going forward (drives strict
+  // tournament division eligibility). Email/password signups collect
+  // it on the register form and pass via user_metadata. Google OAuth
+  // signups can't collect it pre-create, so the row lands with null
+  // gender and the user is prompted on first dashboard visit
+  // (LastNameNudge sibling — handled in a follow-up if needed).
+  const metaGenderRaw = (meta.gender as string | undefined)?.toLowerCase();
+  const metaGender = metaGenderRaw === "male" || metaGenderRaw === "female"
+    ? metaGenderRaw
+    : null;
 
   // Display name priority:
   //   1. explicit metadata set by our register form
@@ -89,6 +99,7 @@ export async function ensureProfile(
         member_since: new Date().toISOString(),
         preferred_notify: ["email"],
         ...(metaAvatar ? { avatar_url: metaAvatar } : {}),
+        ...(metaGender ? { gender: metaGender } : {}),
         ...(pendingData?.phone ? { phone: pendingData.phone } : {}),
         ...(pendingData?.skill_level != null
           ? { skill_level: pendingData.skill_level }

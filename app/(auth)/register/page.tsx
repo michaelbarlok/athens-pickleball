@@ -22,6 +22,10 @@ function RegisterForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  // Gender is required from day one for new sign-ups. Drives strict
+  // eligibility for Men's / Women's / Mixed tournament divisions —
+  // every existing profile is being backfilled separately by an admin.
+  const [gender, setGender] = useState<"" | "male" | "female">("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -95,6 +99,7 @@ function RegisterForm() {
           full_name: fullName,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          gender,
         },
       },
     });
@@ -219,6 +224,26 @@ function RegisterForm() {
         </div>
 
         <div>
+          <label htmlFor="gender" className="block text-sm font-medium text-dark-200 mb-1">
+            Gender
+          </label>
+          <select
+            id="gender"
+            value={gender}
+            onChange={(e) => setGender(e.target.value as "" | "male" | "female")}
+            className="input"
+            required
+          >
+            <option value="" disabled>Select…</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <p className="mt-1 text-xs text-surface-muted">
+            Used to verify eligibility for Men&apos;s, Women&apos;s, and Mixed tournament divisions.
+          </p>
+        </div>
+
+        <div>
           <label htmlFor="email" className="block text-sm font-medium text-dark-200 mb-1">
             Email
           </label>
@@ -329,7 +354,8 @@ function RegisterForm() {
             loading ||
             !passwordValid ||
             firstName.trim().length === 0 ||
-            lastName.trim().length === 0
+            lastName.trim().length === 0 ||
+            gender === ""
           }
         >
           {loading ? "Creating account..." : "Create account"}

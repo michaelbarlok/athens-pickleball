@@ -79,6 +79,12 @@ export type LadderType = "court_promotion" | "dynamic_ranking";
  *    started from this sheet, no rankings impact. */
 export type PlayType = "ladder" | "skills";
 
+/** Player gender, used to enforce strict eligibility for Men's,
+ *  Women's, and Mixed tournament divisions. Required on every profile
+ *  going forward; existing rows are backfilled by an admin before the
+ *  column flips to NOT NULL in a follow-up migration. */
+export type Gender = "male" | "female";
+
 // ============================================================
 // Core Tables
 // ============================================================
@@ -92,6 +98,10 @@ export interface Profile {
   last_name?: string | null;
   email: string;
   phone?: string | null;
+  /** Required for new sign-ups; nullable today only because existing
+   *  profiles are being backfilled by an admin. Drives strict
+   *  tournament-division eligibility (Men's/Women's/Mixed). */
+  gender?: Gender | null;
   avatar_url?: string | null;
   skill_level?: number | null;
   home_court?: string | null;
