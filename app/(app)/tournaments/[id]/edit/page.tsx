@@ -177,8 +177,13 @@ export default function EditTournamentPage() {
           .select("group:shootout_groups!inner(id, name, is_active)")
           .eq("player_id", me.id)
           .eq("group_role", "admin");
-        groups = (data ?? [])
-          .map((r) => (r as { group: { id: string; name: string; is_active: boolean } | null }).group)
+        // supabase-js infers embedded resources as arrays; cast through
+        // unknown to flatten to the single-object shape PostgREST actually
+        // returns for a many-to-one FK.
+        groups = ((data ?? []) as unknown as Array<{
+          group: { id: string; name: string; is_active: boolean } | null;
+        }>)
+          .map((r) => r.group)
           .filter((g): g is { id: string; name: string; is_active: boolean } => !!g && g.is_active)
           .map((g) => ({ id: g.id, name: g.name }))
           .sort((a, b) => a.name.localeCompare(b.name));
