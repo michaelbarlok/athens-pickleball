@@ -64,10 +64,24 @@ const getLandingStats = unstable_cache(
           .from("game_results")
           .select("id", { count: "exact", head: true }),
       ]);
+      // Surface count errors so a silent RLS / network failure isn't
+      // hidden behind the em-dash forever (cache TTL 1h). Each line
+      // logs its own table so the wrong one is obvious in Vercel logs.
+      if (players.error) console.error("[landing-stats] profiles count failed:", players.error.message);
+      if (groups.error) console.error("[landing-stats] shootout_groups count failed:", groups.error.message);
+      if (fpMatches.error) console.error("[landing-stats] free_play_matches count failed:", fpMatches.error.message);
+      if (ladderMatches.error) console.error("[landing-stats] game_results count failed:", ladderMatches.error.message);
+
+      // Sum the two game tables. We deliberately drop the previous
+      // `|| null` here: a real "0 + 0" should show as a low-end social
+      // proof number ("5+"), not "—". The dash is reserved for the
+      // hard-failure path in the catch block below.
+      const fp = fpMatches.count ?? 0;
+      const ld = ladderMatches.count ?? 0;
       return {
         players: players.count ?? null,
         groups: groups.count ?? null,
-        games: (fpMatches.count ?? 0) + (ladderMatches.count ?? 0) || null,
+        games: fp + ld,
       };
     } catch {
       return { players: null, groups: null, games: null };
