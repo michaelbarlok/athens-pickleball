@@ -91,7 +91,7 @@ function buildUpcomingEvents(
 }
 
 function PlayTimeDisplay({ playTime }: {
-  playTime: { label?: string | null; day_of_week: number; event_time: string; timezone: string; location: string; player_limit: number };
+  playTime: { label?: string | null; play_type?: string | null; day_of_week: number; event_time: string; timezone: string; location: string; player_limit: number };
 }) {
   const [hStr, mStr] = playTime.event_time.slice(0, 5).split(":");
   const h = parseInt(hStr, 10);
@@ -99,6 +99,7 @@ function PlayTimeDisplay({ playTime }: {
   const tzAbbr = new Intl.DateTimeFormat("en-US", { timeZone: playTime.timezone, timeZoneName: "short" })
     .formatToParts(new Date())
     .find((p) => p.type === "timeZoneName")?.value ?? "";
+  const isSkills = playTime.play_type === "skills";
 
   return (
     <div className="rounded-lg border border-surface-border/40 bg-surface-card/30 px-3 py-2">
@@ -106,9 +107,12 @@ function PlayTimeDisplay({ playTime }: {
         <svg className="h-4 w-4 shrink-0 text-brand-vivid" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
         </svg>
-        <span>
+        <span className="min-w-0 flex-1">
           {playTime.label?.trim() || `${DAY_NAMES[playTime.day_of_week]}s`}
           <span className="ml-2 text-surface-muted font-normal">{time12} {tzAbbr}</span>
+        </span>
+        <span className={`shrink-0 text-[10px] ${isSkills ? "badge-blue" : "badge-green"}`}>
+          {isSkills ? "Skills" : "Ladder"}
         </span>
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 pl-5 text-xs text-surface-muted">
@@ -252,7 +256,7 @@ export default async function GroupPage({
   // Fetch active play times for display (a group may have several)
   const { data: playTimesData } = await supabase
     .from("group_recurring_schedules")
-    .select("id, label, day_of_week, event_time, timezone, location, player_limit, is_active")
+    .select("id, label, play_type, day_of_week, event_time, timezone, location, player_limit, is_active")
     .eq("group_id", group.id)
     .eq("is_active", true)
     .order("day_of_week", { ascending: true })

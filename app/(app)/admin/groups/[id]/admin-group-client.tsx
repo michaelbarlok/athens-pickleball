@@ -773,8 +773,118 @@ export function AdminGroupClient({
             )}
           </div>
 
-          {/* Members List — single compact table for all screen sizes */}
-          <div className="card overflow-x-auto p-0">
+          {/* Members List — card stack on mobile, table from md and up.
+              The previous "single compact table for all screen sizes"
+              overflowed on phones (Player + Step + Pt% + Priority +
+              Promote/Demote + Remove can't fit in <400px), forcing
+              horizontal scroll. */}
+          <div className="md:hidden space-y-2">
+            {members.map((member) => {
+              const isLadder = group?.group_type !== "free_play";
+              const isAdmin = (member as any).group_role === "admin";
+              return (
+                <div key={member.player_id} className="card p-3 space-y-3">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <PlayerAvatar
+                      displayName={member.player?.display_name ?? "Unknown"}
+                      avatarUrl={member.player?.avatar_url ?? null}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-dark-100 truncate">
+                        {member.player?.display_name}
+                        {isAdmin && (
+                          <span className="ml-1.5 inline-flex items-center rounded-full bg-yellow-900/30 px-1.5 py-0.5 text-[10px] font-medium text-yellow-400">Admin</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-surface-muted truncate">{member.player?.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {isLadder && (
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase tracking-wider text-surface-muted">Step</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            defaultValue={String(member.current_step)}
+                            key={`m-step-${member.player_id}-${member.current_step}`}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val >= 1) updateStep(member.player_id, val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+                              else if (e.key === "Escape") {
+                                const input = e.currentTarget as HTMLInputElement;
+                                input.value = String(member.current_step);
+                                input.blur();
+                              }
+                            }}
+                            className={cn(
+                              "w-full rounded border bg-surface-raised text-dark-100 px-1.5 py-1 text-center text-sm font-semibold focus:ring-1 transition-colors",
+                              stepJustSaved === member.player_id
+                                ? "border-teal-500/70 ring-1 ring-teal-500/40"
+                                : "border-surface-border focus:border-brand-500 focus:ring-brand-500"
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {isLadder && (
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase tracking-wider text-surface-muted">Pt %</label>
+                        <p className="px-1.5 py-1 text-sm font-semibold text-dark-100">{member.win_pct}%</p>
+                      </div>
+                    )}
+                    <div className={cn("space-y-1", isLadder ? "" : "col-span-3")}>
+                      <label className="block text-[10px] uppercase tracking-wider text-surface-muted">Priority</label>
+                      <select
+                        value={(member as any).signup_priority ?? "normal"}
+                        onChange={(e) => updateSignupPriority(member.player_id, e.target.value)}
+                        className="w-full rounded border border-surface-border bg-surface-raised text-dark-100 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                      >
+                        <option value="high">High</option>
+                        <option value="normal">Normal</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-4 pt-1 border-t border-surface-border/60">
+                    <button
+                      onClick={() => toggleGroupRole(member.player_id, (member as any).group_role ?? "member")}
+                      className={cn(
+                        "text-xs",
+                        isAdmin
+                          ? "text-yellow-400 hover:text-yellow-500"
+                          : "text-brand-500 hover:text-brand-400"
+                      )}
+                    >
+                      {isAdmin ? "Demote" : "Promote"}
+                    </button>
+                    <button
+                      onClick={() => removeMember(member.player_id)}
+                      className="text-xs text-red-400 hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {members.length === 0 && (
+              <p className="card p-6 text-center text-sm text-surface-muted">
+                No members yet. Add players above.
+              </p>
+            )}
+          </div>
+
+          {/* Members table — md and up only */}
+          <div className="hidden md:block card overflow-x-auto p-0">
             <table className="min-w-full divide-y divide-surface-border text-sm">
               <thead className="bg-surface-overlay">
                 <tr>
