@@ -64,9 +64,18 @@ export async function POST(
     return NextResponse.json({ error: "The creator is already the organizer" }, { status: 400 });
   }
 
+  // Explicit `source: 'manual'` upgrades any auto-derived
+  // `host_group_admin` row to manual. Without this, a creator who
+  // hand-adds someone who happens to also be a host-group admin
+  // would still see them auto-removed if they're later demoted from
+  // the group — even though the creator's manual click signalled
+  // "I want this person on the team regardless of group role."
   const { error } = await supabase
     .from("tournament_organizers")
-    .upsert({ tournament_id: tournamentId, profile_id: profileId });
+    .upsert(
+      { tournament_id: tournamentId, profile_id: profileId, source: "manual" },
+      { onConflict: "tournament_id,profile_id" }
+    );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
