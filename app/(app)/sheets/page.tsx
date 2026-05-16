@@ -73,7 +73,7 @@ export default async function SheetsPage() {
 
   let sheetsQuery = supabase
     .from("signup_sheets")
-    .select("*, group:shootout_groups(id, name, slug, city, state)")
+    .select("*, group:shootout_groups(id, name, slug, city, state, club:clubs(id, name, slug))")
     .gte("event_date", cutoffDate.toISOString().split("T")[0])
     .order("event_date", { ascending: false });
 
@@ -210,6 +210,8 @@ export default async function SheetsPage() {
         key={sheet.id}
         sheetId={sheet.id}
         groupName={sheet.group?.name ?? "Event"}
+        clubName={(sheet.group as { club?: { name: string; slug: string } | null } | null)?.club?.name ?? null}
+        clubSlug={(sheet.group as { club?: { name: string; slug: string } | null } | null)?.club?.slug ?? null}
         status={sheetEffectiveStatus(sheet)}
         playType={(sheet as { play_type?: string }).play_type}
         label={(sheet as { label?: string | null }).label ?? null}

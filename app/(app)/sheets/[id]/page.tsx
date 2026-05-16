@@ -46,7 +46,7 @@ export default async function SheetDetailPage({
 
   const { data: sheet, error } = await supabase
     .from("signup_sheets")
-    .select("*, group:shootout_groups(*)")
+    .select("*, group:shootout_groups(*, club:clubs(id, name, slug))")
     .eq("id", id)
     .single();
 
@@ -319,6 +319,17 @@ export default async function SheetDetailPage({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
+                {(sheet.group as { club?: { name: string; slug: string } | null } | null)?.club && (
+                  <p className="text-xs text-brand-300">
+                    Part of{" "}
+                    <Link
+                      href={`/clubs/${(sheet.group as { club: { slug: string } }).club.slug}`}
+                      className="font-medium underline-offset-2 hover:underline"
+                    >
+                      {(sheet.group as { club: { name: string } }).club.name}
+                    </Link>
+                  </p>
+                )}
                 <h1 className="text-2xl sm:text-3xl font-bold text-dark-100 break-words">
                   {sheet.group?.name ?? "Event"}
                 </h1>

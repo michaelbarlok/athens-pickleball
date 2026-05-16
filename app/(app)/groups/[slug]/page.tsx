@@ -167,7 +167,7 @@ export default async function GroupPage({
   {
     const { data } = await supabase
       .from("shootout_groups")
-      .select("*, group_preferences(*)")
+      .select("*, group_preferences(*), club:clubs(id, name, slug)")
       .eq("slug", slug)
       .eq("is_active", true)
       .single();
@@ -677,6 +677,17 @@ export default async function GroupPage({
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-dark-100">
                 {group.name}
               </h1>
+              {(group as { club?: { name: string; slug: string } | null }).club && (
+                <p className="mt-1 text-xs text-brand-300">
+                  Part of{" "}
+                  <Link
+                    href={`/clubs/${(group as { club: { slug: string } }).club.slug}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {(group as { club: { name: string } }).club.name}
+                  </Link>
+                </p>
+              )}
               {(group.city || group.state) && (
                 <p className="mt-1 text-xs text-surface-muted">
                   {[group.city, group.state].filter(Boolean).join(", ")}

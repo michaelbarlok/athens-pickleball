@@ -44,6 +44,11 @@ export interface GroupCardData {
   visibility: string;
   city: string | null;
   state: string | null;
+  /** Parent club summary if this group is part of one. Rendered as
+   *  a small "Part of [Club]" link beneath the title — gives players
+   *  a one-tap path to the umbrella organization. Null for standalone
+   *  groups, which stay first-class. */
+  club: { name: string; slug: string } | null;
   memberCount: number;
   isJoined: boolean;
   playTimes: PlayTime[];
@@ -359,6 +364,21 @@ function GroupCard({
             )}
           </div>
         </div>
+
+        {/* "Part of [Club]" — only when group is attached to a club.
+            Subtle, brand-tinted to read as a relationship, not a tag. */}
+        {group.club && (
+          <p className="mt-1 text-[11px] text-brand-300">
+            Part of{" "}
+            <Link
+              href={`/clubs/${group.club.slug}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              {group.club.name}
+            </Link>
+          </p>
+        )}
 
         {/* Location · members (one line) */}
         <p className="mt-1 text-xs text-surface-muted">
