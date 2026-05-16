@@ -50,6 +50,11 @@ interface PlayerInfo {
 interface SheetCardProps {
   sheetId: string;
   groupName: string;
+  /** Parent club name + slug if the sheet's group belongs to a club.
+   *  Renders as a small "Part of [Club]" line above the date so
+   *  players see the umbrella organization at a glance. */
+  clubName?: string | null;
+  clubSlug?: string | null;
   status: string;
   /** "ladder" | "skills". Drives the Skills badge in the card header. */
   playType?: string;
@@ -157,6 +162,8 @@ function ContactAdminForm({
 export function SheetCard({
   sheetId,
   groupName,
+  clubName,
+  clubSlug,
   status,
   playType,
   label,
@@ -228,6 +235,15 @@ export function SheetCard({
       {/* Row 1: Title + status badge, player count + chevron */}
       <div className="flex items-start justify-between gap-3">
         <Link href={`/sheets/${sheetId}`} className="min-w-0 flex-1">
+          {/* "Part of [Club]" rendered as plain text — the whole
+              card is a single Link, so nesting another anchor would
+              be invalid HTML. Players who want the club page can
+              tap into the sheet detail, which links the club. */}
+          {clubName && (
+            <p className="text-[11px] text-brand-300">
+              Part of <span className="font-medium">{clubName}</span>
+            </p>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-dark-100">{groupName}</p>
             <span className={badge.className}>{badge.icon}{badge.label}</span>

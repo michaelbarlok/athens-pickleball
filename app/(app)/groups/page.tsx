@@ -26,7 +26,7 @@ export default async function GroupsPage() {
   // Fetch all active groups with member counts and recurring schedule
   const { data: groups } = await supabase
     .from("shootout_groups")
-    .select("*, group_memberships(count), group_recurring_schedules(day_of_week, event_time, timezone, location, is_active, play_type)")
+    .select("*, group_memberships(count), group_recurring_schedules(day_of_week, event_time, timezone, location, is_active, play_type), club:clubs(id, name, slug)")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -55,6 +55,13 @@ export default async function GroupsPage() {
           ? a.event_time.localeCompare(b.event_time)
           : a.day_of_week - b.day_of_week
       );
+    // supabase-js types the embedded `club` join as an array even
+    // though it's a one-to-zero-or-one FK. Cast through unknown to
+    // get the single-object shape PostgREST actually returns.
+    const club = (group as unknown as {
+      club?: { id: string; name: string; slug: string } | null;
+    }).club;
+
     return {
       id: group.id,
       name: group.name,
@@ -64,6 +71,7 @@ export default async function GroupsPage() {
       visibility: group.visibility,
       city: group.city,
       state: group.state,
+      club: club ? { name: club.name, slug: club.slug } : null,
       memberCount:
         (group.group_memberships as unknown as { count: number }[])?.[0]?.count ?? 0,
       isJoined: joinedGroupIds.has(group.id),
