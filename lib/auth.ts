@@ -48,7 +48,21 @@ export async function requireAdmin(): Promise<AuthResult | NextResponse> {
 }
 
 /**
- * Check if user is admin of a specific group (either global admin or group-role admin).
+ * Check if user is admin of a specific group.
+ *
+ * Three paths grant true:
+ *   1. global site admin (`profiles.role = 'admin'`)
+ *   2. explicit group admin (`group_memberships.group_role = 'admin'`)
+ *   3. admin of the group's parent CLUB (if the group has one) — read
+ *      from `shootout_groups.club_id` + `club_memberships.club_role
+ *      = 'admin'`. This is the "club admins inherit full group admin
+ *      rights" rule, done at read time. No phantom group_memberships
+ *      rows are written; the inherited admin never appears in the
+ *      group's roster.
+ *
+ * Two cheap lookups: the explicit-admin check (1 row) and the
+ * club-inheritance check (1 row each on shootout_groups + club_
+ * memberships). Skipped entirely when the group has no parent club.
  */
 export async function isGroupAdmin(
   supabase: AuthResult["supabase"],
@@ -63,5 +77,23 @@ export async function isGroupAdmin(
     .eq("group_id", groupId)
     .eq("player_id", profileId)
     .maybeSingle();
-  return membership?.group_role === "admin";
+  if (membership?.group_role === "admin") return true;
+
+  // Club-admin inheritance. One indirection (group → club) + one
+  // role check; skipped entirely for standalone groups.
+  const { data: group } = await supabase
+    .from("shootout_groups")
+    .select("club_id")
+    .eq("id", groupId)
+    .maybeSingle();
+  const clubId = group?.club_id;
+  if (!clubId) return false;
+  const { data: clubAdmin } = await supabase
+    .from("club_memberships")
+    .select("club_role")
+    .eq("club_id", clubId)
+    .eq("profile_id", profileId)
+    .eq("club_role", "admin")
+    .maybeSingle();
+  return !!clubAdmin;
 }
