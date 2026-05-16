@@ -33,7 +33,7 @@ export default async function AdminClubsPage() {
         eyebrow="Admin"
         title="Clubs"
         actions={
-          <Link href="/admin/clubs/new" className="btn-primary">
+          <Link href="/clubs/new" className="btn-primary">
             + New Club
           </Link>
         }

@@ -1,13 +1,17 @@
 /**
- * POST /api/admin/clubs
+ * POST /api/clubs
  *
- * Site-admin-only: create a new club. The creator is automatically
- * inserted as the first club admin via club_memberships so the new
- * club isn't immediately admin-orphaned.
+ * Create a club. Any signed-in user can create one — there's no
+ * site-admin gate. The creator is auto-inserted into
+ * club_memberships with club_role='admin' so the new club isn't
+ * immediately admin-orphaned.
  *
  * Body: { name, slug?, description?, city?, state?, visibility }
+ *
+ * (The PUT/DELETE for an existing club live in
+ *  /api/clubs/[id]/route.ts and have their own auth gates.)
  */
-import { requireAdmin } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -20,7 +24,7 @@ function slugify(s: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => ({}));
@@ -49,17 +53,15 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    // Unique-slug collision is the most likely failure — surface a
-    // clear message so the site admin can pick a different one.
     const msg = /unique|duplicate/i.test(error.message)
       ? "A club with that name (or URL slug) already exists. Try a different name."
       : error.message;
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  // First club admin = creator. Without this row the creator would
-  // immediately lose write access on their own club (site-admin role
-  // is unaffected, but a non-site-admin creator would be locked out).
+  // Creator becomes the first admin. Without this row, a non-site-admin
+  // creator would lose write access on their own club the moment they
+  // navigate away from the create flow.
   await service.from("club_memberships").insert({
     club_id: club.id,
     profile_id: auth.profile.id,
