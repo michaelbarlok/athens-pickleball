@@ -300,13 +300,21 @@ export function AdminClubManageClient({
 
       {/* ── Groups in this club ── */}
       <section className="card space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-dark-100">Groups in this Club</h2>
-          <p className="mt-1 text-xs text-surface-muted">
-            Attaching a group only sets its <code>club_id</code>. Members, rankings, sheets,
-            sessions, and group admins are <strong>not touched</strong>. Club admins gain group
-            admin rights here automatically (read-time inheritance).
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-dark-100">Groups in this Club</h2>
+            <p className="mt-1 text-xs text-surface-muted">
+              Attach an existing standalone group, or create a brand-new group already
+              attached. Either way, members + rankings + sheets stay separate per group;
+              club admins inherit group admin rights automatically.
+            </p>
+          </div>
+          <Link
+            href={`/groups/new?club=${club.id}`}
+            className="btn-secondary text-sm shrink-0"
+          >
+            + New Group
+          </Link>
         </div>
 
         {attachedGroups.length > 0 ? (

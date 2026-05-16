@@ -4,7 +4,68 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { CreateGroupForm } from "./create-group-form";
 
-export default function CreateGroupPage() {
+/**
+ * Group create page. Optionally takes a ?club=<clubId> query param to
+ * pre-attach the new group to a club at creation time — used from the
+ * club manage page's "+ New Group" button so the natural user flow
+ * (create club → create groups under it) doesn't require a second
+ * attach step.
+ *
+ * When ?club is present:
+ *   - the page verifies the viewer is an admin of that club; if not,
+ *     it strips the param and falls back to the standalone flow.
+ *   - the form shows a "Creating a group in <Club name>" banner.
+ *   - on submit the server action sets shootout_groups.club_id to
+ *     the verified club id (re-checked server-side; the URL alone
+ *     never grants attach rights).
+ */
+export default async function CreateGroupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ club?: string }>;
+}) {
+  const sp = await searchParams;
+  const requestedClubId = sp.club?.trim() || null;
+
+  // Pre-flight check: if ?club=<id> was supplied, verify the viewer
+  // is allowed to create a group inside it. Strip the param if not —
+  // the form falls back to the standalone flow rather than throwing
+  // a permission error after the user fills it out.
+  let preselectedClub: { id: string; name: string } | null = null;
+  if (requestedClubId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", user.id)
+        .single();
+      if (profile) {
+        const isSiteAdmin = profile.role === "admin";
+        let canAttach = isSiteAdmin;
+        if (!canAttach) {
+          const { data: clubAdmin } = await supabase
+            .from("club_memberships")
+            .select("club_role")
+            .eq("club_id", requestedClubId)
+            .eq("profile_id", profile.id)
+            .eq("club_role", "admin")
+            .maybeSingle();
+          canAttach = !!clubAdmin;
+        }
+        if (canAttach) {
+          const { data: club } = await supabase
+            .from("clubs")
+            .select("id, name")
+            .eq("id", requestedClubId)
+            .maybeSingle();
+          if (club) preselectedClub = club as { id: string; name: string };
+        }
+      }
+    }
+  }
+
   async function createGroup(formData: FormData): Promise<{ error: string } | void> {
     "use server";
 
@@ -17,6 +78,7 @@ export default function CreateGroupPage() {
     const groupType = (formData.get("group_type") as string) || "ladder_league";
     const ladderType = (formData.get("ladder_type") as string) || "court_promotion";
     const visibility = (formData.get("visibility") as string) || "public";
+    const submittedClubId = (formData.get("club_id") as string)?.trim() || null;
 
     const baseSlug = name
       .toLowerCase()
@@ -33,10 +95,32 @@ export default function CreateGroupPage() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, role")
       .eq("user_id", user.id)
       .single();
     if (!profile) return { error: "Profile not found. Please complete your profile setup first." };
+
+    // Validate the optional club_id server-side. The URL/form alone
+    // never grants attach rights — the viewer must actually be an
+    // admin of the named club (or a site admin). If validation
+    // fails, drop the attach silently and create the group standalone
+    // rather than blocking the whole form submit on an edge case.
+    let validatedClubId: string | null = null;
+    if (submittedClubId) {
+      const isSiteAdmin = (profile as { role?: string }).role === "admin";
+      if (isSiteAdmin) {
+        validatedClubId = submittedClubId;
+      } else {
+        const { data: clubAdmin } = await supabase
+          .from("club_memberships")
+          .select("club_role")
+          .eq("club_id", submittedClubId)
+          .eq("profile_id", profile.id)
+          .eq("club_role", "admin")
+          .maybeSingle();
+        if (clubAdmin) validatedClubId = submittedClubId;
+      }
+    }
 
     // Try the base slug; if it conflicts, append a short random suffix
     const serviceClient = await createServiceClient();
@@ -63,6 +147,7 @@ export default function CreateGroupPage() {
         group_type: groupType,
         ladder_type: groupType === "ladder_league" ? ladderType : "court_promotion",
         visibility,
+        ...(validatedClubId ? { club_id: validatedClubId } : {}),
       })
       .select("id, slug")
       .single();
@@ -158,7 +243,7 @@ export default function CreateGroupPage() {
         </p>
       </div>
 
-      <CreateGroupForm createAction={createGroup} />
+      <CreateGroupForm createAction={createGroup} preselectedClub={preselectedClub} />
     </div>
   );
 }
