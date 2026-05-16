@@ -147,6 +147,15 @@ const mainTabs = [
     ),
   },
   {
+    name: "Groups",
+    href: "/groups",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+      </svg>
+    ),
+  },
+  {
     name: "Play",
     href: "/sessions/active",
     icon: (
@@ -156,11 +165,20 @@ const mainTabs = [
     ),
   },
   {
-    name: "Groups",
-    href: "/groups",
+    name: "Clubs",
+    href: "/clubs",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Tournaments",
+    href: "/tournaments",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0 1 16.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.023 6.023 0 0 1-2.77.672c-.99 0-1.926-.228-2.77-.672" />
       </svg>
     ),
   },
@@ -182,24 +200,6 @@ const moreMenuPlayerLinks = [
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" />
-      </svg>
-    ),
-  },
-  {
-    name: "Tournaments",
-    href: "/tournaments",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0 1 16.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.023 6.023 0 0 1-2.77.672c-.99 0-1.926-.228-2.77-.672" />
-      </svg>
-    ),
-  },
-  {
-    name: "Clubs",
-    href: "/clubs",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
       </svg>
     ),
   },
@@ -382,13 +382,17 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
   // live pages live under /tournaments/<id>/live, which would
   // otherwise satisfy both this check and Play's, lighting up two
   // tabs at once. Defer to Play in that case.
+  //
+  // /tournaments is no longer in the More menu (it's its own tab in
+  // the bottom bar now), so the More button shouldn't activate on
+  // /tournaments routes.
   const isMoreActive =
     !viewingActivePlay &&
     (pathname.startsWith("/badges") ||
       pathname.startsWith("/forum") ||
       pathname.startsWith("/notifications") ||
-      pathname.startsWith("/tournaments") ||
-      pathname.startsWith("/admin"));
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/my-sessions"));
 
   return (
     <>
@@ -528,13 +532,21 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex flex-1 flex-col items-center pt-2 pb-1.5 text-xs font-medium transition-colors",
+                  // min-w-0 lets the long "Tournaments" label truncate
+                  // inside its flex-1 slot when the viewport is narrow
+                  // (~360px iPhone SE = ~51px per tab across 7 tabs +
+                  // More) instead of overflowing the strip.
+                  "flex flex-1 min-w-0 flex-col items-center pt-2 pb-1.5 text-[10px] font-medium transition-colors",
                   active || pulse ? "text-brand-400" : "text-dark-300 active:text-dark-100"
                 )}
               >
                 <span
                   className={cn(
-                    "relative mb-0.5 flex items-center justify-center rounded-2xl px-5 py-0.5 transition-colors overflow-hidden",
+                    // Active pill: reduced horizontal padding (px-3 vs
+                    // the old px-5) so 7 tabs fit on the smallest
+                    // supported phone width without the pill clipping
+                    // its siblings.
+                    "relative mb-0.5 flex items-center justify-center rounded-2xl px-3 py-0.5 transition-colors overflow-hidden",
                     active && "bg-brand-500/15",
                     pulse && !active && "bg-brand-500/15"
                   )}
@@ -551,21 +563,22 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
                   )}
                   <span className="relative">{tab.icon}</span>
                 </span>
-                <span>{tab.name}</span>
+                <span className="max-w-full truncate">{tab.name}</span>
               </Link>
             );
           })}
-          {/* More button */}
+          {/* More button — matches mainTabs sizing so the 8-up
+              strip (7 tabs + More) stays visually consistent. */}
           <button
             onClick={() => setMoreOpen(!moreOpen)}
             className={cn(
-              "flex flex-1 flex-col items-center pt-2 pb-1.5 text-xs font-medium transition-colors",
+              "flex flex-1 min-w-0 flex-col items-center pt-2 pb-1.5 text-[10px] font-medium transition-colors",
               moreOpen || isMoreActive ? "text-brand-400" : "text-dark-300 active:text-dark-100"
             )}
           >
             <span
               className={cn(
-                "mb-0.5 flex items-center justify-center rounded-2xl px-5 py-0.5 transition-colors",
+                "mb-0.5 flex items-center justify-center rounded-2xl px-3 py-0.5 transition-colors",
                 (moreOpen || isMoreActive) && "bg-brand-500/15"
               )}
             >
@@ -573,7 +586,7 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </span>
-            <span>More</span>
+            <span className="max-w-full truncate">More</span>
           </button>
         </div>
         {/* Safe area for phones with home indicator */}

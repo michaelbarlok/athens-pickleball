@@ -27,43 +27,45 @@ export default async function CreateGroupPage({
   const sp = await searchParams;
   const requestedClubId = sp.club?.trim() || null;
 
-  // Pre-flight check: if ?club=<id> was supplied, verify the viewer
-  // is allowed to create a group inside it. Strip the param if not —
-  // the form falls back to the standalone flow rather than throwing
-  // a permission error after the user fills it out.
+  // Pre-flight check: only club admins (or site admins) can create
+  // a group attached to a specific club. If the viewer asks for the
+  // ?club=<id> flow without being authorized, redirect them to the
+  // bare /groups/new — they can still create a standalone group,
+  // they just can't deposit it into a club they don't run. Silently
+  // dropping the param (the previous behavior) was secure but left
+  // users staring at a banner that said "Creating in Club X" while
+  // the server quietly created a standalone group.
   let preselectedClub: { id: string; name: string } | null = null;
   if (requestedClubId) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, role")
-        .eq("user_id", user.id)
-        .single();
-      if (profile) {
-        const isSiteAdmin = profile.role === "admin";
-        let canAttach = isSiteAdmin;
-        if (!canAttach) {
-          const { data: clubAdmin } = await supabase
-            .from("club_memberships")
-            .select("club_role")
-            .eq("club_id", requestedClubId)
-            .eq("profile_id", profile.id)
-            .eq("club_role", "admin")
-            .maybeSingle();
-          canAttach = !!clubAdmin;
-        }
-        if (canAttach) {
-          const { data: club } = await supabase
-            .from("clubs")
-            .select("id, name")
-            .eq("id", requestedClubId)
-            .maybeSingle();
-          if (club) preselectedClub = club as { id: string; name: string };
-        }
-      }
+    if (!user) redirect(`/login?next=${encodeURIComponent(`/groups/new?club=${requestedClubId}`)}`);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("user_id", user.id)
+      .single();
+    if (!profile) redirect("/groups/new");
+    const isSiteAdmin = profile.role === "admin";
+    let canAttach = isSiteAdmin;
+    if (!canAttach) {
+      const { data: clubAdmin } = await supabase
+        .from("club_memberships")
+        .select("club_role")
+        .eq("club_id", requestedClubId)
+        .eq("profile_id", profile.id)
+        .eq("club_role", "admin")
+        .maybeSingle();
+      canAttach = !!clubAdmin;
     }
+    if (!canAttach) redirect("/groups/new");
+    const { data: club } = await supabase
+      .from("clubs")
+      .select("id, name")
+      .eq("id", requestedClubId)
+      .maybeSingle();
+    if (!club) redirect("/groups/new");
+    preselectedClub = club as { id: string; name: string };
   }
 
   async function createGroup(formData: FormData): Promise<{ error: string } | void> {
