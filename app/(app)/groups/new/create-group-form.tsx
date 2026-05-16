@@ -35,8 +35,15 @@ const TIME_OPTIONS = buildTimeOptions();
 
 export function CreateGroupForm({
   createAction,
+  preselectedClub,
 }: {
   createAction: (formData: FormData) => Promise<{ error: string } | void>;
+  /** When present, the new group is attached to this club on create.
+   *  Comes from `/groups/new?club=<id>` — the page validates the
+   *  viewer is a club admin before passing it in. The hidden
+   *  `club_id` form field below is what carries it to the server
+   *  action; the banner is just visual confirmation for the user. */
+  preselectedClub: { id: string; name: string } | null;
 }) {
   const [groupType, setGroupType] = useState("ladder_league");
   const [ladderType, setLadderType] = useState("court_promotion");
@@ -76,6 +83,19 @@ export function CreateGroupForm({
       }}
       className="card space-y-4"
     >
+      {preselectedClub && (
+        <>
+          {/* Hidden — the server action validates this against the
+              caller's club admin membership before honoring it. */}
+          <input type="hidden" name="club_id" value={preselectedClub.id} />
+          <div className="rounded-lg bg-brand-500/10 ring-1 ring-brand-500/30 px-3 py-2 text-sm text-brand-200">
+            Creating this group inside{" "}
+            <span className="font-semibold text-brand-100">{preselectedClub.name}</span>.
+            Club admins will inherit group admin rights here automatically.
+          </div>
+        </>
+      )}
+
       {error && (
         <div className="alert-danger px-4 py-3 text-sm">
           {error}
