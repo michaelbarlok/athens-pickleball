@@ -72,6 +72,36 @@ export type GroupType = "ladder_league" | "free_play";
 export type GroupVisibility = "public" | "private";
 export type LadderType = "court_promotion" | "dynamic_ranking";
 
+/** Visibility model for clubs — mirrors GroupVisibility so the join /
+ *  invite flow can share components and copy. */
+export type ClubVisibility = "public" | "private";
+
+/** A `Club` is the umbrella above one or more `ShootoutGroup`s.
+ *  Standalone groups (no club) continue to work; assigning a group
+ *  to a club is purely opt-in. Club admins inherit full group admin
+ *  rights on every constituent group (read-time, via isGroupAdmin). */
+export interface Club {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  city?: string | null;
+  state?: string | null;
+  visibility: ClubVisibility;
+  logo_url?: string | null;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClubMembership {
+  club_id: string;
+  profile_id: string;
+  club_role: "admin" | "member";
+  joined_at: string;
+}
+
 /** What kind of play a recurring schedule / sign-up sheet represents.
  *  - `ladder`: plays the group's ladder format (step movement, scoring,
  *    recap). The session machinery on top of the sheet applies.
@@ -184,6 +214,13 @@ export interface ShootoutGroup {
   visibility: GroupVisibility;
   city?: string | null;
   state?: string | null;
+  /** Optional parent club. Standalone groups have `club_id: null`.
+   *  An admin of the parent club inherits full group admin rights
+   *  (derived at read time in lib/auth.ts isGroupAdmin — no rows
+   *  are written into group_memberships, so club admins never
+   *  appear as phantom members in any group's roster). */
+  club_id?: string | null;
+  club?: Club | null;
   created_by: string;
   is_active: boolean;
   rolling_sessions_count: number;
@@ -456,14 +493,22 @@ export interface Tournament {
   logo_url?: string | null;
   /** When set, only active members of this group can register. Group
    *  admins also inherit organizer rights. Null = individual-hosted
-   *  (the default; existing tournaments stay this way). */
+   *  (the default; existing tournaments stay this way).
+   *
+   *  Mutually exclusive with host_club_id (DB-level CHECK
+   *  `tournaments_host_xor_check`). */
   host_group_id?: string | null;
+  /** When set, only active members of this club can register. Club
+   *  admins inherit organizer rights. Mutually exclusive with
+   *  host_group_id. */
+  host_club_id?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
   // Relations
   creator?: Profile;
   host_group?: { id: string; name: string; slug: string } | null;
+  host_club?: { id: string; name: string; slug: string } | null;
   registrations?: TournamentRegistration[];
   organizers?: TournamentOrganizer[];
 }
