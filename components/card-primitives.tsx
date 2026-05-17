@@ -125,9 +125,14 @@ export function CardHeader({
   trailing?: ReactNode;
 }) {
   const px = LOGO_PX[logoSize];
+  // Falsy guard covers null, undefined, AND empty string — the latter
+  // matters because a `<img src="">` triggers an extra page-load
+  // request on most browsers. Pass `null` (or just omit the prop)
+  // to mean "no logo, collapse the slot".
+  const hasLogo = !!logo;
   return (
     <div className="flex items-start gap-3">
-      {logo !== undefined && logo !== null && (
+      {hasLogo && (
         typeof logo === "string" ? (
           <img
             src={logo}

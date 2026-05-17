@@ -52,14 +52,16 @@ export default async function AdminClubsPage() {
                 className="card block hover:ring-1 hover:ring-brand-500/30 transition-shadow"
               >
                 <div className="flex items-center gap-3">
-                  {c.logo_url ? (
+                  {/* Logo or no logo — empty space if absent. The
+                      surrounding flex `gap-3` only puts space between
+                      siblings, so the row collapses cleanly when
+                      the image isn't rendered. */}
+                  {c.logo_url && (
                     <img
                       src={c.logo_url}
                       alt=""
-                      className="h-10 w-10 rounded object-contain bg-surface-overlay"
+                      className="h-10 w-10 rounded object-contain bg-surface-overlay shrink-0"
                     />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-surface-overlay" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
