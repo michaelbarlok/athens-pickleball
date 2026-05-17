@@ -361,6 +361,8 @@ const EMAIL_TEMPLATES: Record<string, () => Promise<{ default: (props: any) => R
   TournamentPartnerAccepted: () => import("@/emails/TournamentPartnerAccepted"),
   TournamentPartnerDeclined: () => import("@/emails/TournamentPartnerDeclined"),
   TournamentAnnouncement: () => import("@/emails/TournamentAnnouncement"),
+  ClubAnnouncement: () => import("@/emails/ClubAnnouncement"),
+  ClubEventInvite: () => import("@/emails/ClubEventInvite"),
 };
 
 /**
@@ -373,6 +375,10 @@ const EMAIL_TEMPLATES: Record<string, () => Promise<{ default: (props: any) => R
 const BULK_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "tournament_announcement",
   "group_announcement",
+  "club_announcement",
+  "club_event_created",
+  "club_event_updated",
+  "club_event_cancelled",
 ]);
 
 async function sendEmail({

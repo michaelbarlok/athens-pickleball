@@ -4,6 +4,9 @@ import Link from "next/link";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageHeader } from "@/components/page-header";
 import { AdminClubManageClient } from "./admin-club-manage-client";
+import { ClubEventsManager } from "./club-events-manager";
+import { SendClubAnnouncement } from "./send-club-announcement";
+import type { ClubEvent } from "@/types/database";
 
 /**
  * Club management. Accessible to site admins AND club admins (the
@@ -71,6 +74,13 @@ export default async function AdminClubPage({
     return a.club_role === "admin" ? -1 : 1;
   });
 
+  // Events (upcoming first via the manager component's local split).
+  const { data: events } = await supabase
+    .from("club_events")
+    .select("*")
+    .eq("club_id", id)
+    .order("event_at", { ascending: false });
+
   // Groups currently attached + a roster of unattached groups for the
   // assign-existing-group picker.
   const [attachedRes, unattachedRes] = await Promise.all([
@@ -113,6 +123,10 @@ export default async function AdminClubPage({
         unattachedGroups={unattachedRes.data ?? []}
         canDeleteClub={isSiteAdmin}
       />
+
+      <ClubEventsManager clubId={id} events={(events ?? []) as ClubEvent[]} />
+
+      <SendClubAnnouncement clubId={id} memberCount={sortedMembers.length} />
     </div>
   );
 }

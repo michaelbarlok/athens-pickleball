@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { JoinLeaveClubButtons } from "./join-leave-club-buttons";
+import { EventRsvpButtons } from "./event-rsvp-buttons";
+import { formatDateInZone, formatTimeInZone } from "@/lib/utils";
+import type { ClubAnnouncement, ClubEvent, ClubEventRsvp } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +97,33 @@ export default async function ClubDetailPage({ params, searchParams }: PageProps
     .eq("is_active", true)
     .order("name");
 
+  // Upcoming events (cancelled included so members see the strikeout).
+  const nowIso = new Date().toISOString();
+  const { data: upcomingEvents } = await supabase
+    .from("club_events")
+    .select("*")
+    .eq("club_id", club.id)
+    .gte("event_at", nowIso)
+    .order("event_at", { ascending: true })
+    .limit(20);
+
+  // RSVP counts + my own RSVP for each upcoming event.
+  const eventIds = (upcomingEvents ?? []).map((e: { id: string }) => e.id);
+  const rsvps: ClubEventRsvp[] = eventIds.length > 0
+    ? (((await supabase
+        .from("club_event_rsvps")
+        .select("event_id, profile_id, status, guest_count")
+        .in("event_id", eventIds)).data ?? []) as ClubEventRsvp[])
+    : [];
+
+  // Recent announcements.
+  const { data: announcements } = await supabase
+    .from("club_announcements")
+    .select("id, title, body, created_at, sent_by")
+    .eq("club_id", club.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
   // Tournaments hosted by this club. Hidden tournaments excluded.
   const { data: hostedTournaments } = await supabase
     .from("tournaments")
@@ -182,6 +212,86 @@ export default async function ClubDetailPage({ params, searchParams }: PageProps
           <p className="text-sm text-surface-muted italic">No groups attached yet.</p>
         )}
       </section>
+
+      {/* Upcoming events */}
+      {(upcomingEvents ?? []).length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-dark-100">Upcoming Events</h2>
+          <ul className="space-y-3">
+            {((upcomingEvents ?? []) as ClubEvent[]).map((e) => {
+              const eventRsvps = rsvps.filter((r) => r.event_id === e.id);
+              const yesRsvps = eventRsvps.filter((r) => r.status === "yes");
+              const yesCount = yesRsvps.reduce((sum, r) => sum + 1 + (r.guest_count ?? 0), 0);
+              const maybeCount = eventRsvps.filter((r) => r.status === "maybe").length;
+              const myRsvp = profile
+                ? eventRsvps.find((r) => r.profile_id === profile.id) ?? null
+                : null;
+              return (
+                <li
+                  key={e.id}
+                  className={`card space-y-3 ${e.is_cancelled ? "opacity-70" : ""}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-dark-100">
+                        {e.title}
+                        {e.is_cancelled && (
+                          <span className="ml-2 badge-red text-[10px]">Cancelled</span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-surface-muted">
+                        {formatDateInZone(e.event_at, e.timezone)} at{" "}
+                        {formatTimeInZone(e.event_at, e.timezone)}
+                        {e.location ? ` · ${e.location}` : ""}
+                      </p>
+                    </div>
+                    <div className="text-right text-[11px] text-surface-muted shrink-0">
+                      <p>
+                        {yesCount} going{e.capacity ? ` / ${e.capacity}` : ""}
+                      </p>
+                      {maybeCount > 0 && <p>{maybeCount} maybe</p>}
+                    </div>
+                  </div>
+                  {e.description && (
+                    <p className="text-sm text-dark-200 whitespace-pre-wrap">{e.description}</p>
+                  )}
+                  {e.is_cancelled && e.cancellation_message && (
+                    <p className="text-sm text-red-300 whitespace-pre-wrap rounded-md bg-red-950/40 ring-1 ring-red-500/30 p-2">
+                      {e.cancellation_message}
+                    </p>
+                  )}
+                  <EventRsvpButtons
+                    clubId={club.id}
+                    eventId={e.id}
+                    allowGuests={e.allow_guests}
+                    isCancelled={e.is_cancelled}
+                    myRsvp={myRsvp ? { status: myRsvp.status, guest_count: myRsvp.guest_count } : null}
+                    loginHref={user ? null : `/login?next=/clubs/${club.slug}`}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Recent announcements */}
+      {(announcements ?? []).length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-dark-100">Announcements</h2>
+          <ul className="space-y-2">
+            {((announcements ?? []) as ClubAnnouncement[]).map((a) => (
+              <li key={a.id} className="card space-y-1">
+                <p className="text-sm font-semibold text-dark-100">{a.title}</p>
+                <p className="text-xs text-surface-muted">
+                  {new Date(a.created_at).toLocaleString()}
+                </p>
+                <p className="text-sm text-dark-200 whitespace-pre-wrap pt-1">{a.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Tournaments hosted by this club */}
       {(hostedTournaments ?? []).length > 0 && (
