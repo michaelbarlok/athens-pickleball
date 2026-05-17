@@ -9,6 +9,7 @@ import {
   formatDistanceMi,
 } from "@/components/find-near-me-button";
 import { MapPinIcon } from "@/components/icons";
+import { Card, CardHeader, CardBody, CardBadge } from "@/components/card-primitives";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -335,95 +336,125 @@ function GroupCard({
     group.group_type !== "free_play" && (group.playTimes.length === 0 || hasLadderPlay);
   const showSkillsPill = hasSkillsPlay;
   const showFreePlayPill = group.group_type === "free_play";
+  const showJoinForm =
+    showJoinButton && !group.isJoined && group.visibility === "public";
 
+  // Card chrome via primitives. The whole header+body block is one
+  // navigation Link (matches the existing pattern); the optional Join
+  // form lives below the Link as a separate sibling so we don't nest
+  // a form inside an anchor.
   return (
-    <div
-      className={cn(
-        "card p-3 sm:p-4 flex flex-col transition-shadow hover:ring-brand-500/30",
-        group.isJoined ? "card-accent-brand ring-brand-500/30" : "card-accent-gray"
-      )}
+    <Card
+      accent={group.isJoined ? "brand" : "gray"}
+      className={cn("h-full", group.isJoined && "ring-brand-500/30")}
     >
-      <Link href={`/groups/${group.slug}`} className="flex-1 min-w-0">
-        {/* Header: name + type (+ optional visibility) */}
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-dark-100 text-sm sm:text-base leading-tight">
-            {group.name}
-          </h3>
-          <div className="flex flex-wrap items-center gap-1 shrink-0">
-            {distanceMi !== undefined && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
-                <MapPinIcon className="h-3 w-3" />
-                {formatDistanceMi(distanceMi)}
+      <Link
+        href={`/groups/${group.slug}`}
+        className="flex flex-col gap-3 flex-1 min-w-0"
+      >
+        <CardHeader
+          // Groups don't currently have a logo column — the slot stays
+          // empty so cards stay aligned with future logo support.
+          title={<span className="leading-tight break-words">{group.name}</span>}
+          contextLine={
+            group.club ? (
+              <>
+                Part of{" "}
+                {/* Inner anchor: stopPropagation keeps a tap on the
+                    club name from also triggering the outer group
+                    Link navigation. Same pattern the previous card
+                    used; nesting is technically not strict HTML but
+                    browsers handle it consistently. */}
+                <Link
+                  href={`/clubs/${group.club.slug}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {group.club.name}
+                </Link>
+              </>
+            ) : null
+          }
+          badges={
+            <>
+              {distanceMi !== undefined && (
+                <CardBadge variant="info" tone="brand" size="xs">
+                  <MapPinIcon className="mr-0.5 h-3 w-3" />
+                  {formatDistanceMi(distanceMi)}
+                </CardBadge>
+              )}
+              {showFreePlayPill && (
+                <CardBadge variant="identity" tone="yellow" size="xs">
+                  Free Play
+                </CardBadge>
+              )}
+              {showLadderPill && (
+                <CardBadge variant="identity" tone="blue" size="xs">
+                  Ladder
+                </CardBadge>
+              )}
+              {showSkillsPill && (
+                <CardBadge variant="identity" tone="blue" size="xs">
+                  Skills
+                </CardBadge>
+              )}
+              {showVisibility && group.visibility === "private" && (
+                <CardBadge variant="info" tone="gray" size="xs">
+                  Private
+                </CardBadge>
+              )}
+            </>
+          }
+          trailing={weather}
+        />
+
+        <CardBody>
+          {cityState && (
+            <p className="text-xs">
+              {cityState}
+              {" · "}
+              {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+            </p>
+          )}
+          {!cityState && (
+            <p className="text-xs">
+              {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+            </p>
+          )}
+
+          {playTimeStr && firstPlayTime && (
+            <p className="text-xs text-brand-vivid font-medium flex items-center gap-1 min-w-0">
+              <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+              </svg>
+              <span className="truncate">
+                {playTimeStr}
+                {firstPlayTime.location ? ` · ${firstPlayTime.location}` : ""}
+                {extraPlayTimes > 0 && (
+                  <span className="text-surface-muted"> · +{extraPlayTimes} more</span>
+                )}
               </span>
-            )}
-            {showFreePlayPill && <span className="badge-yellow">Free Play</span>}
-            {showLadderPill && <span className="badge-blue">Ladder</span>}
-            {showSkillsPill && <span className="badge-blue">Skills</span>}
-            {showVisibility && group.visibility === "private" && (
-              <span className="badge-gray">Private</span>
-            )}
-          </div>
-        </div>
+            </p>
+          )}
 
-        {/* "Part of [Club]" — only when group is attached to a club.
-            Subtle, brand-tinted to read as a relationship, not a tag. */}
-        {group.club && (
-          <p className="mt-1 text-[11px] text-brand-300">
-            Part of{" "}
-            <Link
-              href={`/clubs/${group.club.slug}`}
-              onClick={(e) => e.stopPropagation()}
-              className="font-medium underline-offset-2 hover:underline"
-            >
-              {group.club.name}
-            </Link>
-          </p>
-        )}
-
-        {/* Location · members (one line) */}
-        <p className="mt-1 text-xs text-surface-muted">
-          {cityState && <span>{cityState} · </span>}
-          {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
-        </p>
-
-        {/* Play time (first one shown inline; "+N more" summarizes others) */}
-        {playTimeStr && firstPlayTime && (
-          <p className="mt-1 text-xs text-brand-vivid font-medium flex items-center gap-1 min-w-0">
-            <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
-            </svg>
-            <span className="truncate">
-              {playTimeStr}
-              {firstPlayTime.location ? ` · ${firstPlayTime.location}` : ""}
-              {extraPlayTimes > 0 && <span className="text-surface-muted"> · +{extraPlayTimes} more</span>}
-            </span>
-          </p>
-        )}
-
-        {/* Weather chip — pre-rendered server-side; renders nothing
-            unless a sheet for this group falls inside the 5-day window. */}
-        {weather && <div className="mt-1">{weather}</div>}
-
-        {/* Description */}
-        {group.description && (
-          <p className="mt-1 text-xs text-surface-muted line-clamp-1 sm:line-clamp-2">
-            {group.description}
-          </p>
-        )}
+          {group.description && (
+            <p className="text-xs line-clamp-1 sm:line-clamp-2">{group.description}</p>
+          )}
+        </CardBody>
       </Link>
 
-      {showJoinButton && !group.isJoined && group.visibility === "public" && (
+      {showJoinForm && (
         <form
           action={async () => {
             await onJoin(group.id, group.group_type);
           }}
-          className="mt-2 border-t border-surface-border pt-2"
+          className="mt-auto pt-3 border-t border-surface-border"
         >
           <button type="submit" className="btn-primary w-full text-xs py-1.5">
             Join Group
           </button>
         </form>
       )}
-    </div>
+    </Card>
   );
 }

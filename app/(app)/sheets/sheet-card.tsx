@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/toast";
+import {
+  Card,
+  CardBadge,
+  type CardAccent,
+  type CardBadgeTone,
+} from "@/components/card-primitives";
 
 const statusBadge: Record<string, { className: string; label: string; icon: React.ReactNode }> = {
   open: {
@@ -35,10 +41,20 @@ const statusBadge: Record<string, { className: string; label: string; icon: Reac
   },
 };
 
-const statusAccent: Record<string, string> = {
-  open: "card-accent-green",
-  closed: "card-accent-gray",
-  cancelled: "card-accent-red",
+// Sheet status → unified accent + badge tone for the Card primitive.
+// Keeps the existing meaning (open=green, closed=gray, cancelled=red)
+// while routing through the same accent vocabulary every other card
+// type uses.
+const statusAccent: Record<string, CardAccent> = {
+  open: "open",
+  closed: "gray",
+  cancelled: "cancelled",
+};
+
+const statusBadgeTone: Record<string, CardBadgeTone> = {
+  open: "green",
+  closed: "gray",
+  cancelled: "red",
 };
 
 interface PlayerInfo {
@@ -228,17 +244,23 @@ export function SheetCard({
     }
   }
 
-  const accent = statusAccent[status] ?? "card-accent-gray";
+  const accent = statusAccent[status] ?? "gray";
+  const statusTone = statusBadgeTone[status] ?? "gray";
 
   return (
-    <div className={`card hover:ring-brand-500/30 transition-shadow ${accent}`}>
-      {/* Row 1: Title + status badge, player count + chevron */}
+    <Card accent={accent}>
+      {/* Row 1: Title + status badge, player count + chevron.
+          Sheet card keeps its bespoke 2-column header layout
+          (title block on the left, capacity meter + expander on the
+          right) because the interactive expand button can't sit
+          inside the card-wrapping Link. Card primitive provides
+          chrome + accent only; the inner composition is custom. */}
       <div className="flex items-start justify-between gap-3">
         <Link href={`/sheets/${sheetId}`} className="min-w-0 flex-1">
           {/* "Part of [Club]" rendered as plain text — the whole
-              card is a single Link, so nesting another anchor would
-              be invalid HTML. Players who want the club page can
-              tap into the sheet detail, which links the club. */}
+              card-link is a single anchor and nesting is invalid
+              HTML. Players who want the club page can tap into the
+              sheet detail, which links the club. */}
           {clubName && (
             <p className="text-[11px] text-brand-300">
               Part of <span className="font-medium">{clubName}</span>
@@ -246,9 +268,14 @@ export function SheetCard({
           )}
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-dark-100">{groupName}</p>
-            <span className={badge.className}>{badge.icon}{badge.label}</span>
+            <CardBadge variant="status" tone={statusTone} size="sm">
+              {badge.icon}
+              {badge.label}
+            </CardBadge>
             {playType === "skills" && (
-              <span className="badge-blue text-xs">Skills</span>
+              <CardBadge variant="identity" tone="blue" size="xs">
+                Skills
+              </CardBadge>
             )}
           </div>
           {label && (
@@ -258,23 +285,25 @@ export function SheetCard({
             <span>{eventDate}</span>
             <span>{location}</span>
           </div>
-          {weather && <div className="mt-1">{weather}</div>}
         </Link>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="text-right text-sm text-surface-muted whitespace-nowrap">
-            <span className="font-medium text-dark-100">{confirmedCount}</span>
-            /{playerLimit}
-            {waitlistCount > 0 && (
-              <span className="ml-1 text-accent-300">
-                +{waitlistCount}
-              </span>
-            )}
-            {/* Capacity bar */}
-            <div className="mt-1.5 h-1.5 w-20 rounded-full bg-surface-overlay overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${confirmedCount >= playerLimit ? "bg-accent-400" : "bg-teal-400"}`}
-                style={{ width: `${Math.min((confirmedCount / playerLimit) * 100, 100)}%` }}
-              />
+        <div className="flex items-start gap-2 shrink-0">
+          <div className="flex flex-col items-end gap-1.5">
+            {/* Weather: right-aligned in the trailing area per the
+                unified placement decision. */}
+            {weather}
+            <div className="text-right text-sm text-surface-muted whitespace-nowrap">
+              <span className="font-medium text-dark-100">{confirmedCount}</span>
+              /{playerLimit}
+              {waitlistCount > 0 && (
+                <span className="ml-1 text-accent-300">+{waitlistCount}</span>
+              )}
+              {/* Capacity bar */}
+              <div className="mt-1.5 h-1.5 w-20 rounded-full bg-surface-overlay overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${confirmedCount >= playerLimit ? "bg-accent-400" : "bg-teal-400"}`}
+                  style={{ width: `${Math.min((confirmedCount / playerLimit) * 100, 100)}%` }}
+                />
+              </div>
             </div>
           </div>
           {players.length > 0 && (
@@ -426,6 +455,6 @@ export function SheetCard({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

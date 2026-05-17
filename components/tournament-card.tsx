@@ -6,14 +6,15 @@ import { TOURNAMENT_STATUS_COLORS, TOURNAMENT_STATUS_LABELS } from "@/lib/status
 import { TournamentNotifyMembersButton } from "@/components/tournament-notify-members-button";
 import { formatDistanceMi } from "@/components/find-near-me-button";
 import { MapPinIcon } from "@/components/icons";
+import { Card, CardBadge, type CardAccent } from "@/components/card-primitives";
 
-const STATUS_ACCENT: Record<string, string> = {
-  draft: "card-accent-gray",
-  registration_open: "card-accent-green",
-  registration_closed: "card-accent-brand",
-  in_progress: "card-accent-yellow",
-  completed: "card-accent-gray",
-  cancelled: "card-accent-red",
+const STATUS_ACCENT: Record<string, CardAccent> = {
+  draft: "gray",
+  registration_open: "open",
+  registration_closed: "brand",
+  in_progress: "warning",
+  completed: "gray",
+  cancelled: "cancelled",
 };
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -46,7 +47,7 @@ export function TournamentCard({
 }) {
   const t = tournament;
   const isOpen = t.status === "registration_open";
-  const accent = STATUS_ACCENT[t.status] ?? "card-accent-gray";
+  const accent = STATUS_ACCENT[t.status] ?? "gray";
   // `registration_count` is now total players (see lib/queries/tournament.ts
   // for the per-tournament-type math). We deliberately don't render
   // /player_cap on the card because the DB cap enforcement counts
@@ -55,93 +56,103 @@ export function TournamentCard({
 
   const logoUrl = (t as any).logo_url as string | null | undefined;
 
+  const cityState = [
+    (t as { city?: string | null }).city,
+    (t as { state?: string | null }).state,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const tz = (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ;
+  const hostGroup = (t as { host_group?: { name: string } | null }).host_group;
+  const hostClub = (t as { host_club?: { name: string } | null }).host_club;
+  const hostedBy = hostClub?.name ?? hostGroup?.name ?? null;
+
   return (
-    <div className={`card hover:ring-1 hover:ring-brand-500/30 transition-all flex flex-col ${accent}`}>
-      <Link href={`/tournaments/${t.id}`} className="flex-1">
-        <div className="flex items-start justify-between gap-3 mb-2">
+    <Card accent={accent} className="h-full">
+      {/* Header is a navigation Link wrapping title + metadata. The
+          register button / notify button live outside the Link so
+          they don't trigger card navigation when clicked. */}
+      <Link href={`/tournaments/${t.id}`} className="flex flex-col gap-3 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0 flex-1">
             {logoUrl && (
+              // 56px standard logo per the card system spec.
               // object-contain + surface-overlay background so wide /
               // tall / transparent org logos render fully without
-              // getting cropped. p-1 keeps them off the frame edge.
-              <div className="h-12 w-12 shrink-0 rounded-md bg-surface-overlay ring-1 ring-surface-border flex items-center justify-center overflow-hidden">
+              // getting cropped.
+              <div className="h-14 w-14 shrink-0 rounded-md bg-surface-overlay ring-1 ring-surface-border flex items-center justify-center overflow-hidden">
                 <Image
                   src={logoUrl}
                   alt=""
-                  width={48}
-                  height={48}
+                  width={56}
+                  height={56}
                   className="h-full w-full object-contain p-1"
                 />
               </div>
             )}
-            <h3 className="text-base font-semibold text-dark-100 line-clamp-2 min-w-0">
-              {t.title}
-            </h3>
+            <div className="min-w-0 flex-1">
+              {hostedBy && (
+                <p className="text-[11px] text-brand-300 leading-tight mb-0.5">
+                  Hosted by <span className="font-medium">{hostedBy}</span>
+                  {(hostClub || hostGroup) && (
+                    <CardBadge variant="info" tone="brand" size="xs" className="ml-1.5">
+                      Members only
+                    </CardBadge>
+                  )}
+                </p>
+              )}
+              <h3 className="text-base font-semibold text-dark-100 line-clamp-2 min-w-0">
+                {t.title}
+              </h3>
+            </div>
           </div>
+          {/* Trailing slot: status pill + distance + weather chip,
+              stacked vertically. Weather lives here per the unified
+              "weather is right-aligned in the header" placement. */}
           <div className="flex flex-col items-end gap-1 shrink-0">
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TOURNAMENT_STATUS_COLORS[t.status] ?? ""}`}>
               {TOURNAMENT_STATUS_LABELS[t.status] ?? t.status}
             </span>
             {distanceMi !== undefined && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
-                <MapPinIcon className="h-3 w-3" />
+              <CardBadge variant="info" tone="brand" size="xs">
+                <MapPinIcon className="mr-0.5 h-3 w-3" />
                 {formatDistanceMi(distanceMi)}
-              </span>
+              </CardBadge>
             )}
+            {weather}
           </div>
         </div>
 
         <div className="space-y-1 text-sm text-surface-muted">
-          {(t as { host_group?: { name: string } | null }).host_group && (
-            <p className="text-xs font-medium text-brand-300">
-              Hosted by {(t as { host_group: { name: string } }).host_group.name}
-              <span className="ml-1.5 inline-flex items-center rounded-full bg-brand-500/15 px-1.5 py-0.5 text-[10px] text-brand-200">
-                Members only
-              </span>
-            </p>
-          )}
           <p>
-            {formatDateInZone(t.start_date, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}
-            {t.start_time && ` at ${formatTimeInZone(t.start_time, (t as { timezone?: string | null }).timezone ?? DEFAULT_TZ)}`}
+            {formatDateInZone(t.start_date, tz)}
+            {t.start_time && ` at ${formatTimeInZone(t.start_time, tz)}`}
           </p>
           <p>
             {t.location}
-            {(() => {
-              const cs = [
-                (t as { city?: string | null }).city,
-                (t as { state?: string | null }).state,
-              ]
-                .filter(Boolean)
-                .join(", ");
-              return cs ? <span> · {cs}</span> : null;
-            })()}
+            {cityState && <span> · {cityState}</span>}
           </p>
-          {weather && <div>{weather}</div>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-3">
-          <span className="inline-flex rounded-full bg-surface-overlay px-2 py-0.5 text-xs font-medium text-dark-200">
+        <div className="flex flex-wrap items-center gap-2">
+          <CardBadge variant="info" tone="gray" size="xs">
             {FORMAT_LABELS[t.format] ?? t.format}
-          </span>
-          <span className="inline-flex rounded-full bg-surface-overlay px-2 py-0.5 text-xs font-medium text-dark-200 capitalize">
-            {t.type}
-          </span>
+          </CardBadge>
+          <CardBadge variant="identity" tone="blue" size="xs">
+            {t.type === "doubles" ? "Doubles" : "Singles"}
+          </CardBadge>
           {t.divisions && t.divisions.length > 0 && (
-            <span className="inline-flex rounded-full bg-surface-overlay px-2 py-0.5 text-xs font-medium text-dark-200">
+            <CardBadge variant="info" tone="gray" size="xs">
               {t.divisions.length} division{t.divisions.length !== 1 ? "s" : ""}
-            </span>
+            </CardBadge>
           )}
         </div>
 
-        <div className="mt-3 pt-3 border-t border-surface-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-surface-muted">
-              {t.registration_count} player{t.registration_count === 1 ? "" : "s"} registered
-            </span>
-            <span className="text-xs text-surface-muted">
-              by {t.creator?.display_name ?? "Unknown"}
-            </span>
-          </div>
+        <div className="mt-auto pt-3 border-t border-surface-border flex items-center justify-between text-xs text-surface-muted">
+          <span>
+            {t.registration_count} player{t.registration_count === 1 ? "" : "s"} registered
+          </span>
+          <span>by {t.creator?.display_name ?? "Unknown"}</span>
         </div>
       </Link>
 
@@ -174,6 +185,6 @@ export function TournamentCard({
           }}
         />
       )}
-    </div>
+    </Card>
   );
 }
