@@ -1,5 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { GroupList, type GroupCardData } from "./group-list";
 import { WeatherBadge } from "@/components/weather-badge";
@@ -85,48 +84,6 @@ export default async function GroupsPage() {
     };
   });
 
-  async function joinGroup(groupId: string, groupType: string) {
-    "use server";
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: p } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-    if (!p) return;
-
-    let startStep = 5;
-    if (groupType === "ladder_league") {
-      const { data: prefs } = await supabase
-        .from("group_preferences")
-        .select("new_player_start_step")
-        .eq("group_id", groupId)
-        .single();
-      startStep = prefs?.new_player_start_step ?? 5;
-    }
-
-    // Use service client to bypass RLS for membership insert
-    const serviceClient = await createServiceClient();
-    await serviceClient.from("group_memberships").upsert(
-      {
-        group_id: groupId,
-        player_id: p.id,
-        current_step: startStep,
-        win_pct: 0,
-        total_sessions: 0,
-      },
-      { onConflict: "group_id,player_id" }
-    );
-
-    revalidatePath("/groups");
-  }
-
   // Pre-render a weather chip per group, keyed by group id, for the
   // group's NEXT upcoming sheet inside the 5-day window. The
   // WeatherBadge itself returns null if no usable forecast exists,
@@ -189,7 +146,6 @@ export default async function GroupsPage() {
       <GroupList
         groups={groupCards}
         playerId={profile?.id ?? null}
-        joinAction={joinGroup}
         weatherByGroupId={weatherByGroupId}
       />
     </div>

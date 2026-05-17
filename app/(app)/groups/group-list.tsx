@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/confirm-modal";
 import { EmptyState } from "@/components/empty-state";
 import {
   FindNearMeButton,
@@ -60,16 +62,71 @@ type Tab = "mine" | "search";
 export function GroupList({
   groups,
   playerId,
-  joinAction,
   weatherByGroupId,
 }: {
   groups: GroupCardData[];
   playerId: string | null;
-  joinAction: (groupId: string, groupType: string) => Promise<void>;
   /** Server-rendered weather chip per group (next upcoming sheet
    *  inside the 5-day window). Missing entries → no chip. */
   weatherByGroupId?: Record<string, React.ReactNode>;
 }) {
+  const router = useRouter();
+  const confirm = useConfirm();
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  // Calls the unified /api/groups/[id]/join. On 409 with
+  // requiresClubJoin, surfaces a confirmation popup so the player
+  // explicitly opts into the parent club before we POST again with
+  // `acceptClub: true`. Private clubs short-circuit to a link to the
+  // club page where the player can redeem an invite.
+  async function handleJoinClick(groupId: string) {
+    setJoinError(null);
+    const first = await fetch(`/api/groups/${groupId}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (first.ok) {
+      router.refresh();
+      return;
+    }
+    const data = await first.json().catch(() => ({}));
+    if (first.status === 409 && data?.requiresClubJoin && data.club) {
+      const club: { name: string; slug: string; visibility: string } = data.club;
+      if (club.visibility === "private") {
+        await confirm({
+          title: `${club.name} is private`,
+          description: `This group is part of ${club.name}, which is invite-only. Open the club page and redeem an invite link from a member before joining the group.`,
+          confirmLabel: "Open club page",
+          cancelLabel: "Not now",
+        }).then((ok) => {
+          if (ok) router.push(`/clubs/${club.slug}`);
+        });
+        return;
+      }
+      const ok = await confirm({
+        title: `Join ${club.name} too?`,
+        description: `This group is part of ${club.name}. You need to be a member of the club to join the group. We'll add you to both.`,
+        confirmLabel: "Join both",
+        cancelLabel: "Cancel",
+      });
+      if (!ok) return;
+      const second = await fetch(`/api/groups/${groupId}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acceptClub: true }),
+      });
+      const secondData = await second.json().catch(() => ({}));
+      if (!second.ok) {
+        setJoinError(secondData?.error ?? "Couldn't join.");
+        return;
+      }
+      router.refresh();
+      return;
+    }
+    setJoinError(data?.error ?? "Couldn't join the group.");
+  }
+
   const [tab, setTab] = useState<Tab>("mine");
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
@@ -257,6 +314,12 @@ export function GroupList({
         </>
       )}
 
+      {joinError && (
+        <p className="text-sm text-red-400" role="alert">
+          {joinError}
+        </p>
+      )}
+
       {/* Group grid */}
       {activeList.length > 0 ? (
         <div className="grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -266,7 +329,7 @@ export function GroupList({
               group={group}
               showVisibility={tab === "mine"}
               showJoinButton={tab === "search" && !!playerId}
-              onJoin={joinAction}
+              onJoin={handleJoinClick}
               weather={weatherByGroupId?.[group.id]}
               distanceMi={
                 inNearbyMode ? nearbyDistanceById[group.id] : undefined
@@ -315,7 +378,7 @@ function GroupCard({
   group: GroupCardData;
   showVisibility: boolean;
   showJoinButton: boolean;
-  onJoin: (groupId: string, groupType: string) => Promise<void>;
+  onJoin: (groupId: string) => Promise<void>;
   weather?: React.ReactNode;
   /** When set (Search tab + nearby mode), surfaces a small "X mi"
    *  chip on the card so players can see how far each option is. */
@@ -444,16 +507,15 @@ function GroupCard({
       </Link>
 
       {showJoinForm && (
-        <form
-          action={async () => {
-            await onJoin(group.id, group.group_type);
-          }}
-          className="mt-auto pt-3 border-t border-surface-border"
-        >
-          <button type="submit" className="btn-primary w-full text-xs py-1.5">
+        <div className="mt-auto pt-3 border-t border-surface-border">
+          <button
+            type="button"
+            onClick={() => onJoin(group.id)}
+            className="btn-primary w-full text-xs py-1.5"
+          >
             Join Group
           </button>
-        </form>
+        </div>
       )}
     </Card>
   );
