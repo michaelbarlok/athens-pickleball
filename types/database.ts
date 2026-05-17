@@ -54,7 +54,11 @@ export type NotificationType =
   | "tournament_announcement"
   | "badge_earned"
   | "session_recap"
-  | "group_announcement";
+  | "group_announcement"
+  | "club_announcement"
+  | "club_event_created"
+  | "club_event_updated"
+  | "club_event_cancelled";
 
 export type CancellationReason = "lack_of_interest" | "inclement_weather" | "other";
 
@@ -100,6 +104,57 @@ export interface ClubMembership {
   profile_id: string;
   club_role: "admin" | "member";
   joined_at: string;
+}
+
+/** A one-off club event (social, cookout, opening day, clinic, annual
+ *  meeting). Distinct from sign-up sheets (no session, no ladder) and
+ *  tournaments (no bracket, no register API). Members RSVP yes/no/
+ *  maybe and optionally bring guests. */
+export interface ClubEvent {
+  id: string;
+  club_id: string;
+  title: string;
+  description?: string | null;
+  /** Wall-clock time of the event. Display via formatDateInZone/
+   *  formatTimeInZone using `timezone`. */
+  event_at: string;
+  end_at?: string | null;
+  timezone: string;
+  location?: string | null;
+  /** Null = uncapped. When set, the YES form refuses additional yeses
+   *  past the cap (counting guest_count). */
+  capacity?: number | null;
+  allow_guests: boolean;
+  /** Stripe stub for future paid events. Not currently surfaced. */
+  fee_cents?: number | null;
+  is_cancelled: boolean;
+  cancellation_message?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClubEventRsvpStatus = "yes" | "no" | "maybe";
+
+export interface ClubEventRsvp {
+  event_id: string;
+  profile_id: string;
+  status: ClubEventRsvpStatus;
+  guest_count: number;
+  note?: string | null;
+  responded_at: string;
+}
+
+/** Broadcast announcement to every club member. Mirrors
+ *  `group_announcements` shape so the UX feels familiar. Delivered
+ *  via the existing notifyMany pipeline (in-app + push + email). */
+export interface ClubAnnouncement {
+  id: string;
+  club_id: string;
+  sent_by?: string | null;
+  title: string;
+  body: string;
+  created_at: string;
 }
 
 /** What kind of play a recurring schedule / sign-up sheet represents.
