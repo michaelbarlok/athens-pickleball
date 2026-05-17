@@ -31,14 +31,32 @@ export default async function ClubsListPage() {
   // out of the parent SELECT for non-members anyway by the clubs
   // RLS policy, so the counts are meaningful for every row that
   // makes it into the response.
-  const { data: clubs } = await supabase
+  //
+  // Cast through unknown: supabase-js's inferred type for SELECTs
+  // that combine a column list with embedded `(count)` falls back
+  // to GenericStringError, so accessing `c.city` etc. fails the
+  // build. The runtime shape is the obvious one — we just need to
+  // tell TypeScript what we know.
+  type ClubRow = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    city: string | null;
+    state: string | null;
+    visibility: "public" | "private";
+    logo_url: string | null;
+    members: { count: number }[] | null;
+    groups: { count: number }[] | null;
+  };
+  const { data: clubsRaw } = await supabase
     .from("clubs")
     .select(
-      "id, slug, name, description, city, state, visibility, logo_url, " +
-        "members:club_memberships(count), groups:shootout_groups(count)"
+      "id, slug, name, description, city, state, visibility, logo_url, members:club_memberships(count), groups:shootout_groups(count)"
     )
     .eq("is_active", true)
     .order("name", { ascending: true });
+  const clubs = (clubsRaw ?? []) as unknown as ClubRow[];
 
   return (
     <div className="space-y-6">
@@ -53,7 +71,7 @@ export default async function ClubsListPage() {
         }
       />
 
-      {(clubs ?? []).length === 0 ? (
+      {clubs.length === 0 ? (
         <p className="card p-6 text-center text-sm text-surface-muted">
           No clubs to show yet.
           {user && (
@@ -67,11 +85,9 @@ export default async function ClubsListPage() {
         </p>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(clubs ?? []).map((c) => {
-            const memberCount =
-              (c as { members?: { count: number }[] }).members?.[0]?.count ?? 0;
-            const groupCount =
-              (c as { groups?: { count: number }[] }).groups?.[0]?.count ?? 0;
+          {clubs.map((c) => {
+            const memberCount = c.members?.[0]?.count ?? 0;
+            const groupCount = c.groups?.[0]?.count ?? 0;
             const cityState = [c.city, c.state].filter(Boolean).join(", ");
             return (
               <li key={c.id}>
