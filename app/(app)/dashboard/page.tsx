@@ -36,6 +36,16 @@ export default async function DashboardPage() {
     .single();
   if (!profile) notFound();
 
+  // Sheet query floor: yesterday in UTC. Sheets older than that have
+  // already aged out of the visibility window (`sheetIsExpired`), so
+  // including them only burns the row budget. Using yesterday rather
+  // than today keeps any same-day sheet visible regardless of UTC vs
+  // event-zone offsets (e.g. a 5:30pm ET sheet whose event_date is
+  // today still passes when "today" in UTC is technically tomorrow).
+  const sheetFloorDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
   const [
     { data: memberships },
     { data: sheets },
@@ -46,7 +56,7 @@ export default async function DashboardPage() {
     badgeStats,
   ] = await Promise.all([
     supabase.from("group_memberships").select("*, group:shootout_groups(*, group_preferences(pct_window_sessions))").eq("player_id", profile.id),
-    supabase.from("signup_sheets").select("*, group:shootout_groups(name, slug, is_active, city, state)").eq("status", "open").order("event_date", { ascending: true }).limit(5),
+    supabase.from("signup_sheets").select("*, group:shootout_groups(name, slug, is_active, city, state)").eq("status", "open").gte("event_date", sheetFloorDate).order("event_date", { ascending: true }).limit(20),
     supabase.from("tournament_registrations").select("tournament_id, division, status, tournament:tournaments(id, title, start_date, start_time, location, status, timezone)").eq("player_id", profile.id).neq("status", "withdrawn"),
     supabase.from("tournaments").select("id, title, start_date, start_time, location, status").eq("created_by", profile.id).not("status", "in", '("completed","cancelled")'),
     supabase.from("tournament_organizers").select("tournament:tournaments(id, title, start_date, start_time, location, status, timezone)").eq("profile_id", profile.id),
