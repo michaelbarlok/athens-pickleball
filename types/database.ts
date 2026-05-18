@@ -58,7 +58,10 @@ export type NotificationType =
   | "club_announcement"
   | "club_event_created"
   | "club_event_updated"
-  | "club_event_cancelled";
+  | "club_event_cancelled"
+  | "club_group_request"
+  | "club_group_request_approved"
+  | "club_group_request_rejected";
 
 export type CancellationReason = "lack_of_interest" | "inclement_weather" | "other";
 
@@ -143,6 +146,24 @@ export interface ClubEventRsvp {
   guest_count: number;
   note?: string | null;
   responded_at: string;
+}
+
+/** Pending request from a group creator to attach a freshly-created
+ *  group to a club they don't manage. Club admins approve/reject from
+ *  the club manage page. Approval flips the group's `club_id`; rejection
+ *  leaves the group standalone. */
+export type ClubGroupRequestStatus = "pending" | "approved" | "rejected";
+
+export interface ClubGroupRequest {
+  id: string;
+  club_id: string;
+  group_id: string;
+  requested_by?: string | null;
+  message?: string | null;
+  status: ClubGroupRequestStatus;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
 }
 
 /** Broadcast announcement to every club member. Mirrors

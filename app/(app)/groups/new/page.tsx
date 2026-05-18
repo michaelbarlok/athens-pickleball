@@ -2,7 +2,8 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CreateGroupForm } from "./create-group-form";
+import { CreateGroupForm, type ClubPickerOption } from "./create-group-form";
+import { notifyMany } from "@/lib/notify";
 
 /**
  * Group create page. Optionally takes a ?club=<clubId> query param to
@@ -22,10 +23,18 @@ import { CreateGroupForm } from "./create-group-form";
 export default async function CreateGroupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ club?: string }>;
+  // `club` = preselected club id (from /admin/clubs/[id] "+ New Group"
+  //          button, locks the form to that club + carries the "you'll
+  //          attach immediately because you're a club admin" banner).
+  // `selectedClub` = picker default (from the club-create flow's
+  //          returnTo round-trip — user just made a new club and we
+  //          want it pre-selected in the picker). Picker-set instead
+  //          of forced so the user can still change it.
+  searchParams: Promise<{ club?: string; selectedClub?: string }>;
 }) {
   const sp = await searchParams;
   const requestedClubId = sp.club?.trim() || null;
+  const returnedSelectedClubId = sp.selectedClub?.trim() || null;
 
   // Pre-flight check: only club admins (or site admins) can create
   // a group attached to a specific club. If the viewer asks for the
@@ -68,6 +77,69 @@ export default async function CreateGroupPage({
     preselectedClub = club as { id: string; name: string };
   }
 
+  // Build the club picker dataset. We surface every PUBLIC club so any
+  // user can request an attach, plus any PRIVATE club the user is a
+  // member of (those don't appear in the public list but the user
+  // already has visibility). The picker also marks which entries the
+  // viewer can attach to directly (no approval needed) so the form
+  // can phrase the CTA accordingly.
+  const pickerSupabase = await createClient();
+  const { data: { user: pickerUser } } = await pickerSupabase.auth.getUser();
+  let viewerProfileId: string | null = null;
+  let viewerIsSiteAdmin = false;
+  if (pickerUser) {
+    const { data: p } = await pickerSupabase
+      .from("profiles")
+      .select("id, role")
+      .eq("user_id", pickerUser.id)
+      .single();
+    viewerProfileId = (p as { id?: string } | null)?.id ?? null;
+    viewerIsSiteAdmin = (p as { role?: string } | null)?.role === "admin";
+  }
+
+  // One round trip: public clubs + the viewer's own club memberships
+  // (which includes any private clubs they're in). We dedupe in memory.
+  const [{ data: publicClubs }, { data: viewerClubMemberships }] = await Promise.all([
+    pickerSupabase
+      .from("clubs")
+      .select("id, name, visibility")
+      .eq("is_active", true)
+      .eq("visibility", "public")
+      .order("name"),
+    viewerProfileId
+      ? pickerSupabase
+          .from("club_memberships")
+          .select("club_role, club:clubs(id, name, visibility, is_active)")
+          .eq("profile_id", viewerProfileId)
+      : Promise.resolve({ data: [] as Array<{ club_role: string; club: unknown }> }),
+  ]);
+
+  const adminClubIds = new Set<string>();
+  const clubMap = new Map<string, { id: string; name: string; visibility: string }>();
+  for (const c of (publicClubs ?? []) as Array<{ id: string; name: string; visibility: string }>) {
+    clubMap.set(c.id, c);
+  }
+  for (const row of (viewerClubMemberships ?? []) as Array<{
+    club_role: string;
+    club: { id: string; name: string; visibility: string; is_active: boolean } | { id: string; name: string; visibility: string; is_active: boolean }[] | null;
+  }>) {
+    const c = Array.isArray(row.club) ? row.club[0] : row.club;
+    if (!c || !c.is_active) continue;
+    clubMap.set(c.id, { id: c.id, name: c.name, visibility: c.visibility });
+    if (row.club_role === "admin") adminClubIds.add(c.id);
+  }
+
+  const clubOptions: ClubPickerOption[] = Array.from(clubMap.values())
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      visibility: c.visibility as "public" | "private",
+      // Site admins can attach to anything; club admins to their own clubs.
+      // Everyone else triggers the approval queue.
+      canAttachDirectly: viewerIsSiteAdmin || adminClubIds.has(c.id),
+    }));
+
   async function createGroup(formData: FormData): Promise<{ error: string } | void> {
     "use server";
 
@@ -102,25 +174,41 @@ export default async function CreateGroupPage({
       .single();
     if (!profile) return { error: "Profile not found. Please complete your profile setup first." };
 
-    // Validate the optional club_id server-side. The URL/form alone
-    // never grants attach rights — the viewer must actually be an
-    // admin of the named club (or a site admin). If validation
-    // fails, drop the attach silently and create the group standalone
-    // rather than blocking the whole form submit on an edge case.
+    // Decide whether the submitted club is attached IMMEDIATELY (creator
+    // is club admin or site admin) or goes through the approval queue
+    // (everyone else). The URL/form value alone never grants attach
+    // rights — we always re-check authorization against the DB. A
+    // submitted club id that doesn't exist at all is dropped silently
+    // (the group is created standalone).
     let validatedClubId: string | null = null;
+    let pendingClubAttachId: string | null = null;
+    const requestMessage = (formData.get("club_request_message") as string)?.trim() || null;
     if (submittedClubId) {
-      const isSiteAdmin = (profile as { role?: string }).role === "admin";
-      if (isSiteAdmin) {
-        validatedClubId = submittedClubId;
-      } else {
-        const { data: clubAdmin } = await supabase
-          .from("club_memberships")
-          .select("club_role")
-          .eq("club_id", submittedClubId)
-          .eq("profile_id", profile.id)
-          .eq("club_role", "admin")
-          .maybeSingle();
-        if (clubAdmin) validatedClubId = submittedClubId;
+      const { data: clubExists } = await supabase
+        .from("clubs")
+        .select("id, is_active")
+        .eq("id", submittedClubId)
+        .maybeSingle();
+      const isClubActive = !!clubExists && (clubExists as { is_active?: boolean }).is_active !== false;
+      if (isClubActive) {
+        const isSiteAdmin = (profile as { role?: string }).role === "admin";
+        if (isSiteAdmin) {
+          validatedClubId = submittedClubId;
+        } else {
+          const { data: clubAdmin } = await supabase
+            .from("club_memberships")
+            .select("club_role")
+            .eq("club_id", submittedClubId)
+            .eq("profile_id", profile.id)
+            .eq("club_role", "admin")
+            .maybeSingle();
+          if (clubAdmin) {
+            validatedClubId = submittedClubId;
+          } else {
+            // Non-admin asking to attach — queue the request instead.
+            pendingClubAttachId = submittedClubId;
+          }
+        }
       }
     }
 
@@ -216,6 +304,64 @@ export default async function CreateGroupPage({
       { onConflict: "group_id,player_id" }
     );
 
+    // If the creator picked a club they don't manage, file a pending
+    // request and notify every admin of that club. The group itself
+    // stays standalone (club_id=null) until an admin approves —
+    // that's how non-admins can't shoehorn their group into another
+    // team's club without explicit blessing.
+    if (pendingClubAttachId) {
+      const { data: insertedRequest } = await serviceClient
+        .from("club_group_requests")
+        .insert({
+          club_id: pendingClubAttachId,
+          group_id: newGroup.id,
+          requested_by: profile.id,
+          message: requestMessage,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (insertedRequest) {
+        // Notify all club admins (push + email per recipient prefs).
+        const { data: clubAdmins } = await serviceClient
+          .from("club_memberships")
+          .select("profile_id")
+          .eq("club_id", pendingClubAttachId)
+          .eq("club_role", "admin");
+        const adminIds = (clubAdmins ?? []).map(
+          (a: { profile_id: string }) => a.profile_id
+        );
+        const { data: clubRow } = await serviceClient
+          .from("clubs")
+          .select("name, slug")
+          .eq("id", pendingClubAttachId)
+          .maybeSingle();
+        const { data: requesterRow } = await serviceClient
+          .from("profiles")
+          .select("display_name")
+          .eq("id", profile.id)
+          .maybeSingle();
+        if (adminIds.length > 0 && clubRow) {
+          await notifyMany(adminIds, {
+            type: "club_group_request",
+            title: `New group attach request: ${name}`,
+            body: `${requesterRow?.display_name ?? "A member"} wants to attach ${name} to ${clubRow.name}.`,
+            link: `/admin/clubs/${pendingClubAttachId}`,
+            emailTemplate: "ClubGroupRequest",
+            emailData: {
+              kind: "requested",
+              clubName: clubRow.name,
+              clubSlug: clubRow.slug,
+              groupName: name,
+              groupSlug: slug,
+              requesterName: requesterRow?.display_name ?? undefined,
+              message: requestMessage ?? undefined,
+            },
+          });
+        }
+      }
+    }
+
     revalidatePath("/groups");
     // Send the creator straight into the admin settings for their new
     // group. Both group types land on the Preferences tab — which for
@@ -245,7 +391,12 @@ export default async function CreateGroupPage({
         </p>
       </div>
 
-      <CreateGroupForm createAction={createGroup} preselectedClub={preselectedClub} />
+      <CreateGroupForm
+        createAction={createGroup}
+        preselectedClub={preselectedClub}
+        clubOptions={clubOptions}
+        defaultClubId={returnedSelectedClubId}
+      />
     </div>
   );
 }
