@@ -14,7 +14,7 @@
 import { getClubManager } from "@/lib/club-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { broadcastEvent } from "../route";
+import { broadcastEvent } from "@/lib/club-event-broadcast";
 
 const EDITABLE_FIELDS = new Set([
   "title",
