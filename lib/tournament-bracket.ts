@@ -859,11 +859,27 @@ export function computePoolStandings(
     }
   }
 
-  // Initial sort — just the "overall" metrics.
+  // Initial sort — wins desc → losses asc → point diff desc. Adding
+  // losses-asc is what mirrors the ladder fix (lib/pool-standings.ts)
+  // and matches the rule already in computeCrossPoolSeeding below:
+  // a 2-1 record outranks 2-2 by a better record, before point diff
+  // is even considered. Pools can have different sizes (4-team pool =
+  // 3 games each; 5-team pool = 4 games each), so 2-1 vs 2-2 can be a
+  // legitimate end-of-pool comparison, not just a partial-data
+  // artifact.
   const entries = Array.from(stats.entries()).map(([id, s]) => ({ id, ...s }));
-  entries.sort((a, b) => b.wins - a.wins || b.pointDiff - a.pointDiff);
+  entries.sort(
+    (a, b) =>
+      b.wins - a.wins ||
+      a.losses - b.losses ||
+      b.pointDiff - a.pointDiff
+  );
 
-  // Resolve ties inside each cluster (same wins AND same pointDiff).
+  // Resolve ties inside each cluster (same wins AND same losses AND
+  // same pointDiff). Losses must match too — without that check, a
+  // 2-1 sitting next to a 2-2 would land in the same cluster and the
+  // H2H step below could re-order them by H2H even though they were
+  // legitimately separated by the record-strength step above.
   type Decorated = { id: string; wins: number; losses: number; pointDiff: number; _h2hW: number; _h2hP: number; _hash: number };
   const sorted: Decorated[] = [];
   let i = 0;
@@ -872,6 +888,7 @@ export function computePoolStandings(
     while (
       j < entries.length &&
       entries[j].wins === entries[i].wins &&
+      entries[j].losses === entries[i].losses &&
       entries[j].pointDiff === entries[i].pointDiff
     ) {
       j++;
@@ -919,6 +936,16 @@ export function computePoolStandings(
     const a = sorted[k];
     const b = sorted[k + 1];
     if (a.wins !== b.wins) continue; // not a tie at all
+    if (a.losses !== b.losses) {
+      // Same wins but the row above has fewer losses (i.e. a stronger
+      // record from a smaller pool, or a not-yet-played match). The
+      // record-strength step in the comparator settled it; surface
+      // that explicitly so the organizer's "why is 2-1 above 2-2?"
+      // mental model is answered without having to reason about pool
+      // sizes. Matches the cross-pool seeding wording for consistency.
+      output[k].tiebreakerReason = "Better record — same wins, fewer losses";
+      continue;
+    }
     if (a.pointDiff !== b.pointDiff) {
       // Point differential is already visible in the +/- column —
       // surfacing "Higher point differential" again is noise. Leave

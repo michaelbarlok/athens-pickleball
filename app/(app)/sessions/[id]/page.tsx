@@ -552,6 +552,7 @@ export default function PlayerSessionPage() {
               memberRanks,
               myCourtFinishMap.size > 0 ? myCourtFinishMap : undefined,
               myCourtReasonMap.size > 0 ? myCourtReasonMap : undefined,
+              session?.status,
             ).find((s) => s.playerId === myPlayerId)
           : undefined;
         const finish = (me as any)?.pool_finish as number | null;
