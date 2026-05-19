@@ -1,6 +1,7 @@
 import { getTournament, getTournamentRegistrations, getTournamentMatches } from "@/lib/queries/tournament";
 import { DivisionBrackets } from "../division-brackets";
 import type { PartnerMap } from "@/components/tournament-bracket";
+import { TournamentRealtimeSubscription } from "@/components/tournament-realtime";
 import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -51,8 +52,18 @@ export default async function PublicBracketPage({
     divisionMatchesEntries.push({ division: key, matches: val });
   }
 
+  // Bracket page is the spectator-friendly URL — friends pull it up
+  // on their phone to follow along while the tournament is running.
+  // Without this subscription it'd stay frozen at first-load until
+  // they pull-to-refresh. Mirror the detail page's gate (in_progress
+  // OR completed — late edits can still trickle in after the
+  // organizer ends the tournament).
+  const isInProgress =
+    tournament.status === "in_progress" || tournament.status === "completed";
+
   return (
     <div className="max-w-3xl lg:max-w-6xl mx-auto space-y-6 py-6 px-4 sm:px-6">
+      {isInProgress && <TournamentRealtimeSubscription tournamentId={id} />}
       {/* Header */}
       <div>
         <Link
