@@ -18,6 +18,13 @@ import { useDebouncedCallback } from "@/lib/use-debounced-callback";
  * scoring at once or a division going live and immediately stamping
  * queue_entered_at on dozens of rows) coalesces into a single
  * refetch instead of N concurrent ones.
+ *
+ * Resume-from-background catchup: also re-fires on visibilitychange /
+ * window focus. Mobile browsers suspend WebSocket connections when
+ * the tab is backgrounded or the screen locks; events that fire
+ * during the suspension aren't replayed on reconnect. Without this
+ * hook a player who pocketed their phone between their own matches
+ * would return to stale standings until the next live event.
  */
 export function LiveTournamentRealtime({ tournamentId }: { tournamentId: string }) {
   const { supabase } = useSupabase();
@@ -53,6 +60,18 @@ export function LiveTournamentRealtime({ tournamentId }: { tournamentId: string 
       supabase.removeChannel(channel);
     };
   }, [supabase, tournamentId, debouncedRefresh]);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") debouncedRefresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", debouncedRefresh);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", debouncedRefresh);
+    };
+  }, [debouncedRefresh]);
 
   return null;
 }

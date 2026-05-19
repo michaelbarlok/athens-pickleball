@@ -825,8 +825,34 @@ export function computePoolStandings(
   for (const m of matches) {
     if (m.status !== "completed" || !m.winner_id) continue;
 
-    const s1sum = m.score1.reduce((a, b) => a + b, 0);
-    const s2sum = m.score2.reduce((a, b) => a + b, 0);
+    // Defensive guard: score1 / score2 are best-of-N arrays. Every
+    // production write-path (bracket PUT, match-only forfeit) sets
+    // them as same-length non-empty arrays of non-negative numbers
+    // *before* flipping status to "completed". If a malformed row
+    // ever lands (direct DB edit, a future code path that skips
+    // validation, a one-off data fix gone wrong), we'd otherwise
+    // bump wins/losses from winner_id but leave pointDiff at 0 —
+    // silently corrupting the standings. Skip + warn instead so the
+    // problem surfaces in logs.
+    const a = Array.isArray(m.score1) ? m.score1 : null;
+    const b = Array.isArray(m.score2) ? m.score2 : null;
+    const lengthsValid = a != null && b != null && a.length === b.length && a.length > 0;
+    const allNumeric =
+      lengthsValid &&
+      a!.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0) &&
+      b!.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0);
+    if (!allNumeric) {
+      // Only warn once per match — the function gets called on every
+      // render in the live bracket UI.
+      console.warn(
+        `[computePoolStandings] skipping completed match with malformed scores`,
+        { winner_id: m.winner_id, score1: m.score1, score2: m.score2 }
+      );
+      continue;
+    }
+
+    const s1sum = a!.reduce((acc, n) => acc + n, 0);
+    const s2sum = b!.reduce((acc, n) => acc + n, 0);
 
     if (m.player1_id) {
       const s = stats.get(m.player1_id)!;
@@ -859,11 +885,27 @@ export function computePoolStandings(
     }
   }
 
-  // Initial sort — just the "overall" metrics.
+  // Initial sort — wins desc → losses asc → point diff desc. Adding
+  // losses-asc is what mirrors the ladder fix (lib/pool-standings.ts)
+  // and matches the rule already in computeCrossPoolSeeding below:
+  // a 2-1 record outranks 2-2 by a better record, before point diff
+  // is even considered. Pools can have different sizes (4-team pool =
+  // 3 games each; 5-team pool = 4 games each), so 2-1 vs 2-2 can be a
+  // legitimate end-of-pool comparison, not just a partial-data
+  // artifact.
   const entries = Array.from(stats.entries()).map(([id, s]) => ({ id, ...s }));
-  entries.sort((a, b) => b.wins - a.wins || b.pointDiff - a.pointDiff);
+  entries.sort(
+    (a, b) =>
+      b.wins - a.wins ||
+      a.losses - b.losses ||
+      b.pointDiff - a.pointDiff
+  );
 
-  // Resolve ties inside each cluster (same wins AND same pointDiff).
+  // Resolve ties inside each cluster (same wins AND same losses AND
+  // same pointDiff). Losses must match too — without that check, a
+  // 2-1 sitting next to a 2-2 would land in the same cluster and the
+  // H2H step below could re-order them by H2H even though they were
+  // legitimately separated by the record-strength step above.
   type Decorated = { id: string; wins: number; losses: number; pointDiff: number; _h2hW: number; _h2hP: number; _hash: number };
   const sorted: Decorated[] = [];
   let i = 0;
@@ -872,6 +914,7 @@ export function computePoolStandings(
     while (
       j < entries.length &&
       entries[j].wins === entries[i].wins &&
+      entries[j].losses === entries[i].losses &&
       entries[j].pointDiff === entries[i].pointDiff
     ) {
       j++;
@@ -919,6 +962,16 @@ export function computePoolStandings(
     const a = sorted[k];
     const b = sorted[k + 1];
     if (a.wins !== b.wins) continue; // not a tie at all
+    if (a.losses !== b.losses) {
+      // Same wins but the row above has fewer losses (i.e. a stronger
+      // record from a smaller pool, or a not-yet-played match). The
+      // record-strength step in the comparator settled it; surface
+      // that explicitly so the organizer's "why is 2-1 above 2-2?"
+      // mental model is answered without having to reason about pool
+      // sizes. Matches the cross-pool seeding wording for consistency.
+      output[k].tiebreakerReason = "Better record — same wins, fewer losses";
+      continue;
+    }
     if (a.pointDiff !== b.pointDiff) {
       // Point differential is already visible in the +/- column —
       // surfacing "Higher point differential" again is noise. Leave
@@ -1010,9 +1063,9 @@ export function computeCrossPoolSeeding(
 
   // Same-pool order must be preserved (the pool's standings already
   // ran H2H to settle ties). When two teams in the same pool tie on
-  // (wins, pointDiff) here too, we defer to the original pool order
-  // — the team that finished higher in the pool stays higher in the
-  // merged list.
+  // (wins, losses, pointDiff) here too, we defer to the original
+  // pool order — the team that finished higher in the pool stays
+  // higher in the merged list.
   const poolOrderById = new Map<string, number>();
   for (let i = 0; i < teams.length; i++) {
     poolOrderById.set(teams[i].id, teams[i].poolFinish);

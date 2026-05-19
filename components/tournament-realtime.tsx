@@ -16,6 +16,14 @@ import { useDebouncedCallback } from "@/lib/use-debounced-callback";
  * flurry was the dominant load — this collapses bursts to a single refresh
  * without losing any data (the trailing call always fires after the last
  * event in the burst).
+ *
+ * Also force-refreshes on `visibilitychange` and `focus`. Phones aggressively
+ * suspend backgrounded WebSocket connections — when the screen wakes back
+ * up, the channel reconnects but events fired during the disconnect window
+ * aren't replayed. Without this hook, a player who pocketed their phone
+ * for a few minutes would see stale standings until the next live event
+ * arrived. The refetch is the same debounced router.refresh() as the
+ * realtime path, so a quick tab-switch doesn't spam the server.
  */
 export function TournamentRealtimeSubscription({ tournamentId }: { tournamentId: string }) {
   const { supabase } = useSupabase();
@@ -55,6 +63,21 @@ export function TournamentRealtimeSubscription({ tournamentId }: { tournamentId:
       supabase.removeChannel(channel);
     };
   }, [supabase, tournamentId, debouncedRefresh]);
+
+  // Resume-from-background catchup. When the tab regains focus or the
+  // document becomes visible again, force a refresh in case we missed
+  // any postgres_changes events while the WebSocket was suspended.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") debouncedRefresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", debouncedRefresh);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", debouncedRefresh);
+    };
+  }, [debouncedRefresh]);
 
   return null;
 }
