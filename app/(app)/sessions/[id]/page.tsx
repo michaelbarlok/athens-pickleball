@@ -686,6 +686,10 @@ export default function PlayerSessionPage() {
             memberRanks,
             courtFinishMap.size > 0 ? courtFinishMap : undefined,
             courtReasonMap.size > 0 ? courtReasonMap : undefined,
+            // Pass status so the override is gated to round_complete
+            // / session_complete — during round_active we always
+            // compute live from scores. See lib/pool-standings.ts.
+            session?.status,
           );
           const schedule = generateMatchSchedule(
             courtPlayers.map((p) => p.player_id),

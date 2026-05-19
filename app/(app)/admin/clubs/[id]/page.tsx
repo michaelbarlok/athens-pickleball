@@ -6,6 +6,10 @@ import { PageHeader } from "@/components/page-header";
 import { AdminClubManageClient } from "./admin-club-manage-client";
 import { ClubEventsManager } from "./club-events-manager";
 import { SendClubAnnouncement } from "./send-club-announcement";
+import {
+  ClubGroupRequestsPanel,
+  type PendingGroupRequestRow,
+} from "./club-group-requests-panel";
 import type { ClubEvent } from "@/types/database";
 
 /**
@@ -81,6 +85,37 @@ export default async function AdminClubPage({
     .eq("club_id", id)
     .order("event_at", { ascending: false });
 
+  // Pending group-attach requests. Resolved ones (approved/rejected)
+  // aren't surfaced here — the audit trail lives in the table itself.
+  const { data: pendingRequests } = await supabase
+    .from("club_group_requests")
+    .select(
+      "id, message, created_at, group:shootout_groups(id, name, slug), requester:profiles!requested_by(id, display_name)"
+    )
+    .eq("club_id", id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  const pendingRows: PendingGroupRequestRow[] = (pendingRequests ?? []).map(
+    (r: unknown) => {
+      const row = r as {
+        id: string;
+        message: string | null;
+        created_at: string;
+        group: { id: string; name: string; slug: string } | { id: string; name: string; slug: string }[] | null;
+        requester: { id: string; display_name: string } | { id: string; display_name: string }[] | null;
+      };
+      const group = Array.isArray(row.group) ? row.group[0] ?? null : row.group;
+      const requester = Array.isArray(row.requester) ? row.requester[0] ?? null : row.requester;
+      return {
+        id: row.id,
+        message: row.message,
+        created_at: row.created_at,
+        group,
+        requester,
+      };
+    }
+  );
+
   // Groups currently attached + a roster of unattached groups for the
   // assign-existing-group picker.
   const [attachedRes, unattachedRes] = await Promise.all([
@@ -123,6 +158,8 @@ export default async function AdminClubPage({
         unattachedGroups={unattachedRes.data ?? []}
         canDeleteClub={isSiteAdmin}
       />
+
+      <ClubGroupRequestsPanel clubId={id} pending={pendingRows} />
 
       <ClubEventsManager clubId={id} events={(events ?? []) as ClubEvent[]} />
 

@@ -71,6 +71,15 @@ export function computePoolStandings(
    * but bites when three players finish a court tied — the next-court
    * arrows (driven by server's pool_finish) end up next to the wrong
    * row in the table.
+   *
+   * IMPORTANT: only honored when `sessionStatus` is round_complete or
+   * session_complete (see below). For an active round we always
+   * compute live from `scores` — otherwise a stale pool_finish from
+   * a prior partial-data recompute can dictate row order even after
+   * the W/L/diff columns have moved on. (Athens 5/18 bug: pool_finish
+   * was stamped after just one game on a court, then later scores
+   * arrived; the row order stayed locked to the stamped finish while
+   * the visible columns showed fresh totals.)
    */
   poolFinishMap?: Map<string, number>,
   /**
@@ -81,6 +90,14 @@ export function computePoolStandings(
    * walk-adjacent computation — the client just renders.
    */
   reasonMap?: Map<string, string | null>,
+  /**
+   * Session lifecycle status. Drives whether the `poolFinishMap`
+   * override is honored: only `round_complete` and `session_complete`
+   * are authoritative. During `round_active` (or anything else) we
+   * always compute live so the displayed W/L/diff and the row order
+   * agree.
+   */
+  sessionStatus?: string,
 ): PoolStanding[] {
   type Internal = PoolStanding & { h2h: Map<string, H2H> };
   const standings = new Map<string, Internal>();
@@ -138,21 +155,35 @@ export function computePoolStandings(
     }
   }
 
+  // Honor the server's pool_finish only after the round / session is
+  // officially complete. During an active round any stamped value is
+  // suspect (could be from a partial-data recompute) and we'd rather
+  // recompute live from `scores` than show a row order that disagrees
+  // with the displayed W/L/diff.
+  const honorPoolFinish =
+    poolFinishMap != null &&
+    (sessionStatus === "round_complete" || sessionStatus === "session_complete");
+
   const sorted = Array.from(standings.values()).sort((a, b) => {
-    // Authoritative override: when the server has stamped pool_finish
-    // we trust it. Skipping the live tiebreaker chain here is what
-    // keeps client display consistent with the server's "Next Court"
-    // arrows after round_complete.
-    if (poolFinishMap) {
-      const aF = poolFinishMap.get(a.playerId);
-      const bF = poolFinishMap.get(b.playerId);
+    if (honorPoolFinish) {
+      const aF = poolFinishMap!.get(a.playerId);
+      const bF = poolFinishMap!.get(b.playerId);
       if (aF != null && bF != null && aF !== bF) return aF - bF;
       // If only one side has pool_finish (shouldn't happen in practice
       // — server stamps the whole court at once) fall through to the
       // live algorithm below for a deterministic order.
     }
 
+    // 1. More wins.
     if (a.wins !== b.wins) return b.wins - a.wins;
+    // 2. Fewer losses. With wins tied, a 2-1 record outranks 2-2 even
+    //    when 2-2 has a better point diff — matches the intuitive "your
+    //    W-L record matters before margin of victory" expectation. In a
+    //    fully-played round this is a no-op (every player on a court has
+    //    the same game count) but mid-round it stops the row order from
+    //    looking inverted while sit-outs are catching up.
+    if (a.losses !== b.losses) return a.losses - b.losses;
+    // 3. Better point differential.
     if (a.pointDiff !== b.pointDiff) return b.pointDiff - a.pointDiff;
 
     const aH = a.h2h.get(b.playerId) ?? { wins: 0, losses: 0, pointDiff: 0 };
@@ -182,13 +213,17 @@ export function computePoolStandings(
       if (r) s.tiebreakerReason = r;
     }
   } else {
-    // Walk adjacent pairs. When wins + total point-diff are equal, name
-    // the specific sub-step of the head-to-head tiebreaker that decided
-    // it so the higher-ranked player's badge tells the whole story.
+    // Walk adjacent pairs. When wins + losses + total point-diff are
+    // equal, name the specific sub-step of the head-to-head tiebreaker
+    // that decided it so the higher-ranked player's badge tells the
+    // whole story. We include losses here so the local walk matches
+    // the comparator above — a 2-1 ranked above a 2-2 is decided at
+    // the losses step, not a tiebreaker, so no badge.
     for (let i = 0; i < sorted.length - 1; i++) {
       const a = sorted[i];
       const b = sorted[i + 1];
       if (a.wins !== b.wins) continue;
+      if (a.losses !== b.losses) continue;
       if (a.pointDiff !== b.pointDiff) continue;
 
       const aH = a.h2h.get(b.playerId) ?? { wins: 0, losses: 0, pointDiff: 0 };

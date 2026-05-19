@@ -2,12 +2,20 @@
 
 import { FormError } from "@/components/form-error";
 import { US_STATES } from "@/lib/us-states";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 
+// Safe redirect targets for the post-create returnTo round-trip. We
+// allowlist rather than echoing the user's input so a stale or
+// malicious returnTo can't bounce them off the platform.
+const ALLOWED_RETURN_PATHS = new Set(["/groups/new"]);
+
 export function NewClubForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawReturnTo = searchParams.get("returnTo") ?? "";
+  const returnTo = ALLOWED_RETURN_PATHS.has(rawReturnTo) ? rawReturnTo : null;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [city, setCity] = useState("");
@@ -38,9 +46,15 @@ export function NewClubForm() {
         setSubmitting(false);
         return;
       }
-      // Land the new admin on the public page they just created —
-      // they can hit "Manage Club" from there for fine-grained edits.
-      router.push(`/clubs/${data.slug}`);
+      // If the user came in via /groups/new (returnTo round-trip),
+      // bounce them back with the new club pre-selected in the picker.
+      // Otherwise land them on the public club page — they can hit
+      // "Manage Club" from there for fine-grained edits.
+      if (returnTo) {
+        router.push(`${returnTo}?selectedClub=${encodeURIComponent(data.id)}`);
+      } else {
+        router.push(`/clubs/${data.slug}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create club.");
       setSubmitting(false);

@@ -33,22 +33,49 @@ function fmt12h(t: string) {
 
 const TIME_OPTIONS = buildTimeOptions();
 
+export interface ClubPickerOption {
+  id: string;
+  name: string;
+  visibility: "public" | "private";
+  /** True when the viewer is a club admin / site admin and the attach
+   *  bypasses the approval queue. The form copy changes from
+   *  "request approval" to "attach immediately" when this is set. */
+  canAttachDirectly: boolean;
+}
+
 export function CreateGroupForm({
   createAction,
   preselectedClub,
+  clubOptions,
+  defaultClubId,
 }: {
   createAction: (formData: FormData) => Promise<{ error: string } | void>;
   /** When present, the new group is attached to this club on create.
    *  Comes from `/groups/new?club=<id>` — the page validates the
    *  viewer is a club admin before passing it in. The hidden
    *  `club_id` form field below is what carries it to the server
-   *  action; the banner is just visual confirmation for the user. */
+   *  action; the banner is just visual confirmation for the user.
+   *  When this is set we hide the picker (the attach target is
+   *  locked). */
   preselectedClub: { id: string; name: string } | null;
+  /** Clubs the viewer can pick from (public clubs + private clubs
+   *  they're a member of). Empty when nobody has created a club yet. */
+  clubOptions: ClubPickerOption[];
+  /** Pre-selected option for the picker, used by the
+   *  /clubs/new?returnTo=/groups/new round-trip so a just-created
+   *  club is selected when the user lands back on this form. */
+  defaultClubId: string | null;
 }) {
   const [groupType, setGroupType] = useState("ladder_league");
   const [ladderType, setLadderType] = useState("court_promotion");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickedClubId, setPickedClubId] = useState<string>(
+    preselectedClub?.id ?? defaultClubId ?? ""
+  );
+  const [requestMessage, setRequestMessage] = useState("");
+  const pickedOption = clubOptions.find((c) => c.id === pickedClubId) ?? null;
+  const showApprovalCopy = !!pickedOption && !pickedOption.canAttachDirectly;
 
   // Play Time state
   const [enablePlayTime, setEnablePlayTime] = useState(false);
@@ -83,10 +110,12 @@ export function CreateGroupForm({
       }}
       className="card space-y-4"
     >
-      {preselectedClub && (
+      {preselectedClub ? (
         <>
-          {/* Hidden — the server action validates this against the
-              caller's club admin membership before honoring it. */}
+          {/* Locked attach: came in via /groups/new?club=<id> which
+              the page already verified against club-admin membership.
+              The picker is hidden in this mode because the target
+              shouldn't change. */}
           <input type="hidden" name="club_id" value={preselectedClub.id} />
           <div className="rounded-lg bg-brand-500/10 ring-1 ring-brand-500/30 px-3 py-2 text-sm text-brand-200">
             Creating this group inside{" "}
@@ -94,6 +123,74 @@ export function CreateGroupForm({
             Club admins will inherit group admin rights here automatically.
           </div>
         </>
+      ) : (
+        <div className="space-y-2 border-b border-surface-border pb-4">
+          <label
+            htmlFor="club_id"
+            className="block text-sm font-medium text-dark-200"
+          >
+            Attach to a club <span className="text-surface-muted font-normal">(optional)</span>
+          </label>
+          <select
+            id="club_id"
+            name="club_id"
+            value={pickedClubId}
+            onChange={(e) => setPickedClubId(e.target.value)}
+            className="input w-full"
+          >
+            <option value="">Standalone — no club</option>
+            {clubOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.visibility === "private" ? " (private)" : ""}
+                {c.canAttachDirectly ? " — you manage this club" : ""}
+              </option>
+            ))}
+          </select>
+          {showApprovalCopy && (
+            <>
+              <p className="text-xs text-yellow-300">
+                You're not an admin of <strong>{pickedOption?.name}</strong>. Your
+                group will be created standalone and a request will be sent to
+                that club's admins — once they approve, the group will appear
+                under the club.
+              </p>
+              <div>
+                <label
+                  htmlFor="club_request_message"
+                  className="block text-xs font-medium text-dark-200 mb-1"
+                >
+                  Note for the club admins (optional)
+                </label>
+                <textarea
+                  id="club_request_message"
+                  name="club_request_message"
+                  rows={2}
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  placeholder="Anything they should know about your group"
+                  maxLength={500}
+                  className="input w-full"
+                />
+              </div>
+            </>
+          )}
+          {pickedOption?.canAttachDirectly && (
+            <p className="text-xs text-teal-300">
+              You'll be attached to <strong>{pickedOption.name}</strong> immediately
+              — no approval needed.
+            </p>
+          )}
+          <p className="text-xs text-surface-muted">
+            Don't see your club?{" "}
+            <Link
+              href="/clubs/new?returnTo=/groups/new"
+              className="text-brand-300 hover:text-brand-200 underline-offset-2 hover:underline"
+            >
+              Create one →
+            </Link>
+          </p>
+        </div>
       )}
 
       {error && (

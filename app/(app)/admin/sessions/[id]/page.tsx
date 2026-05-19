@@ -573,8 +573,11 @@ export default function AdminSessionDetailPage() {
         memberRanks,
         poolFinishMap.size > 0 ? poolFinishMap : undefined,
         reasonMap.size > 0 ? reasonMap : undefined,
+        // Gate pool_finish override to round_complete /
+        // session_complete — see lib/pool-standings.ts.
+        session?.status,
       ),
-    [courtPlayers, courtScores, memberRanks, poolFinishMap, reasonMap]
+    [courtPlayers, courtScores, memberRanks, poolFinishMap, reasonMap, session?.status]
   );
 
   const playerNameMap = useMemo(() => {
