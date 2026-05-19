@@ -1063,9 +1063,9 @@ export function computeCrossPoolSeeding(
 
   // Same-pool order must be preserved (the pool's standings already
   // ran H2H to settle ties). When two teams in the same pool tie on
-  // (wins, pointDiff) here too, we defer to the original pool order
-  // — the team that finished higher in the pool stays higher in the
-  // merged list.
+  // (wins, losses, pointDiff) here too, we defer to the original
+  // pool order — the team that finished higher in the pool stays
+  // higher in the merged list.
   const poolOrderById = new Map<string, number>();
   for (let i = 0; i < teams.length; i++) {
     poolOrderById.set(teams[i].id, teams[i].poolFinish);
