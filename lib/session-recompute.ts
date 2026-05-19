@@ -95,14 +95,15 @@ export async function recomputeSessionStats(
   // Tiebreaker chain (mirrored in lib/pool-standings.ts so the live
   // preview never disagrees with the persisted finish):
   //   1. Wins desc
-  //   2. Total point diff desc
-  //   3. Head-to-head record (wins minus losses against the other tied
+  //   2. Losses asc  ←  2-1 outranks 2-2 even if 2-2 has better diff
+  //   3. Total point diff desc
+  //   4. Head-to-head record (wins minus losses against the other tied
   //      player specifically) desc
-  //   4. Head-to-head point margin (sum of my-team-score minus
+  //   5. Head-to-head point margin (sum of my-team-score minus
   //      opp-team-score across the matches they played on opposite
   //      teams) desc
-  //   5. Lower pre-session step asc
-  //   6. Higher pre-session pt% desc
+  //   6. Lower pre-session step asc
+  //   7. Higher pre-session pt% desc
   for (const [courtNum, courtPlayers] of courtMap) {
     const courtScores = gameResults.filter((g) => g.pool_number === courtNum);
 
@@ -151,6 +152,7 @@ export async function recomputeSessionStats(
 
     const ranked = Array.from(standings.entries()).sort(([idA, a], [idB, b]) => {
       if (a.wins !== b.wins) return b.wins - a.wins;
+      if (a.losses !== b.losses) return a.losses - b.losses;
       if (a.pointDiff !== b.pointDiff) return b.pointDiff - a.pointDiff;
 
       const aH = a.h2h.get(idB) ?? { wins: 0, losses: 0, pointDiff: 0 };
@@ -181,6 +183,10 @@ export async function recomputeSessionStats(
       const [idA, a] = ranked[i];
       const [idB, b] = ranked[i + 1];
       if (a.wins !== b.wins) continue;
+      // Match the comparator's losses-asc step. With losses differing
+      // there's no tie worth naming a tiebreaker for; one player simply
+      // had a better record.
+      if (a.losses !== b.losses) continue;
       if (a.pointDiff !== b.pointDiff) continue;
 
       const aH = a.h2h.get(idB) ?? { wins: 0, losses: 0, pointDiff: 0 };
