@@ -118,6 +118,29 @@ export async function POST(
   }
 
   if (entireTournament) {
+    // Refuse if the forfeiting team has already been seeded into the
+    // playoff bracket. Deleting only their pool matches would leave
+    // them as player1_id / player2_id on playoff rows, and the
+    // opponent would be confronted with a match that can't be played.
+    // The organizer should use match-only forfeit per playoff match
+    // (or cancel/regenerate the bracket) instead.
+    const { data: playoffMatches } = await service
+      .from("tournament_matches")
+      .select("id")
+      .eq("tournament_id", tournamentId)
+      .eq("division", match.division)
+      .eq("bracket", "playoff")
+      .or(`player1_id.eq.${forfeitAnchor},player2_id.eq.${forfeitAnchor}`);
+    if (playoffMatches && playoffMatches.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "This team is already seeded into the playoff bracket. Use match-only forfeit on each affected playoff match (or cancel and regenerate the bracket) before forfeiting the whole tournament for this team.",
+        },
+        { status: 409 }
+      );
+    }
+
     // Pool tournament forfeit: void every match in this pool involving
     // the forfeiting team, regardless of completion state. Standings
     // re-derive from whatever matches remain — i.e., the pool plays
