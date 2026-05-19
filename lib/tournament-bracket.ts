@@ -825,8 +825,34 @@ export function computePoolStandings(
   for (const m of matches) {
     if (m.status !== "completed" || !m.winner_id) continue;
 
-    const s1sum = m.score1.reduce((a, b) => a + b, 0);
-    const s2sum = m.score2.reduce((a, b) => a + b, 0);
+    // Defensive guard: score1 / score2 are best-of-N arrays. Every
+    // production write-path (bracket PUT, match-only forfeit) sets
+    // them as same-length non-empty arrays of non-negative numbers
+    // *before* flipping status to "completed". If a malformed row
+    // ever lands (direct DB edit, a future code path that skips
+    // validation, a one-off data fix gone wrong), we'd otherwise
+    // bump wins/losses from winner_id but leave pointDiff at 0 —
+    // silently corrupting the standings. Skip + warn instead so the
+    // problem surfaces in logs.
+    const a = Array.isArray(m.score1) ? m.score1 : null;
+    const b = Array.isArray(m.score2) ? m.score2 : null;
+    const lengthsValid = a != null && b != null && a.length === b.length && a.length > 0;
+    const allNumeric =
+      lengthsValid &&
+      a!.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0) &&
+      b!.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0);
+    if (!allNumeric) {
+      // Only warn once per match — the function gets called on every
+      // render in the live bracket UI.
+      console.warn(
+        `[computePoolStandings] skipping completed match with malformed scores`,
+        { winner_id: m.winner_id, score1: m.score1, score2: m.score2 }
+      );
+      continue;
+    }
+
+    const s1sum = a!.reduce((acc, n) => acc + n, 0);
+    const s2sum = b!.reduce((acc, n) => acc + n, 0);
 
     if (m.player1_id) {
       const s = stats.get(m.player1_id)!;
