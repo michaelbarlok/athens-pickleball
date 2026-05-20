@@ -48,6 +48,31 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Seeding gate. The lifecycle status can be walked created →
+  // checking_in → seeding → round_active with plain status flips, so
+  // an admin who clicks "Advance" without ever opening the Check-In
+  // page (where the Seed button assigns court_number) would land the
+  // session in round_active with zero court assignments. That session
+  // is then stuck: complete-round and recompute both reject "no
+  // participants with court assignments", and there's no forward
+  // path. Refuse to start until seeding has actually run — at least
+  // one checked-in player must hold a court_number.
+  const { count: seatedCount } = await auth.supabase
+    .from("session_participants")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", sessionId)
+    .eq("checked_in", true)
+    .not("court_number", "is", null);
+  if ((seatedCount ?? 0) === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "This session hasn't been seeded yet. Open Manage Check-In and tap Seed to assign courts before starting the round.",
+      },
+      { status: 400 }
+    );
+  }
+
   // Advance status — the status check guards against a double-start
   // (e.g. two admins tapping at once) silently re-broadcasting.
   if (session.status !== "round_active") {
