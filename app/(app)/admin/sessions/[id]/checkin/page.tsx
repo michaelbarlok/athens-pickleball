@@ -5,10 +5,9 @@ import { CenteredSpinner } from "@/components/centered-spinner";
 import { PlayerAvatar } from "@/components/player-avatar";
 import { useSupabase } from "@/components/providers/supabase-provider";
 import { cn } from "@/lib/utils";
-import { distributeCourts, seedSession1, seedSameDaySession } from "@/lib/shootout-engine";
-import type { RankedPlayer, SeedablePlayer } from "@/lib/shootout-engine";
+import { distributeCourts, seedParticipantsForSession } from "@/lib/shootout-engine";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface ParticipantRow {
   id: string;
@@ -370,58 +369,27 @@ export default function CheckInPage() {
         }
       }
 
-      // Detect a court-count change vs the previous session. If the
-      // admin added or dropped courts between sessions, the previous
-      // session's target_court_next values point at a layout that
-      // no longer exists — anchoring to them puts every newcomer on
-      // whatever court ends up empty (typically the new last court),
-      // and produces the mixed-step rosters the admin sees. Falling
-      // back to a fresh ranking-sheet seed in this case gives a
-      // clean step-ordered distribution across the new court layout.
-      //
-      // Detected by reading the max target_court_next across the
-      // anchored roster — if it's < the new num_courts, the
-      // previous session had fewer courts. Doesn't need to know
-      // about a shrink; the existing clamp inside seedSameDaySession
-      // (Math.max(1, Math.min(numCourts, target))) handles those
-      // correctly because the anchored players just bunch up on the
-      // top courts, which is the right behavior when courts go away.
-      const targets = seedableSource
-        .map((p) => p.target_court_next)
-        .filter((c): c is number => c != null);
-      const courtsGrew =
-        targets.length > 0 &&
-        Math.max(...targets) < (session.num_courts as number);
-
-      if (isSessionContinuation && !isDynamicRanking && !courtsGrew) {
-        // Court Promotion: players who finished the previous round are anchored to
-        // their target_court_next. Players added fresh (no target court — e.g. a
-        // waitlist member subbing in) are sorted by ranking and slotted into space.
-        const seedablePlayers: SeedablePlayer[] = seedableSource.map((p) => ({
+      // Seeding decision lives in lib/shootout-engine so the
+      // displayed seeded-order preview (computed in the memo below)
+      // and this persist path can never diverge. Court Promotion
+      // continuation → seedSameDaySession (anchored one-up-one-down,
+      // target-less newcomers slotted by ranking). Session 1 /
+      // Dynamic Ranking / court-count growth → seedSession1.
+      positions = seedParticipantsForSession({
+        players: seedableSource.map((p) => ({
           id: p.player_id,
           currentStep: p.current_step,
           winPct: p.win_pct,
           lastPlayedAt: p.last_played_at,
           totalSessions: p.total_sessions,
           targetCourtNext: p.target_court_next,
-          seedSource: p.target_court_next != null ? "previous_court" : "ranking_sheet",
-        }));
-        positions = seedSameDaySession(seedablePlayers, session.num_courts);
-      } else {
-        // Dynamic Ranking continuation, court-count change, or session 1:
-        // ignore any target_court_next and re-seed all players from
-        // scratch using their current step and win %. This reflects
-        // post-round step changes (Dynamic Ranking) or fits the new
-        // court layout cleanly (Court Promotion with courts added).
-        const rankedPlayers: RankedPlayer[] = checkedIn.map((p) => ({
-          id: p.player_id,
-          currentStep: p.current_step,
-          winPct: p.win_pct,
-          lastPlayedAt: p.last_played_at,
-          totalSessions: p.total_sessions,
-        }));
-        positions = seedSession1(rankedPlayers, session.num_courts);
-      }
+          seedSource:
+            p.target_court_next != null ? "previous_court" : "ranking_sheet",
+        })),
+        numCourts: session.num_courts,
+        isContinuation: !!isSessionContinuation,
+        isDynamicRanking,
+      }).positions;
 
       // Apply court numbers for all checked-in players
       const updates = positions
@@ -600,6 +568,81 @@ export default function CheckInPage() {
 
     setAddingMember(false);
   }
+
+  // Seeded-order preview. Before the admin taps "Seed Players" the
+  // table still shows everyone in the exact order they'd be seeded —
+  // ranking-sheet for a fresh session, target-court anchored for a
+  // same-day continuation — and the Court column shows the predicted
+  // court as a faded placeholder. Uses the same
+  // seedParticipantsForSession the Seed button persists with, so the
+  // preview can't disagree with the result. Recomputes when the
+  // roster or the court count changes. Once the session is actually
+  // seeded (court_number persisted) we order by the real assignment.
+  const { orderedParticipants, predictedCourtById } = useMemo(() => {
+    const fallback = {
+      orderedParticipants: participants,
+      predictedCourtById: new Map<string, number>(),
+    };
+    if (!session) return fallback;
+
+    const sortBySeededOrder = (rows: ParticipantRow[]) =>
+      [...rows].sort((a, b) => {
+        const ac = a.court_number ?? 999;
+        const bc = b.court_number ?? 999;
+        if (ac !== bc) return ac - bc;
+        if (a.current_step !== b.current_step) return a.current_step - b.current_step;
+        return b.win_pct - a.win_pct;
+      });
+
+    // Already seeded — order by the persisted court assignment.
+    if (participants.some((p) => p.court_number != null)) {
+      return {
+        orderedParticipants: sortBySeededOrder(participants),
+        predictedCourtById: new Map<string, number>(),
+      };
+    }
+
+    // Unseeded — compute the preview from the checked-in roster.
+    const checkedIn = participants.filter((p) => p.checked_in);
+    if (checkedIn.length < 4) return fallback;
+
+    try {
+      const { positions } = seedParticipantsForSession({
+        players: checkedIn.map((p) => ({
+          id: p.player_id,
+          currentStep: p.current_step,
+          winPct: p.win_pct,
+          lastPlayedAt: p.last_played_at,
+          totalSessions: p.total_sessions,
+          targetCourtNext: p.target_court_next,
+          seedSource:
+            p.target_court_next != null ? "previous_court" : "ranking_sheet",
+        })),
+        numCourts: session.num_courts,
+        isContinuation: !!(
+          session.is_same_day_continuation && session.prev_session_id
+        ),
+        isDynamicRanking: session.group?.ladder_type === "dynamic_ranking",
+      });
+      const orderIdx = new Map(positions.map((pos, i) => [pos.playerId, i]));
+      const courtById = new Map(
+        positions.map((pos) => [pos.playerId, pos.courtNumber])
+      );
+      const ordered = [...participants].sort((a, b) => {
+        const ai = orderIdx.get(a.player_id) ?? Infinity;
+        const bi = orderIdx.get(b.player_id) ?? Infinity;
+        if (ai !== bi) return ai - bi;
+        // Players not in the seed (unchecked no-shows) trail behind.
+        if (a.current_step !== b.current_step) return a.current_step - b.current_step;
+        return b.win_pct - a.win_pct;
+      });
+      return { orderedParticipants: ordered, predictedCourtById: courtById };
+    } catch {
+      // distributeCourts throws on an un-seedable count — leave the
+      // roster as loaded; the Court Distribution card surfaces why.
+      return fallback;
+    }
+  }, [participants, session]);
 
   if (loading) return <CenteredSpinner />;
   if (!session) return <div className="text-center py-12 text-surface-muted">Session not found.</div>;
@@ -992,7 +1035,7 @@ export default function CheckInPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border bg-surface-raised">
-            {participants.map((p) => (
+            {orderedParticipants.map((p) => (
               <tr key={p.id} className={!p.checked_in ? "opacity-50" : ""}>
                 <td className="px-2 sm:px-4 py-3">
                   <input
@@ -1046,7 +1089,12 @@ export default function CheckInPage() {
                       }
                     }}
                     className="w-12 rounded border border-surface-border bg-surface-overlay text-dark-100 text-sm py-1 px-1 text-center focus:ring-1 focus:ring-brand-600 focus:outline-none"
-                    placeholder="—"
+                    // Before seeding, the placeholder shows the court
+                    // this player is predicted to land on (faded —
+                    // it's not persisted until Seed Players is tapped).
+                    placeholder={
+                      predictedCourtById.get(p.player_id)?.toString() ?? "—"
+                    }
                   />
                 </td>
                 {session.is_same_day_continuation && (

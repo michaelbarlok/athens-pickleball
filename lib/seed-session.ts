@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  seedSession1,
-  seedSameDaySession,
-  type RankedPlayer,
+  seedParticipantsForSession,
   type SeedablePlayer,
 } from "@/lib/shootout-engine";
 import { recomputeSessionStats } from "@/lib/session-recompute";
@@ -129,56 +127,46 @@ export async function autoSeedSession(
     }
   }
 
-  const rankingFor = (playerId: string): RankedPlayer => {
-    const m = memberMap.get(playerId);
+  const seedablePlayers: SeedablePlayer[] = parts.map((p) => {
+    const m = memberMap.get(p.player_id);
+    const tc = targetByPlayer.get(p.player_id) ?? null;
     return {
-      id: playerId,
+      id: p.player_id,
       currentStep: m?.current_step ?? 1,
       winPct: m?.win_pct ?? 0,
       lastPlayedAt: m?.last_played_at ?? null,
       totalSessions: m?.total_sessions ?? 0,
+      targetCourtNext: tc,
+      seedSource: tc != null ? "previous_court" : "ranking_sheet",
     };
-  };
-
-  const targets = Array.from(targetByPlayer.values()).filter(
-    (c): c is number => c != null
-  );
-  // Court count grew vs the previous session — the old target_court_next
-  // values point at a smaller layout, so re-seed from ranking instead.
-  const courtsGrew = targets.length > 0 && Math.max(...targets) < numCourts;
-  const allHaveTargets = parts.every(
-    (p) => targetByPlayer.get(p.player_id) != null
-  );
+  });
 
   let positions: { playerId: string; courtNumber: number }[];
   let mode: "continuation" | "ranking";
 
   try {
-    if (isContinuation && !isDynamicRanking && allHaveTargets && !courtsGrew) {
-      const seedable: SeedablePlayer[] = parts.map((p) => {
-        const tc = targetByPlayer.get(p.player_id) ?? null;
-        return {
-          ...rankingFor(p.player_id),
-          targetCourtNext: tc,
-          seedSource: tc != null ? "previous_court" : "ranking_sheet",
-        };
-      });
-      positions = seedSameDaySession(seedable, numCourts);
-      mode = "continuation";
-    } else {
-      // A court-promotion continuation whose targets couldn't be
-      // rebuilt is the one case we refuse to silently rank-seed —
-      // that's the placement bug the Check-In page guards against.
-      if (isContinuation && !isDynamicRanking && !courtsGrew && !allHaveTargets) {
-        return {
-          ok: false,
-          error:
-            "Couldn't rebuild target courts from the previous session. Open Manage Check-In and tap Seed to place players manually.",
-        };
-      }
-      positions = seedSession1(parts.map((p) => rankingFor(p.player_id)), numCourts);
-      mode = "ranking";
+    // Same decision the Check-In page's Seed button uses.
+    const result = seedParticipantsForSession({
+      players: seedablePlayers,
+      numCourts,
+      isContinuation,
+      isDynamicRanking,
+    });
+
+    // The one case to refuse: a Court Promotion continuation that
+    // landed in seedSameDaySession with NO target anchors at all
+    // (even after the sync above). Letting it through would silently
+    // rank-seed — the Athens placement bug.
+    if (result.mode === "continuation" && result.noneHaveTargets) {
+      return {
+        ok: false,
+        error:
+          "Couldn't rebuild target courts from the previous session. Open Manage Check-In and tap Seed to place players manually.",
+      };
     }
+
+    positions = result.positions;
+    mode = result.mode;
   } catch (e) {
     // distributeCourts throws on un-seedable counts (e.g. 6 players
     // across 1 court → 6 on a court, max is 5).
