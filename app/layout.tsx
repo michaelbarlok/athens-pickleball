@@ -48,12 +48,13 @@ export const metadata: Metadata = {
     title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
     description:
       "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets.",
-    // pkl-og.png is the dedicated 1200x630 share image. The previous
-    // TriStarPB-dark-Photoroom.png is 1280x365, which Twitter/iMessage
-    // letterbox awkwardly with the wrong aspect ratio.
+    // tristar-og.png is the dedicated 1200x630 share image — the new
+    // Tri-Star logo centered on black. A fresh filename (vs reusing
+    // pkl-og.png) also cache-busts iMessage / Open Graph scrapers,
+    // which cache the preview image hard by URL.
     images: [
       {
-        url: "/pkl-og.png",
+        url: "/tristar-og.png",
         width: 1200,
         height: 630,
         alt: "Tri-Star Pickleball — Pickleball ladder league, free play, and tournament platform",
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
     title: "Tri-Star Pickleball — Ladder leagues, free play & tournaments",
     description:
       "Run pickleball ladder leagues, free-play sessions, and Round Robin tournaments without spreadsheets.",
-    images: ["/pkl-og.png"],
+    images: ["/tristar-og.png"],
   },
 };
 

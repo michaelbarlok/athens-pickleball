@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 
 const APP_NAME = "Tri-Star Pickleball";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://tristarpickleball.com";
-const DEFAULT_OG_IMAGE = "/TriStarPB-dark-Photoroom.png";
+// The dedicated 1200x630 share card (new Tri-Star logo on black) —
+// matches the root layout's og:image. The old TriStarPB-dark-Photoroom
+// .png is a 1280x365 banner that link scrapers letterbox badly.
+const DEFAULT_OG_IMAGE = "/tristar-og.png";
 
 /**
  * Build a consistent `Metadata` object for any route.
