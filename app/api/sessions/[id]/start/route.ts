@@ -17,6 +17,7 @@ import { requireAuth, isGroupAdmin } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notify";
 import { buildSessionFirstChoiceMap } from "@/lib/session-first-choice";
+import { autoSeedSession } from "@/lib/seed-session";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -52,25 +53,35 @@ export async function POST(
   // checking_in → seeding → round_active with plain status flips, so
   // an admin who clicks "Advance" without ever opening the Check-In
   // page (where the Seed button assigns court_number) would land the
-  // session in round_active with zero court assignments. That session
-  // is then stuck: complete-round and recompute both reject "no
-  // participants with court assignments", and there's no forward
-  // path. Refuse to start until seeding has actually run — at least
-  // one checked-in player must hold a court_number.
+  // session in round_active with zero court assignments — a dead end
+  // (complete-round and recompute both reject "no participants with
+  // court assignments").
+  //
+  // Rather than just erroring, auto-seed: run the exact same seeding
+  // the Check-In page's Seed button would have (continuation
+  // one-up-one-down when applicable, ranking-sheet otherwise). The
+  // round then starts correctly with no human intervention. We only
+  // do this when ZERO checked-in players hold a court — a partially
+  // or fully seeded session is left exactly as the admin arranged it.
   const { count: seatedCount } = await auth.supabase
     .from("session_participants")
     .select("id", { count: "exact", head: true })
     .eq("session_id", sessionId)
     .eq("checked_in", true)
     .not("court_number", "is", null);
+  let autoSeeded = false;
   if ((seatedCount ?? 0) === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "This session hasn't been seeded yet. Open Manage Check-In and tap Seed to assign courts before starting the round.",
-      },
-      { status: 400 }
-    );
+    const seedClient = await createServiceClient();
+    const seedResult = await autoSeedSession(seedClient, sessionId);
+    if (!seedResult.ok) {
+      return NextResponse.json(
+        {
+          error: `Couldn't start the round — ${seedResult.error}`,
+        },
+        { status: 400 }
+      );
+    }
+    autoSeeded = true;
   }
 
   // Advance status — the status check guards against a double-start
@@ -191,5 +202,8 @@ export async function POST(
     ok: true,
     notified: (participants ?? []).length - failed,
     failed,
+    // True when this call had to seed the session itself because it
+    // reached the start step unseeded — surfaced so the UI can note it.
+    autoSeeded,
   });
 }
