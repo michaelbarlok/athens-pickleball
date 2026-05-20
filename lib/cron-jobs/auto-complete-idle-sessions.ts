@@ -4,6 +4,7 @@ import {
   lastScoreTimestamp,
   finalizeSession,
   sendSessionRecap,
+  sendScoreReminders,
 } from "@/lib/session-end-helpers";
 import { notify } from "@/lib/notify";
 
@@ -47,7 +48,7 @@ export async function runAutoCompleteIdleSessions(): Promise<{
   const { data: sessions } = await supabase
     .from("shootout_sessions")
     .select(
-      "id, status, group_id, current_round, updated_at, group:shootout_groups(id, name, ladder_type), sheet:signup_sheets(event_date, location, timezone)"
+      "id, status, group_id, current_round, updated_at, score_reminder_sent_at, group:shootout_groups(id, name, ladder_type), sheet:signup_sheets(event_date, location, timezone)"
     )
     .in("status", ["round_active", "round_complete"])
     .lte("updated_at", cutoff)
@@ -66,28 +67,47 @@ export async function runAutoCompleteIdleSessions(): Promise<{
       status: string;
       group_id: string;
       current_round: number | null;
+      score_reminder_sent_at: string | null;
       group: { id?: string; name?: string | null; ladder_type?: string | null } | null;
       sheet: { event_date?: string | null; timezone?: string | null; location?: string | null } | null;
     };
 
     const round = session.current_round || 1;
 
+    // Idle check — the latest score for the current round must be
+    // older than the threshold. Anchoring on game_results (not on
+    // session.updated_at) means we don't act while admins are still
+    // entering scores, only after the last one lands and nobody
+    // advances. `null` = no scores entered at all.
+    const lastScoreMs = await lastScoreTimestamp(supabase, session.id, round);
+    const idle =
+      lastScoreMs !== null && Date.now() - lastScoreMs >= IDLE_THRESHOLD_MS;
+
     // Coverage check — refuses to auto-finalize while play is still
     // in progress. Identical to the rule the manual End Session route
-    // enforces, so the cron can't bypass anything a human couldn't
-    // bypass on their own.
+    // enforces, so the cron can't bypass anything a human couldn't.
     const incomplete = await findIncompleteCourts(supabase, session.id, round);
     if (incomplete.length > 0) {
+      // The timer-based advance can't fire — scores are still missing.
+      // If the session has gone idle (30 min since the last score) and
+      // we haven't nagged yet, remind the players on each incomplete
+      // court + the group admins that the score(s) need entering. This
+      // is the "someone left without entering the last score" case.
+      // One reminder per session — score_reminder_sent_at dedups
+      // against the 5-minute cron cadence.
+      if (idle && !session.score_reminder_sent_at) {
+        await sendScoreReminders(supabase, session, round).catch((err) =>
+          console.error(`auto-complete: score reminder failed for ${session.id}:`, err)
+        );
+        await supabase
+          .from("shootout_sessions")
+          .update({ score_reminder_sent_at: new Date().toISOString() })
+          .eq("id", session.id);
+      }
       skipped++;
       continue;
     }
 
-    // Idle check — the latest score for the current round must be
-    // older than the threshold. Anchoring on game_results (not on
-    // session.updated_at) means we don't fire while admins are
-    // actively entering scores, only after the last one lands and
-    // nobody advances.
-    const lastScoreMs = await lastScoreTimestamp(supabase, session.id, round);
     if (lastScoreMs === null) {
       // No scores at all yet — the coverage check probably let this
       // through because there are no checked-in courts. Defensive
@@ -95,7 +115,7 @@ export async function runAutoCompleteIdleSessions(): Promise<{
       skipped++;
       continue;
     }
-    if (Date.now() - lastScoreMs < IDLE_THRESHOLD_MS) {
+    if (!idle) {
       skipped++;
       continue;
     }

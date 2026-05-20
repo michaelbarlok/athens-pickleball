@@ -31,6 +31,7 @@ export type NotificationType =
   | "bumped_to_waitlist"
   | "withdraw_closing"
   | "session_starting"
+  | "session_score_reminder"
   | "pool_assigned"
   | "score_confirmed"
   | "step_changed"

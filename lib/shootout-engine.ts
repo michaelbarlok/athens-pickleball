@@ -302,6 +302,66 @@ function resolveOverflow(
   }
 }
 
+/**
+ * Decide which seeding algorithm a session needs and run it.
+ *
+ * Single source of truth for the "continuation one-up-one-down vs
+ * ranking-sheet sort" decision, shared by:
+ *   - the Check-In screen's seeded-order preview (display)
+ *   - the Check-In screen's "Seed Players" button (persist)
+ *   - the server-side auto-seed in /api/sessions/[id]/start
+ *
+ * `seedSameDaySession` (anchors players to their target_court_next,
+ * slots target-less newcomers in by ranking) is used when:
+ *   - the session is a same-day continuation
+ *   - the group is Court Promotion (not Dynamic Ranking — that
+ *     re-seeds from updated ranks every session)
+ *   - the court count didn't grow vs the previous session (a grown
+ *     layout makes the old targets point at a smaller grid)
+ * Otherwise it falls back to `seedSession1` (ranking-sheet sort).
+ *
+ * `noneHaveTargets` / `courtsGrew` are returned so a caller can apply
+ * its own policy — e.g. the server auto-seed refuses to seed a
+ * continuation whose targets are entirely missing (rank-seeding that
+ * silently was the Athens placement bug). A continuation where only
+ * SOME players lack a target is fine — seedSameDaySession handles
+ * the mix (anchored + ranking-slotted).
+ */
+export function seedParticipantsForSession(params: {
+  players: SeedablePlayer[];
+  numCourts: number;
+  isContinuation: boolean;
+  isDynamicRanking: boolean;
+}): {
+  positions: PlayerPosition[];
+  mode: "continuation" | "ranking";
+  noneHaveTargets: boolean;
+  courtsGrew: boolean;
+} {
+  const { players, numCourts, isContinuation, isDynamicRanking } = params;
+
+  const targets = players
+    .map((p) => p.targetCourtNext)
+    .filter((c): c is number => c != null);
+  const noneHaveTargets = players.length > 0 && targets.length === 0;
+  const courtsGrew = targets.length > 0 && Math.max(...targets) < numCourts;
+
+  if (isContinuation && !isDynamicRanking && !courtsGrew) {
+    return {
+      positions: seedSameDaySession(players, numCourts),
+      mode: "continuation",
+      noneHaveTargets,
+      courtsGrew,
+    };
+  }
+  return {
+    positions: seedSession1(players, numCourts),
+    mode: "ranking",
+    noneHaveTargets,
+    courtsGrew,
+  };
+}
+
 // ============================================================
 // Step Movement
 // ============================================================
