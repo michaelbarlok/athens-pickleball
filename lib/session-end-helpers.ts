@@ -137,6 +137,110 @@ export async function finalizeSession(
 }
 
 /**
+ * Nudge players + group admins about scores still missing on an idle
+ * session. Called by the auto-complete cron when a round_active
+ * session has gone 30+ minutes without a score written AND still has
+ * unscored games — the "someone left without entering the last score"
+ * case that strands the session In Progress.
+ *
+ * Each incomplete court's checked-in players get a direct reminder
+ * (they're the ones who can enter the score); the group admins get a
+ * one-line summary of every court still outstanding.
+ *
+ * Best-effort — per-recipient failures are swallowed; one bad send
+ * doesn't block the rest.
+ */
+export async function sendScoreReminders(
+  client: SupabaseClient,
+  session: SessionLike,
+  currentRound: number
+): Promise<void> {
+  const { data: parts } = await client
+    .from("session_participants")
+    .select("player_id, court_number")
+    .eq("session_id", session.id)
+    .eq("checked_in", true)
+    .not("court_number", "is", null);
+  if (!parts || parts.length === 0) return;
+
+  const courtPlayers = new Map<number, string[]>();
+  for (const p of parts as { player_id: string; court_number: number }[]) {
+    const arr = courtPlayers.get(p.court_number) ?? [];
+    arr.push(p.player_id);
+    courtPlayers.set(p.court_number, arr);
+  }
+
+  const { data: games } = await client
+    .from("game_results")
+    .select("pool_number")
+    .eq("session_id", session.id)
+    .eq("round_number", currentRound);
+  const scoredByCourt = new Map<number, number>();
+  for (const g of (games ?? []) as { pool_number: number }[]) {
+    scoredByCourt.set(g.pool_number, (scoredByCourt.get(g.pool_number) ?? 0) + 1);
+  }
+
+  // Incomplete courts — same expected-games rule the finalize gate
+  // (findIncompleteCourts) uses: 5 games for a 5-player court, 3 for 4.
+  const incomplete: { court: number; missing: number; playerIds: string[] }[] = [];
+  for (const [court, playerIds] of courtPlayers) {
+    const expected = playerIds.length === 5 ? 5 : 3;
+    const got = scoredByCourt.get(court) ?? 0;
+    if (got < expected) {
+      incomplete.push({ court, missing: expected - got, playerIds });
+    }
+  }
+  if (incomplete.length === 0) return;
+
+  const groupName = session.group?.name ?? "Session";
+  const link = `/sessions/${session.id}`;
+  const sends: Promise<void>[] = [];
+
+  // Per-court: remind the players who can actually enter the score.
+  for (const c of incomplete) {
+    const gameWord = c.missing === 1 ? "its final game" : `${c.missing} games`;
+    for (const playerId of c.playerIds) {
+      sends.push(
+        notify({
+          profileId: playerId,
+          type: "session_score_reminder",
+          title: `Score needed — ${groupName}`,
+          body: `Court ${c.court} still needs ${gameWord} entered. The session can't wrap up until the score is in.`,
+          link,
+          groupId: session.group_id,
+        }).catch(() => {})
+      );
+    }
+  }
+
+  // Group admins: one summary of every outstanding court.
+  const { data: admins } = await client
+    .from("group_memberships")
+    .select("player_id")
+    .eq("group_id", session.group_id)
+    .eq("group_role", "admin");
+  if (admins && admins.length > 0) {
+    const summary = incomplete
+      .map((c) => `Court ${c.court} (${c.missing} game${c.missing === 1 ? "" : "s"})`)
+      .join(", ");
+    for (const a of admins as { player_id: string }[]) {
+      sends.push(
+        notify({
+          profileId: a.player_id,
+          type: "session_score_reminder",
+          title: `${groupName} — session waiting on scores`,
+          body: `No score entered in 30 minutes and the session can't finish. Still missing: ${summary}.`,
+          link,
+          groupId: session.group_id,
+        }).catch(() => {})
+      );
+    }
+  }
+
+  await Promise.allSettled(sends);
+}
+
+/**
  * Per-participant "your session recap" push + email. Pulls W-L from
  * game_results and step + finish from session_participants, then
  * fans out via notify(). Caller is responsible for invoking this

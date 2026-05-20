@@ -28,6 +28,7 @@ const REQUIRED_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "withdraw_closing",
   "signup_reminder",
   "session_starting",
+  "session_score_reminder",
   "pool_assigned",
 ]);
 
