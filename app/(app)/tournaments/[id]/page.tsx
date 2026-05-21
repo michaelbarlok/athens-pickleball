@@ -960,6 +960,32 @@ export default async function TournamentDetailPage({
         />
       )}
 
+      {/* Anonymous visitors can view the tournament but must make an
+          account before registering. `profile` is non-null for every
+          signed-in user, so this branch never shows for them — their
+          registration button above is untouched. */}
+      {!profile && tournament.status === "registration_open" && (
+        <div className="card text-center space-y-3">
+          <p className="text-sm text-dark-200">
+            Registration is open for this tournament.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <Link
+              href={`/register?next=${encodeURIComponent(`/tournaments/${id}`)}`}
+              className="btn-primary"
+            >
+              Create an account to register
+            </Link>
+            <Link
+              href={`/login?next=${encodeURIComponent(`/tournaments/${id}`)}`}
+              className="btn-secondary"
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Organizer Controls */}
       {canManage && tournament.status !== "cancelled" && (
         <>

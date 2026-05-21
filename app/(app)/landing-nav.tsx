@@ -38,6 +38,12 @@ export function LandingNav() {
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-8">
+            <Link href="/tournaments" className="text-sm font-medium text-dark-200 hover:text-dark-100 transition-colors">
+              Tournaments
+            </Link>
+            <Link href="/clubs" className="text-sm font-medium text-dark-200 hover:text-dark-100 transition-colors">
+              Clubs
+            </Link>
             <Link href="/#features" className="text-sm font-medium text-dark-200 hover:text-dark-100 transition-colors">
               Features
             </Link>
@@ -97,6 +103,20 @@ export function LandingNav() {
           {/* Panel */}
           <div className="absolute top-16 left-0 right-0 bg-dark-950 border-b border-surface-border md:hidden">
             <div className="px-4 py-4 space-y-1">
+              <Link
+                href="/tournaments"
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-dark-200 hover:text-dark-100 hover:bg-surface-raised transition-colors"
+              >
+                Tournaments
+              </Link>
+              <Link
+                href="/clubs"
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-dark-200 hover:text-dark-100 hover:bg-surface-raised transition-colors"
+              >
+                Clubs
+              </Link>
               <Link
                 href="/#features"
                 onClick={() => setMenuOpen(false)}

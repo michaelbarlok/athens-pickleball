@@ -218,6 +218,27 @@ export default async function HomePage() {
             </Link>
           </div>
 
+          {/* Browse-without-an-account links — tournaments and clubs
+              are publicly viewable, so a prospective player can look
+              before signing up. */}
+          <p className="text-sm text-dark-300 pt-1">
+            Just looking?{" "}
+            <Link
+              href="/tournaments"
+              className="font-medium text-brand-vivid hover:underline underline-offset-2"
+            >
+              Browse tournaments
+            </Link>{" "}
+            or{" "}
+            <Link
+              href="/clubs"
+              className="font-medium text-brand-vivid hover:underline underline-offset-2"
+            >
+              browse clubs
+            </Link>{" "}
+            — no account needed.
+          </p>
+
           {/* Live community counters — pulled from the DB once an
               hour and cached. Three numbers grounds the page in
               "this is a real product, real users." Falls back to em-
