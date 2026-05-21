@@ -79,9 +79,14 @@ export default async function TournamentsPage({
       <PageHeader
         title="Tournaments"
         actions={
-          <Link href="/tournaments/new" className="btn-primary">
-            Create Tournament
-          </Link>
+          // Anonymous visitors can browse tournaments but not create
+          // one — the create form is auth-gated. Mirrors the clubs
+          // list, which only shows "+ New Club" to signed-in users.
+          user ? (
+            <Link href="/tournaments/new" className="btn-primary">
+              Create Tournament
+            </Link>
+          ) : null
         }
       />
 

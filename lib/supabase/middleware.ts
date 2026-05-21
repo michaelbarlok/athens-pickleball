@@ -33,7 +33,40 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isAuthPage = path.startsWith("/login") || path.startsWith("/register");
   const isApiRoute = path.startsWith("/api");
-  const isPublicPage = path === "/" || path === "/contact" || path === "/groups" || path.startsWith("/groups/") || path.startsWith("/ratings") || path.startsWith("/ladder") || path === "/confirmed" || path.startsWith("/auth/confirm") || path.startsWith("/auth/callback") || path === "/reset-password" || path === "/forgot-password" || path === "/privacy" || path === "/terms" || path === "/how-it-works" || path.startsWith("/invite/partner/");
+
+  // Tournaments + clubs are publicly browsable (view-only) so a
+  // prospective player can see what's running before making an
+  // account. The create / edit forms stay auth-gated — anon can look
+  // but must register before they organize or sign up for anything.
+  // Detail / bracket / live routes are all spectator-safe; only
+  // `/tournaments/new` and `*/edit` are held back.
+  const isPublicTournament =
+    path === "/tournaments" ||
+    (path.startsWith("/tournaments/") &&
+      path !== "/tournaments/new" &&
+      !path.endsWith("/edit"));
+  const isPublicClub =
+    path === "/clubs" ||
+    (path.startsWith("/clubs/") && path !== "/clubs/new");
+
+  const isPublicPage =
+    path === "/" ||
+    path === "/contact" ||
+    path === "/groups" ||
+    path.startsWith("/groups/") ||
+    path.startsWith("/ratings") ||
+    path.startsWith("/ladder") ||
+    path === "/confirmed" ||
+    path.startsWith("/auth/confirm") ||
+    path.startsWith("/auth/callback") ||
+    path === "/reset-password" ||
+    path === "/forgot-password" ||
+    path === "/privacy" ||
+    path === "/terms" ||
+    path === "/how-it-works" ||
+    path.startsWith("/invite/partner/") ||
+    isPublicTournament ||
+    isPublicClub;
 
   if (!user && !isAuthPage && !isApiRoute && !isPublicPage) {
     const url = request.nextUrl.clone();
