@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { usePlayShouldPulse } from "@/lib/use-has-active-play";
 
 interface NavEntry {
   name: string;
@@ -192,6 +193,11 @@ export function Sidebar({ profile, isGroupAdmin = false }: SidebarProps) {
   const { supabase } = useSupabase();
   const router = useRouter();
   const showAdminNav = profile.role === "admin" || isGroupAdmin;
+  // Drives the pulsing dot on the Play nav item. True when the
+  // viewer has live play (incl. a session that just went into
+  // Check-In) and isn't already on a play surface. Same hook the
+  // mobile bottom nav uses, so the two can't disagree.
+  const playShouldPulse = usePlayShouldPulse(profile.id);
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -261,17 +267,30 @@ export function Sidebar({ profile, isGroupAdmin = false }: SidebarProps) {
       {/* Scrollable nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
         <ul className="space-y-0.5 px-2">
-          {playerNav.map((item) => (
-            <li key={item.href}>
-              <NavItem
-                href={item.href}
-                label={item.name}
-                icon={item.icon}
-                active={item.match(pathname)}
-                collapsed={collapsed}
-              />
-            </li>
-          ))}
+          {playerNav.map((item) => {
+            const isActive = item.match(pathname);
+            // Mirror the mobile bottom nav: the Play item pulses
+            // whenever the viewer has something live to play and
+            // isn't already on that surface. Most importantly,
+            // covers the "your session just went into Check-In —
+            // tap Play to say I'm here" cue. Pulse is suppressed
+            // while active so it doesn't blink at you on your own
+            // play page.
+            const pulse =
+              item.name === "Play" && playShouldPulse && !isActive;
+            return (
+              <li key={item.href}>
+                <NavItem
+                  href={item.href}
+                  label={item.name}
+                  icon={item.icon}
+                  active={isActive}
+                  pulse={pulse}
+                  collapsed={collapsed}
+                />
+              </li>
+            );
+          })}
         </ul>
 
         {showAdminNav && (
@@ -362,12 +381,17 @@ function NavItem({
   label,
   icon,
   active,
+  pulse = false,
   collapsed,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
   active: boolean;
+  /** Subtle "something live" cue — currently used by the Play
+   *  entry when the viewer has a session in Check-In or an active
+   *  game in progress. Suppressed while `active`. */
+  pulse?: boolean;
   collapsed: boolean;
 }) {
   return (
@@ -375,14 +399,33 @@ function NavItem({
       href={href}
       title={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+        "relative flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
         collapsed && "justify-center w-10 mx-auto px-0",
         active
           ? "bg-brand-500/20 text-brand-vivid shadow-[inset_2px_0_0_var(--color-brand-vivid)]"
-          : "text-dark-200 hover:bg-surface-overlay hover:text-dark-100"
+          : pulse
+            ? "bg-brand-500/10 text-brand-vivid hover:bg-surface-overlay"
+            : "text-dark-200 hover:bg-surface-overlay hover:text-dark-100"
       )}
     >
-      {icon}
+      {/* Icon wrapper holds the pulse dot indicator. Positioned on
+          the icon so it's visible in both collapsed and expanded
+          modes — animate-ping spreads from the same anchor. */}
+      <span className="relative">
+        {icon}
+        {pulse && (
+          <>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-brand-vivid animate-ping"
+            />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-brand-vivid"
+            />
+          </>
+        )}
+      </span>
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );
