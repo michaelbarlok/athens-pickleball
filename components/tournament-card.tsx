@@ -28,6 +28,7 @@ export function TournamentCard({
   isSiteAdmin = false,
   distanceMi,
   weather,
+  showCreator = true,
 }: {
   tournament: TournamentWithCounts;
   /** Site admins (profile.role === "admin") see a "Notify Members"
@@ -44,6 +45,9 @@ export function TournamentCard({
    *  client wrapper) without dragging the async server-only weather
    *  module into the client bundle. */
   weather?: React.ReactNode;
+  /** Hide the "by Creator" attribution line for anonymous visitors —
+   *  the public tournament list shouldn't leak member names. */
+  showCreator?: boolean;
 }) {
   const t = tournament;
   const isOpen = t.status === "registration_open";
@@ -152,7 +156,7 @@ export function TournamentCard({
           <span>
             {t.registration_count} player{t.registration_count === 1 ? "" : "s"} registered
           </span>
-          <span>by {t.creator?.display_name ?? "Unknown"}</span>
+          {showCreator && <span>by {t.creator?.display_name ?? "Unknown"}</span>}
         </div>
       </Link>
 

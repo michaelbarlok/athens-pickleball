@@ -5,6 +5,7 @@ import { TournamentRealtimeSubscription } from "@/components/tournament-realtime
 import { DEFAULT_TZ, formatDateInZone, formatTimeInZone } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function PublicBracketPage({
   params,
@@ -12,6 +13,10 @@ export default async function PublicBracketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAnon = !user;
 
   const [tournament, registrations, matches] = await Promise.all([
     getTournament(id),
@@ -88,8 +93,16 @@ export default async function PublicBracketPage({
         </p>
       </div>
 
-      {/* Bracket */}
-      {matches.length === 0 ? (
+      {/* Bracket — brackets render player names, so anonymous
+          visitors are nudged to log in instead of seeing the roster. */}
+      {isAnon ? (
+        <div className="card card-static text-center py-10">
+          <p className="text-surface-muted">
+            <Link href="/login" className="text-brand-300 hover:underline">Log in</Link>{" "}
+            to view the bracket.
+          </p>
+        </div>
+      ) : matches.length === 0 ? (
         <div className="card card-static text-center py-10">
           <p className="text-surface-muted">The bracket hasn&apos;t been generated yet.</p>
           <p className="text-xs text-surface-muted mt-1">Check back closer to the tournament date.</p>
