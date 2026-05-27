@@ -15,6 +15,9 @@ interface Props {
   /** Server-rendered weather chip per active tournament. The client
    *  wrapper passes the matching node into each card it renders. */
   weatherByTournamentId?: Record<string, React.ReactNode>;
+  /** Anonymous visitors shouldn't see member names — when false the
+   *  "by Creator" attribution on each card is hidden. */
+  showCreator?: boolean;
 }
 
 /**
@@ -31,6 +34,7 @@ export function TournamentsList({
   past,
   isSiteAdmin,
   weatherByTournamentId,
+  showCreator = true,
 }: Props) {
   const [nearbyActive, setNearbyActive] = useState<
     TournamentWithCounts[] | null
@@ -116,6 +120,7 @@ export function TournamentsList({
                   inNearbyMode ? distanceById[t.id] : undefined
                 }
                 weather={weatherByTournamentId?.[t.id]}
+                showCreator={showCreator}
               />
             ))}
           </div>
@@ -136,6 +141,7 @@ export function TournamentsList({
                 key={t.id}
                 tournament={t}
                 isSiteAdmin={isSiteAdmin}
+                showCreator={showCreator}
               />
             ))}
           </div>

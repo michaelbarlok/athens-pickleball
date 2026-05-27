@@ -97,6 +97,7 @@ export default async function TournamentsPage({
         past={past}
         isSiteAdmin={isSiteAdmin}
         weatherByTournamentId={weatherByTournamentId}
+        showCreator={!!user}
       />
     </div>
   );

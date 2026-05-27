@@ -194,6 +194,10 @@ export default async function TournamentDetailPage({
     }
   }
   const canManage = isCreator || isAdmin || isCoOrganizer || viewerIsHostGroupAdmin;
+  // Anonymous visitors get a redacted view: organizer/registrant/
+  // winner names are hidden so member identities aren't leaked from
+  // a public URL. Counts (e.g. "12 players registered") still show.
+  const isAnon = !user;
 
   // Hidden tournaments are invisible to non-managers
   if ((tournament as any).is_hidden && !canManage) notFound();
@@ -673,7 +677,7 @@ export default async function TournamentDetailPage({
       {/* Winners podium — only renders on completed tournaments.
           Pinned above the grid so every division's champions are
           the first thing a visitor sees on a finished event. */}
-      {tournament.status === "completed" && (
+      {tournament.status === "completed" && !isAnon && (
         <TournamentWinnersCard
           tournamentId={id}
           divisions={(tournament.divisions ?? []) as string[]}
@@ -725,16 +729,18 @@ export default async function TournamentDetailPage({
         defaultOpen={tournament.status !== "in_progress"}
       >
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-          <DetailRow label={`Organizer${coOrganizers.length > 0 ? "s" : ""}`}>
-            <span className="text-sm text-dark-100">
-              {tournament.creator?.display_name ?? "Unknown"}
-              {coOrganizers.length > 0 && (
-                <span className="text-dark-200">
-                  {", "}{coOrganizers.map((o: any) => o.profile?.display_name ?? "Unknown").join(", ")}
-                </span>
-              )}
-            </span>
-          </DetailRow>
+          {!isAnon && (
+            <DetailRow label={`Organizer${coOrganizers.length > 0 ? "s" : ""}`}>
+              <span className="text-sm text-dark-100">
+                {tournament.creator?.display_name ?? "Unknown"}
+                {coOrganizers.length > 0 && (
+                  <span className="text-dark-200">
+                    {", "}{coOrganizers.map((o: any) => o.profile?.display_name ?? "Unknown").join(", ")}
+                  </span>
+                )}
+              </span>
+            </DetailRow>
+          )}
           <DetailRow label="Date">
             <span className="text-sm text-dark-100">
               {formatDateInZone(tournament.start_date, tournament.timezone ?? DEFAULT_TZ)}
@@ -1147,8 +1153,20 @@ export default async function TournamentDetailPage({
           Live Divisions cards, so collapse it by default (organizer
           can expand to look up a specific team or handle payments).
           When liveModeActive, this whole block lifts to the bottom
-          of the page (rendered after divisionBracketsBlock). */}
-      {!liveModeActive && (() => {
+          of the page (rendered after divisionBracketsBlock).
+          Anonymous visitors only see a count — registrant names are
+          private to logged-in users. */}
+      {!liveModeActive && isAnon && (
+        <div>
+          <h2 className="text-lg font-semibold text-dark-100 mb-3">
+            Registered ({confirmedPlayerCount})
+          </h2>
+          <p className="text-sm text-surface-muted">
+            <Link href="/login" className="text-brand-300 hover:underline">Log in</Link> to see the player roster.
+          </p>
+        </div>
+      )}
+      {!liveModeActive && !isAnon && (() => {
         const shouldCollapse =
           tournament.status === "in_progress" || tournament.status === "completed";
         const paidCount = confirmedRegistrations.filter((r: any) => r.paid).length;
@@ -1352,8 +1370,8 @@ export default async function TournamentDetailPage({
         );
       })()}
 
-      {/* Waitlist */}
-      {waitlistRegistrations.length > 0 && (
+      {/* Waitlist — names hidden from anon visitors. */}
+      {waitlistRegistrations.length > 0 && !isAnon && (
         <div>
           <h2 className="text-lg font-semibold text-dark-100 mb-3">
             Waitlist ({waitlistRegistrations.length})
@@ -1480,8 +1498,20 @@ export default async function TournamentDetailPage({
           Live Divisions cards, so collapse it by default (organizer
           can expand to look up a specific team or handle payments).
           When liveModeActive, this whole block lifts to the bottom
-          of the page (rendered after divisionBracketsBlock). */}
-      {liveModeActive && (() => {
+          of the page (rendered after divisionBracketsBlock).
+          Anonymous visitors only see a count — registrant names are
+          private to logged-in users. */}
+      {liveModeActive && isAnon && (
+        <div>
+          <h2 className="text-lg font-semibold text-dark-100 mb-3">
+            Registered ({confirmedPlayerCount})
+          </h2>
+          <p className="text-sm text-surface-muted">
+            <Link href="/login" className="text-brand-300 hover:underline">Log in</Link> to see the player roster.
+          </p>
+        </div>
+      )}
+      {liveModeActive && !isAnon && (() => {
         const shouldCollapse =
           tournament.status === "in_progress" || tournament.status === "completed";
         const paidCount = confirmedRegistrations.filter((r: any) => r.paid).length;

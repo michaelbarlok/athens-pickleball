@@ -8,124 +8,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useHasActivePlay, isLivePlayPath } from "@/lib/use-has-active-play";
 
-/**
- * Returns true when the viewer has something live to play — an
- * active shootout they're checked into, an active free-play session,
- * or an in-progress tournament division they're registered in.
- * Used by the bottom nav to pulse the Play tab as a subtle cue.
- *
- * Re-checks on route change + window focus so the cue dismisses
- * without a hard refresh once the viewer taps Play. Cheap: three
- * small PostgREST queries gated by profile id.
- */
-function useHasActivePlay(profileId: string): boolean {
-  const { supabase } = useSupabase();
-  const pathname = usePathname();
-  const [hasActive, setHasActive] = useState(false);
-
-  const check = useCallback(async () => {
-    // Active shootout (ladder) session — two cases pulse the Play tab:
-    //   1. The viewer is checked_in AND the session is mid-flight
-    //      (any non-complete, non-created status). They're either
-    //      mid-round or waiting for the next round to start.
-    //   2. The viewer is on the roster (checked_in OR not) AND the
-    //      session has moved to status=checking_in. This catches the
-    //      "check-in is open, tap to say I'm here" case — without it
-    //      the player wouldn't see the pulse until after the admin
-    //      checked them in manually.
-    const { data: shootout } = await supabase
-      .from("session_participants")
-      .select("checked_in, session:shootout_sessions(id, status)")
-      .eq("player_id", profileId)
-      .limit(10);
-    if (
-      (shootout ?? []).some((p: any) => {
-        const s = p.session?.status;
-        if (!s) return false;
-        if (p.checked_in && !["session_complete", "created"].includes(s)) return true;
-        if (s === "checking_in") return true;
-        return false;
-      })
-    ) {
-      setHasActive(true);
-      return;
-    }
-
-    // Active free-play session the viewer is checked into.
-    const { data: freePlay } = await supabase
-      .from("free_play_session_players")
-      .select("session:free_play_sessions!inner(id, status)")
-      .eq("player_id", profileId)
-      .limit(10);
-    if (
-      (freePlay ?? []).some((r: any) => r.session?.status === "active")
-    ) {
-      setHasActive(true);
-      return;
-    }
-
-    // In-progress tournament with a division the viewer is in.
-    // Mirrors the Play-tab routing in /sessions/active/page.tsx.
-    // Multi-division registrations mean a player can have several
-    // rows per tournament — we have to look at ALL of them, not just
-    // the first, otherwise the pulse misses when row[0]'s division
-    // is inactive but row[1]'s is live.
-    const { data: regs } = await supabase
-      .from("tournament_registrations")
-      .select("tournament_id, division, status, tournament:tournaments(status)")
-      .or(`player_id.eq.${profileId},partner_id.eq.${profileId}`)
-      .neq("status", "withdrawn");
-    const candidates = (regs ?? []).filter(
-      (r: any) => r.tournament?.status === "in_progress"
-    ) as { tournament_id: string; division: string }[];
-    if (candidates.length > 0) {
-      const tournamentIds = Array.from(
-        new Set(candidates.map((c) => c.tournament_id))
-      );
-      const { data: activeRows } = await supabase
-        .from("tournament_active_divisions")
-        .select("tournament_id, division")
-        .in("tournament_id", tournamentIds);
-      const activeSet = new Set(
-        (activeRows ?? []).map((r: any) => `${r.tournament_id}:${r.division}`)
-      );
-      if (
-        candidates.some((c) => activeSet.has(`${c.tournament_id}:${c.division}`))
-      ) {
-        setHasActive(true);
-        return;
-      }
-    }
-
-    setHasActive(false);
-  }, [supabase, profileId]);
-
-  // Re-check on route change — covers both fresh page loads and
-  // client-side navigations (the layout server component is
-  // cached so it won't recompute on its own).
-  useEffect(() => {
-    check();
-  }, [check, pathname]);
-
-  // Re-check when the tab gains focus — catches the "phone was
-  // backgrounded, session started in the meantime" case without
-  // needing a realtime subscription here.
-  useEffect(() => {
-    function onFocus() {
-      check();
-    }
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") check();
-    });
-    return () => {
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [check]);
-
-  return hasActive;
-}
+// useHasActivePlay + isLivePlayPath live in lib/use-has-active-play
+// so the desktop sidebar can share the exact same "is there live
+// play to pulse the Play tab for?" logic.
 
 const mainTabs = [
   {
@@ -302,18 +189,12 @@ export function MobileNav({ profile, isGroupAdmin = false }: { profile: Profile;
   // but stop pulsing once they're viewing it — mirrors the Sign Up
   // button's pulse on the sheet detail page.
   const hasActivePlay = useHasActivePlay(profile.id);
-  const viewingActivePlay = useMemo(() => {
-    // Any "I'm on my live session / tournament" route. Covers the
-    // Play-tab redirect hub itself plus every destination it
-    // bounces to (ladder session, free-play manager, tournament
-    // live view).
-    if (!pathname) return false;
-    if (pathname.startsWith("/sessions/active")) return true;
-    if (/^\/sessions\/[^/]+(?:\/|$)/.test(pathname)) return true;
-    if (/^\/tournaments\/[^/]+\/live(?:\/|$)/.test(pathname)) return true;
-    if (/^\/groups\/[^/]+\/session(?:\/|$)/.test(pathname)) return true;
-    return false;
-  }, [pathname]);
+  // Suppress the pulse and the other-tab active state when the
+  // viewer is already on a live-play surface (Play-tab redirect hub
+  // plus every destination it bounces to — ladder session, free-
+  // play manager, tournament live view). Matcher lives in
+  // lib/use-has-active-play so the sidebar uses the exact same rule.
+  const viewingActivePlay = useMemo(() => isLivePlayPath(pathname), [pathname]);
   const playShouldPulse = hasActivePlay && !viewingActivePlay;
 
   // Focus trap when menu is open
