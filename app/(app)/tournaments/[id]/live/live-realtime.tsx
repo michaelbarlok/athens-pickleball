@@ -63,7 +63,11 @@ export function LiveTournamentRealtime({ tournamentId }: { tournamentId: string 
 
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState === "visible") debouncedRefresh();
+      // Skip the debounce here — visibility changes happen once (tab
+      // foreground / push notification tap), not in bursts. An
+      // immediate refresh closes the gap between the notification
+      // arriving and the player seeing the updated court assignment.
+      if (document.visibilityState === "visible") router.refresh();
     }
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", debouncedRefresh);

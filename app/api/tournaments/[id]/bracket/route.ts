@@ -10,7 +10,9 @@ import { validateScore } from "@/lib/score-validation";
 import {
   runAssignmentPass,
   sendAssignmentPassNotifications,
+  expandTeamsForNotify,
 } from "@/lib/tournament-queue";
+import { notifyMany } from "@/lib/notify";
 
 /**
  * POST: Generate bracket and advance tournament to in_progress.
@@ -85,6 +87,20 @@ export async function POST(
         { status: 409 }
       );
     }
+  }
+
+  // Require score_to_win_pool before generating — the per-game score
+  // validator in the score-entry route uses this value and skips
+  // validation entirely when it's absent, which can let garbage scores
+  // corrupt pool standings.
+  if (!tournament.score_to_win_pool) {
+    return NextResponse.json(
+      {
+        error:
+          "Score to win must be set on this tournament before generating the bracket. Update the tournament settings and try again.",
+      },
+      { status: 400 }
+    );
   }
 
   // Fetch confirmed registrations ordered by seed (if set) then registration order
@@ -214,7 +230,7 @@ export async function PUT(
   // Fetch tournament format
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("format, status, finals_best_of_3, win_by_2, score_to_win_pool, score_to_win_playoff, division_settings")
+    .select("title, format, status, finals_best_of_3, win_by_2, score_to_win_pool, score_to_win_playoff, division_settings")
     .eq("id", tournamentId)
     .single();
 
@@ -720,6 +736,44 @@ export async function PUT(
       }
 
       // Already handled above via laterMatches for same bracket
+    }
+
+    // Notify both the new winner and the previous winner that the
+    // bracket has been corrected. Both players may have already
+    // received a court assignment or "up next" ping based on the
+    // wrong result; this gives them a prompt to re-check the live
+    // view. Uses waitUntil so push delivery doesn't block the
+    // response.
+    const bracketCorrectionTargets = [winner_id, previousWinner].filter(
+      (id): id is string => !!id
+    );
+    if (bracketCorrectionTargets.length > 0) {
+      const tourTitle = (tournament as any).title as string | undefined;
+      const correctionBody = tourTitle
+        ? `${tourTitle}: a score correction was made — check the live bracket for your updated schedule.`
+        : "A score correction was made — check the live bracket for your updated schedule.";
+      waitUntil(
+        expandTeamsForNotify(tournamentId, bracketCorrectionTargets)
+          .then((recipients) => {
+            if (recipients.length === 0) return;
+            return notifyMany(recipients, {
+              type: "tournament_up_next",
+              title: "Bracket updated",
+              body: correctionBody,
+              link: `/tournaments/${tournamentId}/live`,
+              emailTemplate: "TournamentAlert",
+              emailData: {
+                tournamentTitle: tourTitle ?? "Your tournament",
+                alertTitle: "Bracket updated",
+                alertBody: correctionBody,
+                link: `/tournaments/${tournamentId}/live`,
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("tournament-bracket: winner-change notifications failed", err);
+          })
+      );
     }
   }
 
