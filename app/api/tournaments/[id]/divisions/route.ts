@@ -186,13 +186,28 @@ export async function PUT(
     // spots going to the largest "best remaining" sweep).
     const { data: tournamentForSettings } = await supabase
       .from("tournaments")
-      .select("division_settings, finals_best_of_3")
+      .select("division_settings, finals_best_of_3, score_to_win_playoff")
       .eq("id", tournamentId)
       .single();
     const overrideAdvancing = (tournamentForSettings as any)?.division_settings?.[division]?.playoff_advancing as
       | number
       | undefined;
     const finalsBestOf3 = (tournamentForSettings as any)?.finals_best_of_3 === true;
+
+    // Require score_to_win_playoff before generating the playoff
+    // bracket for the same reason we require score_to_win_pool at
+    // pool-play generation time.
+    const effectivePlayoffScore: number | undefined =
+      (tournamentForSettings as any)?.division_settings?.[division]?.score_to_win_playoff
+      ?? (tournamentForSettings as any)?.score_to_win_playoff;
+    if (!effectivePlayoffScore || effectivePlayoffScore <= 0) {
+      return NextResponse.json(
+        {
+          error: `Score to win (playoffs) must be set for ${getDivisionLabel(division)} before advancing to playoffs.`,
+        },
+        { status: 400 }
+      );
+    }
 
     // Defaults if the organizer didn't pick: 4 / 6 / 2-per-pool.
     const defaultAdvancing =
@@ -364,7 +379,7 @@ export async function POST(
   // Fetch tournament
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("format, status, divisions, type")
+    .select("format, status, divisions, type, score_to_win_pool, division_settings")
     .eq("id", tournamentId)
     .single();
 
@@ -491,6 +506,26 @@ export async function POST(
       .order("registered_at", { ascending: true });
 
     if (!registrations || registrations.length < 2) continue;
+
+    // Require a score_to_win_pool before generating pool play — the
+    // per-game score validator skips validation entirely when this is
+    // absent, which can let garbage scores corrupt standings. Check
+    // the incoming body first (takes precedence because it replaces
+    // division_settings on save), then fall back to whatever was
+    // previously saved, then the tournament-level default.
+    const savedDivSettings = (tournament as any).division_settings as Record<string, any> | null;
+    const effectivePoolScore: number | undefined =
+      divisionSettings[division]?.score_to_win_pool
+      ?? savedDivSettings?.[division]?.score_to_win_pool
+      ?? (tournament as any).score_to_win_pool;
+    if (!effectivePoolScore || effectivePoolScore <= 0) {
+      return NextResponse.json(
+        {
+          error: `Score to win (pool play) must be set for ${getDivisionLabel(division)} before generating brackets.`,
+        },
+        { status: 400 }
+      );
+    }
 
     const playerIds = registrations.map((r) => r.player_id);
     const hasSeeds = registrations.some((r) => r.seed != null);
